@@ -7,3 +7,4 @@ export * from './dependencies';
 export * from './validators';
 export * from './state-machine';
 export * from './launch-service';
+export * from './next-action';
