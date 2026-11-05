@@ -1,42 +1,69 @@
 import type { Config } from 'tailwindcss';
 import animate from 'tailwindcss-animate';
+import plugin from 'tailwindcss/plugin';
+import { buildCssVariables, colors, fontFamily, motion, typography } from './src/design/tokens';
 
-/** shadcn/ui-совместимая конфигурация: цвета задаются CSS-переменными в src/app/styles.css */
+const kebab = (s: string) => s.replace(/([a-z0-9])([A-Z])/g, '$1-$2').toLowerCase();
+const rgbVar = (name: string) => `rgb(var(--el-${name}) / <alpha-value>)`;
+
+/** Цвета Tailwind из семантических токенов: bg-surface, text-text-secondary, border-border … */
+const semanticColors = Object.fromEntries(
+  Object.entries(colors)
+    .filter(([, v]) => v.startsWith('#'))
+    .map(([k]) => [kebab(k), rgbVar(kebab(k))]),
+);
+
+const statusColor = (s: string) => ({
+  DEFAULT: rgbVar(`status-${s}-fg`),
+  fg: rgbVar(`status-${s}-fg`),
+  bg: rgbVar(`status-${s}-bg`),
+  border: rgbVar(`status-${s}-border`),
+  solid: rgbVar(`status-${s}-solid`),
+});
+
 export default {
-  darkMode: ['class'],
   content: ['./index.html', './src/**/*.{ts,tsx}'],
   theme: {
-    container: { center: true, padding: '1.5rem', screens: { '2xl': '1440px' } },
+    container: { center: true, padding: { DEFAULT: '1rem', md: '2rem' }, screens: { '2xl': '1440px' } },
     extend: {
-      fontFamily: {
-        sans: ['Inter', 'system-ui', 'sans-serif'],
-        mono: ['"JetBrains Mono"', 'ui-monospace', 'monospace'],
-      },
+      fontFamily: { sans: [...fontFamily.sans], mono: [...fontFamily.mono] },
+      fontSize: typography as unknown as NonNullable<Config['theme']>['fontSize'],
       colors: {
-        border: 'hsl(var(--border))',
-        input: 'hsl(var(--input))',
-        ring: 'hsl(var(--ring))',
-        background: 'hsl(var(--background))',
-        foreground: 'hsl(var(--foreground))',
-        primary: { DEFAULT: 'hsl(var(--primary))', foreground: 'hsl(var(--primary-foreground))' },
-        secondary: { DEFAULT: 'hsl(var(--secondary))', foreground: 'hsl(var(--secondary-foreground))' },
-        destructive: { DEFAULT: 'hsl(var(--destructive))', foreground: 'hsl(var(--destructive-foreground))' },
-        muted: { DEFAULT: 'hsl(var(--muted))', foreground: 'hsl(var(--muted-foreground))' },
-        accent: { DEFAULT: 'hsl(var(--accent))', foreground: 'hsl(var(--accent-foreground))' },
-        card: { DEFAULT: 'hsl(var(--card))', foreground: 'hsl(var(--card-foreground))' },
+        ...semanticColors,
+        // совместимость с примитивами shadcn/ui
+        foreground: rgbVar('text-primary'),
+        muted: { DEFAULT: rgbVar('surface-sunken'), foreground: rgbVar('text-muted') },
+        input: rgbVar('border-strong'),
         status: {
-          'not-started': 'hsl(var(--status-not-started))',
-          'in-progress': 'hsl(var(--status-in-progress))',
-          blocked: 'hsl(var(--status-blocked))',
-          completed: 'hsl(var(--status-completed))',
+          'not-started': statusColor('not-started'),
+          'in-progress': statusColor('in-progress'),
+          blocked: statusColor('blocked'),
+          completed: statusColor('completed'),
         },
       },
       borderRadius: {
-        lg: 'var(--radius)',
-        md: 'calc(var(--radius) - 2px)',
-        sm: 'calc(var(--radius) - 4px)',
+        xs: 'var(--el-radius-xs)',
+        sm: 'var(--el-radius-sm)',
+        DEFAULT: 'var(--el-radius-sm)',
+        md: 'var(--el-radius-md)',
+        lg: 'var(--el-radius-lg)',
+        xl: 'var(--el-radius-xl)',
+        pill: 'var(--el-radius-pill)',
       },
+      boxShadow: { xs: 'var(--el-shadow-xs)', md: 'var(--el-shadow-md)', lg: 'var(--el-shadow-lg)' },
+      backgroundImage: { brand: 'var(--el-brand-gradient)' },
+      transitionTimingFunction: { brand: motion.easing },
+      transitionDuration: { fast: motion.fast, base: motion.base, slow: motion.slow },
+      keyframes: {
+        shimmer: { '0%': { backgroundPosition: '-400px 0' }, '100%': { backgroundPosition: '400px 0' } },
+      },
+      animation: { shimmer: 'shimmer 1.4s linear infinite' },
     },
   },
-  plugins: [animate],
+  plugins: [
+    animate,
+    plugin(({ addBase }) => {
+      addBase({ ':root': buildCssVariables() });
+    }),
+  ],
 } satisfies Config;
