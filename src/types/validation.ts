@@ -4,12 +4,20 @@ import type { StageId } from './launch';
 /** Код правила, например `MH-003`. */
 export type RuleId = string;
 
+/**
+ * Измерение проверки (ТЗ п. 2.2.3): наличие данных, их качество и результат
+ * функциональной проверки оцениваются раздельно.
+ */
+export const CHECK_DIMENSIONS = ['PRESENCE', 'QUALITY', 'FUNCTION'] as const;
+export type CheckDimension = (typeof CHECK_DIMENSIONS)[number];
+
 /** Описание правила проверки (метаданные; логика — в src/engine/validators). */
 export interface ValidationRule {
   id: RuleId;
   stageId: StageId;
   title: string;
   description: string;
+  dimension: CheckDimension;
   severity: Severity;
   /** Блокирующее правило: при провале этап переходит в BLOCKED. */
   blocking: boolean;
