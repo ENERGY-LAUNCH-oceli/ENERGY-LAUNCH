@@ -4,11 +4,11 @@ import { Topbar } from '@/components/layout/Topbar';
 
 export function AppLayout() {
   return (
-    <div className="flex min-h-screen bg-background text-foreground">
+    <div className="flex min-h-screen bg-background">
       <Sidebar />
       <div className="flex min-w-0 flex-1 flex-col">
         <Topbar />
-        <main className="container flex-1 py-8">
+        <main className="mx-auto w-full max-w-[1360px] flex-1 px-4 py-8 md:px-8 md:py-10">
           <Outlet />
         </main>
       </div>
