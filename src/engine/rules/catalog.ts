@@ -9,6 +9,7 @@ const RULES = [
   {
     id: 'MH-001',
     stageId: 'METER_HISTORY',
+    dimension: 'PRESENCE',
     title: 'Наличие данных',
     description: 'Загружены счёт и интервальная история по каждой точке поставки.',
     severity: 'CRITICAL',
@@ -17,6 +18,7 @@ const RULES = [
   {
     id: 'MH-002',
     stageId: 'METER_HISTORY',
+    dimension: 'QUALITY',
     title: 'Шаг интервала',
     description: 'Шаг интервального учёта соответствует конфигурации.',
     severity: 'CRITICAL',
@@ -26,6 +28,7 @@ const RULES = [
   {
     id: 'MH-003',
     stageId: 'METER_HISTORY',
+    dimension: 'QUALITY',
     title: 'Полнота истории',
     description: 'Доля достоверных интервалов не ниже минимальной полноты.',
     severity: 'CRITICAL',
@@ -35,6 +38,7 @@ const RULES = [
   {
     id: 'MH-004',
     stageId: 'METER_HISTORY',
+    dimension: 'PRESENCE',
     title: 'Глубина истории',
     description: 'Период истории покрывает требуемый период проверки.',
     severity: 'CRITICAL',
@@ -44,6 +48,7 @@ const RULES = [
   {
     id: 'MH-005',
     stageId: 'METER_HISTORY',
+    dimension: 'QUALITY',
     title: 'Сверка со счётом',
     description: 'Расхождение объёма по счёту и по учёту в пределах допуска.',
     severity: 'CRITICAL',
@@ -53,6 +58,7 @@ const RULES = [
   {
     id: 'MH-006',
     stageId: 'METER_HISTORY',
+    dimension: 'QUALITY',
     title: 'Непрерывные пропуски',
     description: 'Число подряд пропущенных интервалов не превышает предела.',
     severity: 'WARNING',
@@ -63,6 +69,7 @@ const RULES = [
   {
     id: 'TM-001',
     stageId: 'REALTIME_TELEMETRY',
+    dimension: 'PRESENCE',
     title: 'Обязательные сигналы',
     description: 'По каждому обязательному сигналу поступают данные.',
     severity: 'CRITICAL',
@@ -72,6 +79,7 @@ const RULES = [
   {
     id: 'TM-002',
     stageId: 'REALTIME_TELEMETRY',
+    dimension: 'QUALITY',
     title: 'Частота данных',
     description: 'Медианный период поступления в пределах допуска от ожидаемого.',
     severity: 'CRITICAL',
@@ -81,6 +89,7 @@ const RULES = [
   {
     id: 'TM-003',
     stageId: 'REALTIME_TELEMETRY',
+    dimension: 'QUALITY',
     title: 'Полнота телеметрии',
     description: 'Доля полученных значений не ниже минимальной полноты.',
     severity: 'CRITICAL',
@@ -90,6 +99,7 @@ const RULES = [
   {
     id: 'TM-004',
     stageId: 'REALTIME_TELEMETRY',
+    dimension: 'QUALITY',
     title: 'Задержка доставки',
     description: 'Перцентиль задержки не превышает максимальную задержку.',
     severity: 'CRITICAL',
@@ -99,6 +109,7 @@ const RULES = [
   {
     id: 'TM-005',
     stageId: 'REALTIME_TELEMETRY',
+    dimension: 'PRESENCE',
     title: 'Период наблюдения',
     description: 'Поток наблюдался не меньше требуемого периода.',
     severity: 'CRITICAL',
@@ -109,6 +120,7 @@ const RULES = [
   {
     id: 'CT-001',
     stageId: 'ASSET_CONTROL',
+    dimension: 'FUNCTION',
     title: 'Покрытие команд',
     description: 'Испытаны все обязательные типы команд.',
     severity: 'CRITICAL',
@@ -118,6 +130,7 @@ const RULES = [
   {
     id: 'CT-002',
     stageId: 'ASSET_CONTROL',
+    dimension: 'FUNCTION',
     title: 'Время квитирования',
     description: 'Каждая команда квитирована не позже допустимого времени.',
     severity: 'CRITICAL',
@@ -127,6 +140,7 @@ const RULES = [
   {
     id: 'CT-003',
     stageId: 'ASSET_CONTROL',
+    dimension: 'FUNCTION',
     title: 'Время исполнения',
     description: 'Каждая команда исполнена не позже допустимого времени.',
     severity: 'CRITICAL',
@@ -136,6 +150,7 @@ const RULES = [
   {
     id: 'CT-004',
     stageId: 'ASSET_CONTROL',
+    dimension: 'FUNCTION',
     title: 'Интервалы между командами',
     description: 'Интервалы между последовательными командами в допустимом диапазоне.',
     severity: 'WARNING',
@@ -145,6 +160,7 @@ const RULES = [
   {
     id: 'CT-005',
     stageId: 'ASSET_CONTROL',
+    dimension: 'FUNCTION',
     title: 'Отработка уставки',
     description: 'Обратная связь по уставке в пределах допуска.',
     severity: 'CRITICAL',
@@ -154,6 +170,7 @@ const RULES = [
   {
     id: 'CT-006',
     stageId: 'ASSET_CONTROL',
+    dimension: 'FUNCTION',
     title: 'Отказы команд',
     description: 'Нет команд в статусе FAILED или TIMEOUT.',
     severity: 'CRITICAL',
@@ -163,6 +180,7 @@ const RULES = [
   {
     id: 'DB-001',
     stageId: 'FINAL_DASHBOARDS',
+    dimension: 'PRESENCE',
     title: 'Обязательные блоки',
     description: 'Панели содержат все обязательные типы блоков.',
     severity: 'CRITICAL',
@@ -172,6 +190,7 @@ const RULES = [
   {
     id: 'DB-002',
     stageId: 'FINAL_DASHBOARDS',
+    dimension: 'PRESENCE',
     title: 'Покрытие сигналов',
     description: 'Обязательные сигналы выведены на панели.',
     severity: 'CRITICAL',
@@ -181,6 +200,7 @@ const RULES = [
   {
     id: 'DB-003',
     stageId: 'FINAL_DASHBOARDS',
+    dimension: 'QUALITY',
     title: 'Целостность привязок',
     description: 'Все блоки ссылаются на существующие сигналы объекта.',
     severity: 'CRITICAL',
@@ -189,6 +209,7 @@ const RULES = [
   {
     id: 'DB-004',
     stageId: 'FINAL_DASHBOARDS',
+    dimension: 'FUNCTION',
     title: 'Публикация',
     description: 'Панели опубликованы.',
     severity: 'CRITICAL',
