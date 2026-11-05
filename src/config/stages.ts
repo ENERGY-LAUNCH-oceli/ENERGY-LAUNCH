@@ -4,23 +4,23 @@ import type { StageId, StageStatus } from '@/types';
 export const STAGE_META: Record<StageId, { title: string; titleRu: string; description: string }> = {
   METER_HISTORY: {
     title: 'Meter History',
-    titleRu: 'История учёта',
-    description: 'Сверка счетов с интервальной историей приборов коммерческого учёта.',
+    titleRu: 'История счётчиков',
+    description: 'Официальные данные расчётного учёта за 24 месяца: период, полнота, связь счётчиков с объектом.',
   },
   REALTIME_TELEMETRY: {
     title: 'Real-time Telemetry',
-    titleRu: 'Телеметрия',
-    description: 'Проверка частоты, полноты и задержки потока оперативных данных.',
+    titleRu: 'Данные в реальном времени',
+    description: 'Телеметрия установленных активов: сигналы, привязки, актуальность, полнота и качество потока.',
   },
   ASSET_CONTROL: {
     title: 'Asset Control',
-    titleRu: 'Управление активами',
-    description: 'Испытания команд управления: квитирование, исполнение, обратная связь.',
+    titleRu: 'Управление',
+    description: 'Контур управления: отправка setpoint, приём контроллером, отклик актива в ожидаемом интервале.',
   },
   FINAL_DASHBOARDS: {
     title: 'Final Dashboards',
-    titleRu: 'Итоговые панели',
-    description: 'Приёмка итоговых панелей мониторинга объекта.',
+    titleRu: 'Финальные дашборды',
+    description: 'Обязательные блоки, данные нужного объекта, права доступа, приёмка ответственным.',
   },
 };
 
