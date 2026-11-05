@@ -16,5 +16,5 @@
     "noUnusedLocals": true,
     "noUnusedParameters": true
   },
-  "include": ["vite.config.ts", "playwright.config.ts", "tailwind.config.ts", "tests/e2e"]
+  "include": ["vite.config.ts", "playwright.config.ts", "tailwind.config.ts", "src/design/tokens.ts", "tests/e2e"]
 }
