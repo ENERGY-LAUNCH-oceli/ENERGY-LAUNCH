@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { RouterProvider } from 'react-router-dom';
+import { TooltipProvider } from '@/components/ui/tooltip';
 import { DEFAULT_SCENARIO_ID } from '@/data/scenarios';
 import { useLaunchStore } from '@/store';
 import { router } from './router';
@@ -12,5 +13,9 @@ export function App() {
     if (!hasSession) loadScenario(DEFAULT_SCENARIO_ID);
   }, [hasSession, loadScenario]);
 
-  return <RouterProvider router={router} />;
+  return (
+    <TooltipProvider>
+      <RouterProvider router={router} />
+    </TooltipProvider>
+  );
 }
