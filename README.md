@@ -149,11 +149,17 @@ NOT_STARTED ──START──▶ IN_PROGRESS ──COMPLETE──▶ COMPLETED (
 - Измерения: `timestamp, signal_id, value, unit, quality?, received_at?`
 - Счёт: `metering_point_id, period_start, period_end, energy_kwh, tariff_zone?`
 
+## Дизайн-система
+
+Визуальный язык Oceli Energy (Manrope, `#052849`, `#018A98`, кнопки-«пилюли»). Токены — `src/design/tokens.ts`,
+витрина всех компонентов и состояний — `/design-system`, описание и анализ референса — `docs/design-system.md`.
+Расхождения с ТЗ и паспортом OE-04 — `docs/requirements-reconciliation.md`.
+
 ## Зависимости и дорожная карта
 
 В фазе 01 установлены только библиотеки, которые уже используются в коде: React, TypeScript, Vite,
 Tailwind CSS, shadcn/ui (Radix Slot, CVA, tailwind-merge, lucide-react), React Router, Zustand, Zod,
-Dexie, PapaParse, date-fns, Vitest, Playwright.
+Dexie, PapaParse, date-fns, Vitest, Playwright; с фазы 02 — Radix UI (Dialog, Select, Tabs, Tooltip, Checkbox, Radio), TanStack Table, шрифты Manrope и JetBrains Mono (@fontsource).
 
 Остальные библиотеки из стека добавляются в тех фазах, где они понадобятся:
 
@@ -161,7 +167,6 @@ Dexie, PapaParse, date-fns, Vitest, Playwright.
 | --- | --- |
 | React Hook Form (+ `@hookform/resolvers` для Zod) | формы паспорта объекта, подтверждений, блокеров |
 | Apache ECharts | графики телеметрии и истории учёта, итоговые панели |
-| TanStack Table | таблицы результатов проверок, журнала аудита, команд |
 | Framer Motion | анимации переходов этапов |
 
 Следующие шаги: сверить пороги с ТЗ и паспортом OE-04, сделать страницы этапов (импорт, отчёт
