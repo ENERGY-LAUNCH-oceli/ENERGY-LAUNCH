@@ -1,13 +1,36 @@
 import type { ReactNode } from 'react';
 
-export function PageHeader({ title, description, actions }: { title: string; description?: string; actions?: ReactNode }) {
+export interface PageHeaderProps {
+  /** Надзаголовок в стиле Oceli: 12px / 800 / 0.16em, бирюзовый. */
+  eyebrow?: string;
+  title: string;
+  description?: ReactNode;
+  actions?: ReactNode;
+}
+
+export function PageHeader({ eyebrow, title, description, actions }: PageHeaderProps) {
   return (
-    <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>
-        {description && <p className="mt-1 text-sm text-muted-foreground">{description}</p>}
+    <div className="mb-8 flex flex-wrap items-end justify-between gap-4">
+      <div className="flex max-w-3xl flex-col gap-2">
+        {eyebrow && <span className="text-label uppercase text-accent-strong">{eyebrow}</span>}
+        <h1 className="text-h1">{title}</h1>
+        {description && <p className="text-body-lg text-text-secondary">{description}</p>}
       </div>
-      {actions && <div className="flex gap-2">{actions}</div>}
+      {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
+    </div>
+  );
+}
+
+/** Заголовок секции внутри страницы. */
+export function SectionHeader({ eyebrow, title, description, actions }: PageHeaderProps) {
+  return (
+    <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
+      <div className="flex flex-col gap-1">
+        {eyebrow && <span className="text-label uppercase text-accent-strong">{eyebrow}</span>}
+        <h2 className="text-h2">{title}</h2>
+        {description && <p className="text-body-sm text-text-secondary">{description}</p>}
+      </div>
+      {actions}
     </div>
   );
 }
