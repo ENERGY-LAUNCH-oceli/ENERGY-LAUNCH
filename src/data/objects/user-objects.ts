@@ -153,6 +153,13 @@ export function loadStoredObjects(): StoredUserObject[] {
   }
 }
 
+/** Список целиком (загружен с сервера): localStorage – его копия для синхронного старта. */
+export function replaceStoredObjects(list: StoredUserObject[]): void {
+  saveStoredObjects(list.filter((o) => o && typeof o.id === 'string' && typeof o.name === 'string'));
+}
+
+export const findStoredObject = (id: string) => loadStoredObjects().find((o) => o.id === id);
+
 function saveStoredObjects(list: StoredUserObject[]): void {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(list));

@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { env } from '@/config/env';
 import { getRuleset } from '@/config/rules';
 import { DEFAULT_SCENARIO_ID, loadScenario } from '@/data/scenarios';
-import { OBJECT_CATALOG, addUserObject, attachStoredObjects, findObject, loadObjectInputs, removeUserObject, replaceObjectCatalog, seedWorkspace, type ObjectCatalogEntry, type UserObjectDraft } from '@/data/objects';
+import { OBJECT_CATALOG, addUserObject, attachStoredObjects, findObject, findStoredObject, loadObjectInputs, removeUserObject, replaceObjectCatalog, seedWorkspace, type ObjectCatalogEntry, type StoredUserObject, type UserObjectDraft } from '@/data/objects';
 import { startCase4Job, type Case4Job, type Case4Manifest, type Case4Progress } from '@/data/case4';
 import { notify } from './notifications-store';
 import {
@@ -18,7 +18,7 @@ import {
   type MachineResult,
   type TransitionError,
 } from '@/engine';
-import { auditRepository, saveLaunchInputs, sessionRepository } from '@/services';
+import { auditRepository, createWorkspaceWriter, detectServer, loadServerState, saveLaunchInputs, saveServerObject, serverApi, sessionRepository, useStorageStatus, type SavedWorkspace, type ServerState, type WorkspaceDoc } from '@/services';
 import { makeInvoiceRun } from '@/engine/invoice';
 import type { InvoiceReport, SitePassport, TelemetryReport } from '@/types';
 import { makeTelemetryRun } from '@/engine/telemetry';
@@ -34,12 +34,40 @@ export interface LaunchPersistence {
   saveInputs(inputs: LaunchInputs): Promise<void>;
   saveSession(session: LaunchSession): Promise<void>;
   appendAudit(events: readonly AuditEvent[]): Promise<void>;
+  /** Хранение на сервере (PostgreSQL): состояние объекта целиком, объекты пользователя, сброс. */
+  saveWorkspace?(objectId: string, doc: WorkspaceDoc): void;
+  saveUserObject?(o: StoredUserObject): Promise<void>;
+  deleteUserObject?(id: string): Promise<void>;
+  resetWorkspaces?(): Promise<void>;
+  /** Дописать ожидающие изменения. */
+  flush?(): Promise<void>;
 }
 
 export const dexiePersistence: LaunchPersistence = {
   saveInputs: saveLaunchInputs,
   saveSession: sessionRepository.save,
   appendAudit: auditRepository.append,
+};
+
+const workspaceWriter = createWorkspaceWriter();
+workspaceWriter.onError((message) => notify({ tone: 'error', title: 'Не удалось сохранить в PostgreSQL', description: `${message}. Изменения будут отправлены со следующим действием.` }));
+
+/** PostgreSQL через API сервера: каждое изменение объекта уходит документом (входы, сессия, журнал). */
+export const serverPersistence: LaunchPersistence = {
+  saveInputs: async () => {},
+  saveSession: async () => {},
+  appendAudit: async () => {},
+  saveWorkspace: (objectId, doc) => workspaceWriter.schedule(objectId, doc),
+  saveUserObject: saveServerObject,
+  deleteUserObject: async (id) => {
+    await workspaceWriter.cancel(id);
+    await serverApi.deleteObject(id);
+  },
+  resetWorkspaces: async () => {
+    await workspaceWriter.cancel();
+    await serverApi.resetWorkspaces();
+  },
+  flush: () => workspaceWriter.flushAll(),
 };
 
 export const noopPersistence: LaunchPersistence = {
@@ -75,6 +103,10 @@ interface LaunchState {
   removeObject(objectId: string): boolean;
   /** Детерминированно заполняет демо-портфель (воспроизводимые состояния шести объектов). */
   initPortfolio(force?: boolean): void;
+  /** Кнопка «Сбросить»: исходное состояние портфеля, сохранённые состояния объектов на сервере удаляются (журнал остаётся). */
+  resetPortfolio(): Promise<void>;
+  /** Сохранённое состояние восстановлено – с этого момента изменения записываются в хранилище. */
+  storageReady: boolean;
   /** Источник портфеля: набор кейса 4 (public/case4) или синтетический демо-портфель. */
   dataSource: 'CASE4' | 'SYNTHETIC' | null;
   dataManifest: Case4Manifest | null;
@@ -115,8 +147,14 @@ interface LaunchState {
 
 /** Фоновая загрузка набора кейса 4 (одна на сессию приложения). */
 let bootJob: Case4Job | null = null;
+/** Подключение к серверу хранилища и загрузка сохранённого (параллельно с набором кейса). */
+let storageJob: Promise<ServerState | null> | null = null;
 
 const reportPersistError = (e: unknown) => console.error('[launch-store] persist failed', e);
+const persistFailed = (what: string, e: unknown) => {
+  console.error(`[storage] ${what}`, e);
+  notify({ tone: 'error', title: 'Хранилище PostgreSQL', description: `${what}: ${e instanceof Error ? e.message : String(e)}` });
+};
 
 /** Единственный транспорт команд – локальный имитатор. */
 const controlTransport = createSimulatorTransport();
@@ -245,6 +283,52 @@ export const useLaunchStore = create<LaunchState>()((set, get) => {
     return commit(fn(session));
   };
 
+  /** Сервер хранилища запущен – состояние сохраняется в PostgreSQL; нет – в браузере, как раньше. */
+  const connectStorage = async (): Promise<ServerState | null> => {
+    if (env.storage === 'browser') return null;
+    const kind = await detectServer();
+    if (!kind) {
+      if (env.storage === 'server') notify({ tone: 'error', title: 'Сервер хранилища недоступен', description: 'Запустите npm run api. Пока изменения хранятся только до перезагрузки страницы.' });
+      return null;
+    }
+    try {
+      const state = await loadServerState();
+      set({ persistence: serverPersistence });
+      useStorageStatus.setState({ mode: 'server', kind, status: 'idle', error: null });
+      // Перезагрузка страницы, пока изменения ещё отправляются, – браузер переспросит
+      window.addEventListener('beforeunload', (e) => {
+        if (workspaceWriter.busy()) e.preventDefault();
+      });
+      return state;
+    } catch (e) {
+      persistFailed('сохранённое состояние не загружено', e);
+      return null;
+    }
+  };
+
+  /** Сохранённые состояния объектов поверх исходного портфеля (только для того же набора правил). */
+  const applySaved = (saved: readonly SavedWorkspace[]) => {
+    const s = get();
+    const workspaces = { ...s.workspaces };
+    let current: ObjectWorkspace | null = null;
+    for (const w of saved) {
+      const entry = findObject(w.objectId);
+      if (!entry || entry.source === 'SCENARIO') continue;
+      if (w.session?.objectId !== w.objectId || w.session.rulesetVersion !== s.ruleset.version) continue;
+      const ws: ObjectWorkspace = { scenarioId: w.scenarioId, inputs: w.inputs, session: w.session, auditLog: w.auditLog };
+      if (w.objectId === s.currentObjectId) current = ws;
+      else workspaces[w.objectId] = ws;
+    }
+    set({ workspaces, ...(current ?? {}) });
+  };
+
+  const startPortfolio = async () => {
+    const saved = storageJob ? await storageJob : null;
+    get().initPortfolio(true);
+    if (saved) applySaved(saved.workspaces);
+    set({ storageReady: saved !== null });
+  };
+
   return {
     actor: ROLE_TITLE.LAUNCH_ENGINEER,
     role: 'LAUNCH_ENGINEER',
@@ -293,10 +377,11 @@ export const useLaunchStore = create<LaunchState>()((set, get) => {
     dataPrepared: false,
 
     bootstrap: async (onProgress) => {
-      if (get().dataSource || bootJob) return;
+      if (get().dataSource || bootJob || storageJob) return;
+      storageJob = connectStorage();
       if (env.dataset === 'synthetic') {
         set({ dataSource: 'SYNTHETIC', dataPrepared: true });
-        get().initPortfolio(true);
+        await startPortfolio();
         return;
       }
       bootJob = startCase4Job(onProgress);
@@ -320,7 +405,7 @@ export const useLaunchStore = create<LaunchState>()((set, get) => {
         replaceObjectCatalog(loaded.entries);
         set({ dataSource: 'CASE4', dataManifest: loaded.manifest, dataErrors: loaded.errors });
       } else set({ dataSource: 'SYNTHETIC' });
-      get().initPortfolio(true);
+      await startPortfolio();
     },
     scenarioId: null,
     ruleset: getRuleset(env.rulesetVersion),
@@ -349,6 +434,9 @@ export const useLaunchStore = create<LaunchState>()((set, get) => {
 
     createObject: (draft) => {
       const entry = addUserObject(draft);
+      const stored = findStoredObject(entry.id);
+      const save = get().persistence.saveUserObject;
+      if (stored && save) void save(stored).catch((e: unknown) => persistFailed('объект не сохранён на сервере', e));
       get().selectObject(entry.id);
       notify({ tone: 'success', title: `Объект «${entry.name}» добавлен`, description: 'Загрузите историю счётчиков, чтобы начать этап 1' });
       return entry;
@@ -360,6 +448,8 @@ export const useLaunchStore = create<LaunchState>()((set, get) => {
       const name = findObject(objectId)!.name;
       if (s.currentObjectId === objectId) get().selectObject(OBJECT_CATALOG.find((o) => o.id !== objectId)!.id);
       if (!removeUserObject(objectId)) return false;
+      const del = get().persistence.deleteUserObject;
+      if (del) void del(objectId).catch((e: unknown) => persistFailed('объект не удалён на сервере', e));
       set((st) => {
         const { [objectId]: _drop, ...rest } = st.workspaces;
         return { workspaces: rest };
@@ -402,6 +492,21 @@ export const useLaunchStore = create<LaunchState>()((set, get) => {
       const first = OBJECT_CATALOG[0]!.id;
       const { [first]: current, ...rest } = workspaces;
       set({ workspaces: rest, currentObjectId: first, ...current!, lastError: null });
+    },
+
+    storageReady: false,
+
+    resetPortfolio: async () => {
+      const reset = get().persistence.resetWorkspaces;
+      if (reset) {
+        try {
+          await reset();
+        } catch (e) {
+          persistFailed('сохранённые состояния не сброшены', e);
+          return;
+        }
+      }
+      get().initPortfolio(true);
     },
 
     startStage: (stageId) => !denied('launch.manage') && withSession((s) => startStage(s, stageId, ctx())),
@@ -575,4 +680,17 @@ export const useLaunchStore = create<LaunchState>()((set, get) => {
 
     clearError: () => set({ lastError: null }),
   };
+});
+
+/**
+ * Запись в хранилище: каждое изменение текущего объекта (сессия, входы, журнал) уходит на сервер.
+ * Песочницы сценариев и прогон с noopPersistence не сохраняются.
+ */
+useLaunchStore.subscribe((s, prev) => {
+  const save = s.persistence.saveWorkspace;
+  const id = s.currentObjectId;
+  if (!save || !s.storageReady || !id || !s.session || !s.inputs) return;
+  if (s.session === prev.session && s.inputs === prev.inputs && s.auditLog === prev.auditLog && s.scenarioId === prev.scenarioId && id === prev.currentObjectId) return;
+  if (s.session.objectId !== id || s.inputs.object.id !== id || findObject(id)?.source === 'SCENARIO') return;
+  save(id, { scenarioId: s.scenarioId, inputs: s.inputs, session: s.session, auditLog: s.auditLog });
 });

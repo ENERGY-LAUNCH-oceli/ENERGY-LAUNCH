@@ -42,7 +42,7 @@ function Stat({ label, value, tone }: { label: string; value: number; tone?: Sta
 /** Launch Control Center – главный экран инженера запуска. */
 export function OverviewPage() {
   const rows = usePortfolioRows();
-  const initPortfolio = useLaunchStore((s) => s.initPortfolio);
+  const resetPortfolio = useLaunchStore((s) => s.resetPortfolio);
   const dataSource = useLaunchStore((s) => s.dataSource);
   const [params, setParams] = useSearchParams();
   const { search } = useLocation();
@@ -71,7 +71,7 @@ export function OverviewPage() {
           <h1 className="text-h1 text-balance">Запуск энергетических объектов</h1>
           <p className="text-body text-text-muted">Контроль данных, проверок и готовности объектов к эксплуатации</p>
         </div>
-        <Button variant="ghost" size="sm" onClick={() => initPortfolio(true)} title={dataSource === 'CASE4' ? 'Вернуть объекты набора в исходное состояние (проверки этапа 1 по файлам набора)' : 'Вернуть демо-портфель в исходное состояние'}>
+        <Button variant="ghost" size="sm" onClick={() => void resetPortfolio()} title={dataSource === 'CASE4' ? 'Вернуть объекты набора в исходное состояние (проверки этапа 1 по файлам набора)' : 'Вернуть демо-портфель в исходное состояние'}>
           <RotateCcw aria-hidden />
           {dataSource === 'CASE4' ? 'Сбросить состояние' : 'Сбросить демо'}
         </Button>

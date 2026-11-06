@@ -6,6 +6,8 @@ interface ImportMetaEnv {
   readonly VITE_DB_NAME?: string;
   readonly VITE_RULESET_VERSION?: string;
   readonly VITE_DEBUG_STATE_MACHINE?: string;
+  readonly VITE_STORAGE?: string;
+  readonly VITE_API_URL?: string;
 }
 
 interface ImportMeta {
