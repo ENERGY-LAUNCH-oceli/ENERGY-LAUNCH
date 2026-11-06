@@ -3,64 +3,11 @@ import type {
   ControlCommandType,
   ControlTest,
   Dashboard,
-  Measurement,
-  TelemetryDataset,
 } from '@/types';
-import { createRng } from '@/utils/random';
 import { DEMO_OBJECT_ID } from './demo-object';
 
 const iso = (ms: number) => new Date(ms).toISOString();
 
-
-export interface TelemetryOptions {
-  periodStart: string;
-  hours: number;
-  frequencySec: number;
-  signalIds: string[];
-  /** Базовая задержка доставки, с. */
-  latencySec?: number;
-  /** Доля «медленных» сообщений и их задержка. */
-  lateRatio?: number;
-  lateLatencySec?: number;
-  dropRatio?: number;
-  seed?: number;
-}
-
-export function generateTelemetryDataset(o: TelemetryOptions): TelemetryDataset {
-  const rng = createRng(o.seed ?? 7);
-  const start = Date.parse(o.periodStart);
-  const count = Math.round((o.hours * 3600) / o.frequencySec);
-  const units: Record<string, Measurement['unit']> = { 'sig-p': 'MW', 'sig-q': 'Mvar', 'sig-u': 'kV', 'sig-f': 'Hz', 'sig-brk': 'state' };
-  const base: Record<string, number> = { 'sig-p': 10, 'sig-q': 1.5, 'sig-u': 115, 'sig-f': 50, 'sig-brk': 1 };
-  const measurements: Measurement[] = [];
-  for (const signalId of o.signalIds) {
-    for (let i = 0; i < count; i++) {
-      if (rng() < (o.dropRatio ?? 0)) continue;
-      const ts = start + i * o.frequencySec * 1000;
-      const late = rng() < (o.lateRatio ?? 0);
-      const latency = late ? (o.lateLatencySec ?? 120) : (o.latencySec ?? 2) * (0.5 + rng());
-      const b = base[signalId] ?? 1;
-      measurements.push({
-        signalId,
-        timestamp: iso(ts),
-        value: signalId === 'sig-brk' ? 1 : Math.round(b * (0.98 + rng() * 0.04) * 1000) / 1000,
-        unit: units[signalId] ?? 'MW',
-        quality: 'GOOD',
-        receivedAt: iso(ts + latency * 1000),
-      });
-    }
-  }
-  return {
-    kind: 'TELEMETRY',
-    id: `ds-telemetry-${o.seed ?? 7}`,
-    objectId: DEMO_OBJECT_ID,
-    source: 'DEMO',
-    importedAt: iso(start + count * o.frequencySec * 1000),
-    periodStart: iso(start),
-    periodEnd: iso(start + count * o.frequencySec * 1000),
-    measurements,
-  };
-}
 
 export interface ControlOptions {
   startAt: string;
