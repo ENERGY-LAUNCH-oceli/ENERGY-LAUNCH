@@ -2,9 +2,12 @@ import type { LaunchInputs, RulesConfig, StageId, ValidationResult } from '@/typ
 import type { EngineContext } from '../context';
 import { validateControl } from './control.validator';
 import { validateDashboards } from './dashboards.validator';
-import type { ValidatorEnv } from './helpers';
+import { makeResult, type ValidatorEnv } from './helpers';
+import { getRulesForStage, type KnownRuleId } from '../rules/catalog';
 import { validateInvoice } from '../invoice/rules';
 import { validateTelemetryReport } from '../telemetry/rules';
+import { validateControlTesting } from '../control/rules';
+import { validateDashboardConfig } from '../dashboards/rules';
 
 export type StageValidator = (inputs: LaunchInputs, config: RulesConfig, env: ValidatorEnv) => ValidationResult[];
 
@@ -14,9 +17,28 @@ const allSignals = (inputs: LaunchInputs) => inputs.object.assets.flatMap((a) =>
 export const STAGE_VALIDATORS: Record<StageId, StageValidator> = {
   METER_HISTORY: (i, c, e) => validateInvoice(i.invoice, i.object, c.meterHistory, e),
   REALTIME_TELEMETRY: (i, c, e) => validateTelemetryReport(i.telemetry, i.passport, c.telemetry, e),
-  ASSET_CONTROL: (i, c, e) => validateControl(i.controlTests, c.control, e),
-  FINAL_DASHBOARDS: (i, c, e) => validateDashboards(i.dashboards, allSignals(i), c.dashboards, e),
+  // v1.3+: тесты через имитатор; v1.0–1.2: программа испытаний (сессии остаются на своей версии)
+  ASSET_CONTROL: (i, c, e) => (c.controlTesting ? validateControlTesting(i.passport, i.controlCommands ?? [], c.controlTesting, e) : validateControl(i.controlTests, c.control, e)),
+  // v1.4+: рабочая панель и приёмка; v1.0–1.3: список панелей
+  FINAL_DASHBOARDS: (i, c, e) => (c.dashboardConfig ? validateDashboardConfig(i, c.dashboardConfig, e) : validateDashboards(i.dashboards, allSignals(i), c.dashboards, e)),
 };
+
+const SOURCE_OF: Partial<Record<StageId, 'invoice' | 'telemetry'>> = { METER_HISTORY: 'invoice', REALTIME_TELEMETRY: 'telemetry' };
+
+/**
+ * Источник недоступен (ТЗ 2.2 п. 2): все проверки этапа – SKIPPED с причиной и временем последней успешной
+ * проверки. SKIPPED блокирует завершение – недоступность не может дать «завершён».
+ */
+function unavailableResults(stageId: StageId, inputs: LaunchInputs, config: RulesConfig, env: ValidatorEnv): ValidationResult[] | null {
+  const kind = SOURCE_OF[stageId];
+  const src = kind ? inputs.sources?.[kind] : undefined;
+  if (!src || src.available) return null;
+  const last = src.lastSuccessAt ? `последняя успешная проверка ${src.lastSuccessAt.slice(0, 16).replace('T', ' ')} UTC` : 'успешных проверок не было';
+  // Первая проверка (наличие данных) – FAILED: открывается одно препятствие «источник недоступен»; остальные – SKIPPED
+  return getRulesForStage(stageId, config.version).map((rule, i) => ({
+    ...makeResult(rule.id as KnownRuleId, i === 0 ? false : 'SKIPPED', { message: `Источник недоступен: ${src.error ?? kind}; ${last}. Это не успех`, details: { unavailable: true, source: kind, error: src.error ?? null, lastSuccessAt: src.lastSuccessAt ?? null } }, env),
+  }));
+}
 
 /** Запуск всех проверок этапа. Чистая функция. */
 export function runStageValidation(
@@ -25,7 +47,8 @@ export function runStageValidation(
   config: RulesConfig,
   ctx: EngineContext,
 ): ValidationResult[] {
-  return STAGE_VALIDATORS[stageId](inputs, config, { ctx, rulesetVersion: config.version });
+  const env = { ctx, rulesetVersion: config.version };
+  return unavailableResults(stageId, inputs, config, env) ?? STAGE_VALIDATORS[stageId](inputs, config, env);
 }
 
 /** Этап считается прошедшим проверки, если ни одно блокирующее правило не провалено и не пропущено. NOT_APPLICABLE не блокирует. */

@@ -13,7 +13,7 @@ export function validateControl(
 ): ValidationResult[] {
   const commands = tests.flatMap((t) => t.commands);
 
-  // CT-001 — покрытие обязательных типов (учитываются только исполненные команды)
+  // CT-001 – покрытие обязательных типов (учитываются только исполненные команды)
   const executedTypes = new Set(commands.filter((c) => c.status === 'EXECUTED').map((c) => c.type));
   const missingTypes = rules.requiredCommandTypes.filter((t) => !executedTypes.has(t));
   const coverage = makeResult(
@@ -37,7 +37,7 @@ export function validateControl(
     ];
   }
 
-  // CT-002 — квитирование
+  // CT-002 – квитирование
   const ackViolations = commands
     .map((c) => ({ commandId: c.id, ackSec: c.acknowledgedAt ? round(secondsBetween(c.issuedAt, c.acknowledgedAt)) : null }))
     .filter((c) => c.ackSec === null || c.ackSec > rules.maxAcknowledgeSec);
@@ -54,7 +54,7 @@ export function validateControl(
     env,
   );
 
-  // CT-003 — исполнение
+  // CT-003 – исполнение
   const execViolations = commands
     .map((c) => ({ commandId: c.id, execSec: c.executedAt ? round(secondsBetween(c.issuedAt, c.executedAt)) : null }))
     .filter((c) => c.execSec === null || c.execSec > rules.maxExecutionSec);
@@ -71,7 +71,7 @@ export function validateControl(
     env,
   );
 
-  // CT-004 — интервалы между командами одного актива
+  // CT-004 – интервалы между командами одного актива
   const intervalViolations: Array<{ assetId: string; commandId: string; intervalSec: number }> = [];
   for (const [assetId, list] of groupBy(commands, (c) => c.assetId)) {
     const sorted = [...list].sort((a, b) => toMs(a.issuedAt) - toMs(b.issuedAt));
@@ -94,7 +94,7 @@ export function validateControl(
     env,
   );
 
-  // CT-005 — отработка уставок
+  // CT-005 – отработка уставок
   const setpointViolations = commands
     .filter((c) => SETPOINT_TYPES.has(c.type) && c.targetValue !== undefined)
     .map((c) => {
@@ -117,7 +117,7 @@ export function validateControl(
     env,
   );
 
-  // CT-006 — отказы
+  // CT-006 – отказы
   const failed = commands.filter((c) => c.status === 'FAILED' || c.status === 'TIMEOUT');
   const failures = makeResult(
     'CT-006',
