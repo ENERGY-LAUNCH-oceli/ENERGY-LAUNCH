@@ -1,4 +1,4 @@
-import { Ban, CheckCheck, CirclePlay, FilePlus2, FlaskConical, OctagonAlert, ShieldCheck, Stamp, Upload, Unlock, Flag, CircleDot } from 'lucide-react';
+import { Ban, CheckCheck, CirclePlay, FilePlus2, FlaskConical, LayoutDashboard, Lock, OctagonAlert, Send, ShieldCheck, Stamp, Upload, Unlock, Flag, CircleDot } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Timeline, type TimelineTone } from '@/components/ui/timeline';
 import { AUDIT_ACTION_LABEL } from '@/config/labels';
@@ -21,6 +21,12 @@ const STYLE: Record<AuditAction, { tone: TimelineTone; icon: typeof Ban }> = {
   EVIDENCE_ADDED: { tone: 'neutral', icon: FilePlus2 },
   CONFIRMATION_ADDED: { tone: 'accent', icon: Stamp },
   DATASET_IMPORTED: { tone: 'neutral', icon: Upload },
+  CONTROL_COMMAND: { tone: 'info', icon: Send },
+  DASHBOARD_UPDATED: { tone: 'neutral', icon: LayoutDashboard },
+  DASHBOARD_PUBLISHED: { tone: 'info', icon: LayoutDashboard },
+  DASHBOARD_ACCEPTANCE: { tone: 'success', icon: Stamp },
+  ACCESS_DENIED: { tone: 'warning', icon: Lock },
+  CONFIRMATIONS_STALE: { tone: 'warning', icon: Ban },
 };
 
 function describe(e: AuditEvent): string | undefined {
