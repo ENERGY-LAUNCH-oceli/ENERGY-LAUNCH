@@ -1,7 +1,7 @@
 import { STAGE_IDS, type LaunchSession, type LaunchStage, type StageId } from '@/types';
 import type { EngineContext } from '../context';
 
-/** Создаёт новую сессию запуска: все этапы NOT_STARTED, текущий — первый. */
+/** Создаёт новую сессию запуска: все этапы NOT_STARTED, текущий – первый. */
 export function createLaunchSession(objectId: string, rulesetVersion: string, ctx: EngineContext): LaunchSession {
   const now = ctx.now();
   const stages = Object.fromEntries(

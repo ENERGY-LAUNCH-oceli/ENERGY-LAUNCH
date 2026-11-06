@@ -9,7 +9,7 @@ import type { StageStatus } from '@/types';
  *                             │    ▼
  *                            BLOCKED
  *
- * COMPLETED — терминальный статус.
+ * COMPLETED – терминальный статус.
  */
 export const STAGE_TRANSITIONS: Readonly<Record<StageStatus, readonly StageStatus[]>> = {
   NOT_STARTED: ['IN_PROGRESS'],

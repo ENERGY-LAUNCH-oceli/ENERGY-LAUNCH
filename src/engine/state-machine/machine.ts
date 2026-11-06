@@ -19,7 +19,7 @@ import { guardCanComplete, guardPreviousCompleted, openBlockers } from './guards
 import { canTransition } from './transitions';
 
 /**
- * Конечный автомат запуска. Все операции — чистые функции:
+ * Конечный автомат запуска. Все операции – чистые функции:
  * (session, …, ctx) → новая session + события аудита, либо ошибка перехода.
  * Исходная сессия никогда не мутируется.
  */
@@ -124,10 +124,10 @@ export function startStage(session: LaunchSession, stageId: StageId, ctx: Engine
 
 /**
  * Применяет результаты проверок к этапу:
- * — сохраняет результаты;
- * — открывает блокер на каждое проваленное блокирующее правило (без дублей);
- * — автоматически закрывает VALIDATION-блокеры правил, которые теперь пройдены;
- * — пересчитывает BLOCKED ↔ IN_PROGRESS.
+ * – сохраняет результаты;
+ * – открывает блокер на каждое проваленное блокирующее правило (без дублей);
+ * – автоматически закрывает VALIDATION-блокеры правил, которые теперь пройдены;
+ * – пересчитывает BLOCKED ↔ IN_PROGRESS.
  */
 export function applyValidationResults(
   session: LaunchSession,
@@ -229,7 +229,7 @@ export function addManualBlocker(
 }
 
 /**
- * Закрытие блокера. VALIDATION-блокер нельзя закрыть вручную как RESOLVED —
+ * Закрытие блокера. VALIDATION-блокер нельзя закрыть вручную как RESOLVED –
  * только повторной успешной проверкой; допускается WAIVED с обоснованием.
  */
 export function resolveBlocker(
@@ -339,6 +339,27 @@ export function completeStage(session: LaunchSession, stageId: StageId, config: 
   if (!nextStageId) {
     next = { ...next, status: 'COMPLETED', completedAt: now };
     events.push(audit(ctx, next, 'SESSION_COMPLETED'));
+  }
+  return { ok: true, session: next, events };
+}
+
+/**
+ * Устаревание подтверждений (ТЗ 2.2 п. 4): после изменения уже проверенных входов подтверждения затронутых
+ * этапов перестают засчитываться до повторного подтверждения. Ничего не удаляется – подтверждение получает
+ * отметку staleSince и остаётся в истории. Завершённые этапы не переоткрываются (терминальный статус),
+ * но их устаревшие подтверждения видны в реестре и протоколе.
+ */
+export function markConfirmationsStale(session: LaunchSession, stageIds: readonly StageId[], reason: string, ctx: EngineContext): MachineResult {
+  const now = ctx.now();
+  let next = session;
+  const events: AuditEvent[] = [];
+  for (const stageId of stageIds) {
+    const stage = next.stages[stageId];
+    const fresh = stage.confirmations.filter((c) => !c.staleSince);
+    if (!fresh.length) continue;
+    const confirmations = stage.confirmations.map((c) => (c.staleSince ? c : { ...c, staleSince: now, staleReason: reason }));
+    next = patchStage(next, stageId, { confirmations }, now);
+    events.push(audit(ctx, next, 'CONFIRMATIONS_STALE', stageId, { reason, requirementIds: fresh.map((c) => c.requirementId), stageStatus: stage.status }));
   }
   return { ok: true, session: next, events };
 }
