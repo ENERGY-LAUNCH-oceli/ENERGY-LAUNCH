@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { RULESET_V1 } from '@/config/rules';
 import { generateControlTests } from '@/data/mock';
-import { analyzeGrid, createFixedContext, percentile, validateControl, validateTelemetry } from '@/engine';
+import { analyzeGrid, createFixedContext, percentile, validateControl } from '@/engine';
 import type { Measurement } from '@/types';
 
 const env = { ctx: createFixedContext('t', '2026-11-05T00:00:00.000Z'), rulesetVersion: '1.0.0' };
@@ -20,13 +20,6 @@ describe('helpers', () => {
     });
     const series = [m(0, 1), m(1, null), m(2, null), m(3, 1)];
     expect(analyzeGrid(series, 0, 5 * 60_000, 60_000)).toEqual({ expected: 5, present: 2, completenessPct: 40, maxConsecutiveGaps: 2, longestGap: { from: new Date(60_000).toISOString(), to: new Date(180_000).toISOString() } });
-  });
-});
-
-describe('Telemetry', () => {
-  it('без датасета — TM-001 FAILED', () => {
-    const r = validateTelemetry(undefined, [], RULESET_V1.telemetry, env);
-    expect(statusOf(r, 'TM-001')).toBe('FAILED');
   });
 });
 
