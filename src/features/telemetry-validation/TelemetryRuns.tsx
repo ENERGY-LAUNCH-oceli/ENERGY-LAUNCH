@@ -8,7 +8,7 @@ export function TelemetryRuns({ runs, dataset, passport }: { runs: TelemetryVali
   return (
     <section id="runs" aria-label="История проверок телеметрии" className="scroll-mt-24 rounded-lg border border-border bg-surface p-5">
       <div className="mb-4 flex flex-col gap-0.5">
-        <span className="text-label uppercase text-accent-strong">Подтверждения</span>
+        <span className="text-label text-text-muted">Подтверждения</span>
         <h2 className="text-h3">История проверок</h2>
       </div>
       {!runs.length ? (
@@ -17,7 +17,7 @@ export function TelemetryRuns({ runs, dataset, passport }: { runs: TelemetryVali
         <div className="overflow-x-auto">
           <table className="w-full min-w-[960px] text-body-sm" data-testid="telemetry-runs">
             <thead>
-              <tr className="border-b border-border text-left text-caption font-bold uppercase tracking-[0.06em] text-text-secondary">
+              <tr className="border-b border-border text-left font-mono text-[11px] font-normal uppercase tracking-[0.06em] text-text-muted">
                 <th className="py-2 pr-3">Прогон</th>
                 <th className="px-3">Время</th>
                 <th className="px-3">Входы</th>
@@ -33,11 +33,11 @@ export function TelemetryRuns({ runs, dataset, passport }: { runs: TelemetryVali
                 const stale = last && ((dataset?.version ?? 0) !== r.datasetVersion || (passport?.version ?? 0) !== r.passportVersion);
                 return (
                   <tr key={r.id} className="border-b border-border align-top last:border-0">
-                    <td className="py-2.5 pr-3 font-semibold">#{r.run}{last && <span className="ml-2 rounded-pill bg-accent-subtle px-2 text-[11px] font-bold text-accent-strong">текущий</span>}</td>
+                    <td className="py-2.5 pr-3 font-medium">#{r.run}{last && <span className="ml-2 rounded-pill bg-accent-subtle px-2 text-[11px] font-medium text-accent-strong">текущий</span>}</td>
                     <td className="px-3 tabular text-caption">{formatDateTime(r.at)}</td>
                     <td className="px-3 text-caption">
                       <span className="font-mono">{r.fileName}</span> v{r.datasetVersion} · <span className="font-mono">{r.passportFile}</span> v{r.passportVersion}
-                      {stale && <span className="block font-semibold text-warning">Входы изменены — результат неактуален</span>}
+                      {stale && <span className="block font-medium text-warning">Входы изменены – результат неактуален</span>}
                     </td>
                     <td className="px-3 tabular text-caption">{utc(r.checkPoint)}</td>
                     <td className="px-3 text-right tabular text-caption">{r.rowsProcessed.toLocaleString('ru-RU')} · {r.signalsChecked}</td>

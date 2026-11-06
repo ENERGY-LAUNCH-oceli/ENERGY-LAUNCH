@@ -3,14 +3,14 @@ import type { HeatState, SignalDiagnosis, TelemetryIssueType } from '@/types';
 /** Причины проблем: ТЗ требует различать отсутствие сигнала, связи, привязки и неисправность. */
 export const DIAGNOSIS: Record<SignalDiagnosis, { label: string; tone: 'success' | 'error' | 'warning' | 'neutral' | 'info'; hint: string }> = {
   OK: { label: 'Подключён', tone: 'success', hint: 'Сигнал есть, свежий, полный и правдоподобный.' },
-  NOT_IN_MAP: { label: 'Нет в карте', tone: 'warning', hint: 'Обязательный сигнал не указан в карте сигналов object.json — исправьте паспорт.' },
+  NOT_IN_MAP: { label: 'Нет в карте', tone: 'warning', hint: 'Обязательный сигнал не указан в карте сигналов object.json – исправьте паспорт.' },
   NOT_IN_DATA: { label: 'Нет сигнала', tone: 'error', hint: 'Колонки нет в выгрузке: сигнал не передаётся. Это не неисправность оборудования.' },
   NO_COMMUNICATION: { label: 'Нет связи', tone: 'error', hint: 'Колонка есть, значений нет: связь с активом отсутствует. Это не доказательство неисправности.' },
   STALE: { label: 'Устарел', tone: 'error', hint: 'Последнее значение старше порога актуальности: поток прервался.' },
   INCOMPLETE: { label: 'Неполный', tone: 'warning', hint: 'Полнота за 48 ч ниже порога.' },
-  WRONG_BINDING: { label: 'Ошибка привязки', tone: 'error', hint: 'В выгрузке похожий сигнал другого актива или объекта — проверьте привязку.' },
+  WRONG_BINDING: { label: 'Ошибка привязки', tone: 'error', hint: 'В выгрузке похожий сигнал другого актива или объекта – проверьте привязку.' },
   INVALID_DATA: { label: 'Некорректные данные', tone: 'error', hint: 'Нарушены единицы, знаки или диапазоны.' },
-  SUSPICIOUS: { label: 'Подозрительно', tone: 'warning', hint: 'Значения неправдоподобны — требуется проверка измерения, не вывод о неисправности.' },
+  SUSPICIOUS: { label: 'Подозрительно', tone: 'warning', hint: 'Значения неправдоподобны – требуется проверка измерения, не вывод о неисправности.' },
 };
 
 export const HEAT: Record<HeatState, { label: string; color: string; text: string }> = {
