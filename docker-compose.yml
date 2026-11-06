@@ -1,0 +1,20 @@
+services:
+  energy-launch:
+    build:
+      context: .
+      args:
+        # auto – кейс 4 из смонтированной папки (если есть), synthetic – синтетический портфель
+        VITE_DATASET: ${VITE_DATASET:-auto}
+    image: energy-launch:local
+    ports:
+      - "127.0.0.1:8080:8080"
+    # Данные кейса 4 не входят в образ: монтируются локально, только чтение.
+    # Без папки public/case4 приложение работает на синтетических данных.
+    volumes:
+      - ./public/case4:/usr/share/nginx/html/case4:ro
+    read_only: true
+    tmpfs:
+      - /var/cache/nginx
+      - /var/run
+      - /tmp
+    restart: unless-stopped
