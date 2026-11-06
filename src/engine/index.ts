@@ -10,3 +10,6 @@ export * from './launch-service';
 export * from './next-action';
 export * from './invoice';
 export * from './telemetry';
+export * from './control';
+export * from './dashboards';
+export * from './trail';
