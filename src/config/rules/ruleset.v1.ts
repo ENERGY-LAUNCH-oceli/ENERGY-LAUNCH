@@ -1,5 +1,6 @@
 import type { RulesConfig } from '@/types';
 import { METER_HISTORY_TZ } from './meter-history';
+import { TELEMETRY_TZ } from './telemetry';
 
 /**
  * Набор правил v1.0.0.
@@ -24,15 +25,8 @@ export const RULESET_V1: RulesConfig = {
   meterHistory: METER_HISTORY_TZ,
 
 
-  telemetry: {
-    expectedFrequencySec: 60,
-    frequencyTolerancePct: 10,
-    minCompletenessPct: 95,
-    maxLatencySec: 30,
-    latencyPercentile: 95,
-    observationPeriodHours: 24,
-    requiredSignals: ['ACTIVE_POWER', 'REACTIVE_POWER', 'VOLTAGE', 'FREQUENCY', 'BREAKER_STATE'],
-  },
+  telemetry: TELEMETRY_TZ,
+
 
   control: {
     requiredCommandTypes: ['ACTIVE_POWER_SETPOINT', 'REACTIVE_POWER_SETPOINT', 'STOP', 'START'],
