@@ -1,0 +1,16 @@
+node_modules
+dist
+coverage
+playwright-report
+test-results
+.git
+.vscode
+.claude
+*.bundle
+*.log
+# Данные кейса и исходные документы ТЗ не попадают в контекст сборки (ТЗ 4.3)
+public/case4
+docs/source
+.env
+.env.local
+.env.*.local
