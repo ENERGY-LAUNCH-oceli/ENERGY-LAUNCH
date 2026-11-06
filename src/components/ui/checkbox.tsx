@@ -22,7 +22,7 @@ export const Checkbox = React.forwardRef<React.ElementRef<typeof CheckboxPrimiti
         )}
         {...props}
       >
-        <CheckboxPrimitive.Indicator className="text-white">
+        <CheckboxPrimitive.Indicator className="text-accent-foreground">
           {props.checked === 'indeterminate' ? <Minus className="size-3.5" strokeWidth={3} /> : <Check className="size-3.5" strokeWidth={3} />}
         </CheckboxPrimitive.Indicator>
       </CheckboxPrimitive.Root>

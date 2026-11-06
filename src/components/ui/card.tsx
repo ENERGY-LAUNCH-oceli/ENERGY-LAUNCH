@@ -1,7 +1,7 @@
 import * as React from 'react';
 import { cn } from '@/utils/cn';
 
-/** Карточка: белая поверхность, тонкая рамка, без тени (тени — только у всплывающих слоёв). */
+/** Карточка: плоская поверхность, тонкая рамка, без тени (тени – только у всплывающих слоёв). */
 export const Card = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement> & { interactive?: boolean; tone?: 'default' | 'secondary' }>(
   ({ className, interactive, tone = 'default', ...p }, ref) => (
     <div
@@ -19,7 +19,7 @@ export const Card = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDi
 Card.displayName = 'Card';
 
 export const CardHeader = ({ className, ...p }: React.HTMLAttributes<HTMLDivElement>) => (
-  <div className={cn('flex flex-col gap-1 p-5 pb-3', className)} {...p} />
+  <div className={cn('flex flex-col gap-1 px-5 pb-3 pt-4', className)} {...p} />
 );
 export const CardTitle = ({ className, ...p }: React.HTMLAttributes<HTMLHeadingElement>) => <h3 className={cn('text-h3', className)} {...p} />;
 export const CardDescription = ({ className, ...p }: React.HTMLAttributes<HTMLParagraphElement>) => (
