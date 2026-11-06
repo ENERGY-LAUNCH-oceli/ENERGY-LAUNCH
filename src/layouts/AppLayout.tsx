@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
 import { AppContextMenu } from '@/components/layout/AppContextMenu';
 import { Header } from '@/components/layout/Header';
@@ -9,8 +9,20 @@ import { useUi } from '@/store';
 /** Оболочка рабочего пространства: навигация, шапка, рабочая область и уведомления. */
 export function AppLayout() {
   const { pathname } = useLocation();
+  const mainRef = useRef<HTMLElement>(null);
+  const firstRender = useRef(true);
   useEffect(() => {
     window.scrollTo({ top: 0 });
+    // Плавное появление новой страницы (не при первом показе – там заставка)
+    if (firstRender.current) {
+      firstRender.current = false;
+      return;
+    }
+    const el = mainRef.current;
+    if (!el) return;
+    el.classList.remove('page-enter');
+    void el.offsetWidth; // перезапуск анимации
+    el.classList.add('page-enter');
   }, [pathname]);
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -35,7 +47,7 @@ export function AppLayout() {
       <Sidebar />
       <div className="flex min-w-0 flex-1 flex-col">
         <Header />
-        <main id="main" className="mx-auto w-full max-w-[1440px] flex-1 px-4 py-6 md:px-8 md:py-8">
+        <main ref={mainRef} id="main" onAnimationEnd={(e) => e.target === e.currentTarget && e.currentTarget.classList.remove('page-enter')} className="mx-auto w-full max-w-[1440px] flex-1 px-4 py-6 md:px-8 md:py-8">
           <Outlet />
         </main>
       </div>
