@@ -4,7 +4,7 @@ import { cn } from '@/utils/cn';
 
 export const Tabs = TabsPrimitive.Root;
 
-/** variant="line" — подчёркивание бирюзовым (навигация по разделам); "pill" — сегментированный переключатель. */
+/** variant="line" – подчёркивание (навигация по разделам); "pill" – сегментированный переключатель. */
 const TabsVariantContext = React.createContext<'line' | 'pill'>('line');
 
 export const TabsList = React.forwardRef<
@@ -16,7 +16,7 @@ export const TabsList = React.forwardRef<
       ref={ref}
       className={cn(
         'inline-flex items-center',
-        variant === 'line' ? 'w-full gap-6 overflow-x-auto shadow-[inset_0_-1px_0] shadow-border [scrollbar-width:none]' : 'gap-1 rounded-pill border border-border bg-surface-sunken p-1',
+        variant === 'line' ? 'w-full gap-6 overflow-x-auto shadow-[inset_0_-1px_0] shadow-border [scrollbar-width:none]' : 'max-w-full gap-0.5 overflow-x-auto rounded-md border border-border bg-surface p-[3px] [scrollbar-width:none]',
         className,
       )}
       {...props}
@@ -34,16 +34,16 @@ export const TabsTrigger = React.forwardRef<
     <TabsPrimitive.Trigger
       ref={ref}
       className={cn(
-        'inline-flex items-center gap-2 whitespace-nowrap text-body-sm font-semibold text-text-secondary transition-colors duration-fast hover:text-text-primary disabled:pointer-events-none disabled:opacity-45',
+        'inline-flex items-center gap-2 whitespace-nowrap text-body-sm text-text-muted transition-colors duration-fast hover:text-text-primary disabled:pointer-events-none disabled:opacity-45',
         variant === 'line'
-          ? 'shrink-0 border-b-2 border-transparent pb-3 pt-1 data-[state=active]:border-accent data-[state=active]:text-text-primary'
-          : 'h-8 rounded-pill px-4 data-[state=active]:bg-surface data-[state=active]:text-text-primary data-[state=active]:shadow-xs',
+          ? 'shrink-0 border-b-2 border-transparent pb-3 pt-1 data-[state=active]:border-text-primary data-[state=active]:font-medium data-[state=active]:text-text-primary'
+          : 'h-8 shrink-0 rounded-sm px-3 data-[state=active]:bg-primary data-[state=active]:font-medium data-[state=active]:text-primary-foreground',
         className,
       )}
       {...props}
     >
       {children}
-      {count !== undefined && <span className="tabular rounded-pill bg-surface-sunken px-1.5 text-caption text-text-secondary">{count}</span>}
+      {count !== undefined && <span className="tabular font-mono text-[11px] opacity-70">{count}</span>}
     </TabsPrimitive.Trigger>
   );
 });
