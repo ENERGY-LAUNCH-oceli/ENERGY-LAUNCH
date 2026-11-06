@@ -6,7 +6,7 @@ import { StageActionBar } from '@/features/launch-card';
 import { CheckBlocks, CompletenessPanel, CoverageTimeline, EanPanel, FieldQualityTable, IssuesTable, RunsHistory, UploadPanel } from '@/features/invoice-validation';
 import { useLaunchStore } from '@/store';
 
-/** Этап 1 — проверка официальных данных расчётных счётчиков (invoice.csv). */
+/** Этап 1 – проверка официальных данных расчётных счётчиков (invoice.csv). */
 export function InvoiceValidationPage() {
   const session = useLaunchStore((s) => s.session);
   const inputs = useLaunchStore((s) => s.inputs);
@@ -27,7 +27,7 @@ export function InvoiceValidationPage() {
   return (
     <div className="flex flex-col gap-6">
       <header className="flex flex-col gap-2">
-        <span className="text-label uppercase text-accent-strong">Этап 1 из 4 · Invoice History Validation</span>
+        <span className="text-label text-text-muted">Этап 1 из 4 · Invoice History Validation</span>
         <h1 className="text-h1">История счётчиков</h1>
         <p className="max-w-3xl text-body-lg text-text-secondary">
           Официальные данные расчётного учёта за {rules.periodMonths} последовательных месяца: период, полнота {rules.intervalMinutes}-минутных интервалов, дубли, единицы, знаки и связь с объектом по EAN.
@@ -38,7 +38,7 @@ export function InvoiceValidationPage() {
 
       {stale && (
         <Alert tone="warning" title="Результат проверки неактуален">
-          Загружена выгрузка v{ds!.version}, последняя проверка выполнялась на v{runs.at(-1)!.datasetVersion}. Запустите проверку повторно — прежний результат сохранится в истории.
+          Загружена выгрузка v{ds!.version}, последняя проверка выполнялась на v{runs.at(-1)!.datasetVersion}. Запустите проверку повторно – прежний результат сохранится в истории.
         </Alert>
       )}
 
@@ -50,11 +50,11 @@ export function InvoiceValidationPage() {
         results={results}
         stale={stale}
         metrics={{
-          coverage: r ? `${present} / ${rules.periodMonths} мес` : '—',
-          completeness: r ? `${r.completeness.pct.toLocaleString('ru-RU')} %` : '—',
-          duplicates: r ? `${r.duplicates}` : '—',
-          quality: r ? `${qualityIssues.toLocaleString('ru-RU')} ошибок` : '—',
-          units: r ? `${unitIssues} ошибок` : '—',
+          coverage: r ? `${present} / ${rules.periodMonths} мес` : '–',
+          completeness: r ? `${r.completeness.pct.toLocaleString('ru-RU')} %` : '–',
+          duplicates: r ? `${r.duplicates}` : '–',
+          quality: r ? `${qualityIssues.toLocaleString('ru-RU')} ошибок` : '–',
+          units: r ? `${unitIssues} ошибок` : '–',
           ean: inputs.object.gridConnection.eanOfftake ? '2 кода' : 'нет кодов',
         }}
       />
