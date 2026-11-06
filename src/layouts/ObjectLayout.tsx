@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { Outlet, useParams } from 'react-router-dom';
+import { Outlet, useLocation, useParams } from 'react-router-dom';
 import { EmptyState } from '@/components/common/EmptyState';
 import { ContextPanel } from '@/components/layout/ContextPanel';
 import { ObjectContextNav } from '@/components/layout/ObjectContextNav';
@@ -15,6 +15,8 @@ export function ObjectLayout() {
   const selectObject = useLaunchStore((s) => s.selectObject);
   const current = useLaunchStore((s) => s.currentObjectId);
   const entry = findObject(objectId);
+  // Карточка запуска сама показывает следующее действие и журнал — контекстная панель там не нужна
+  const isLaunch = useLocation().pathname.endsWith('/launch');
 
   useEffect(() => {
     if (entry && current !== entry.id) selectObject(entry.id);
@@ -40,7 +42,7 @@ export function ObjectLayout() {
         <ObjectContextNav objectId={entry.id} />
         <Outlet />
       </div>
-      <ContextPanel objectId={entry.id} />
+      {!isLaunch && <ContextPanel objectId={entry.id} />}
     </div>
   );
 }
