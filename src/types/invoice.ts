@@ -39,7 +39,7 @@ export interface InvoiceIssue {
   timestamp: string | null;
   /** Конец интервала для пропусков. */
   timestampTo?: string;
-  /** Номер строки в файле (1 — заголовок). */
+  /** Номер строки в файле (1 – заголовок). */
   line?: number;
   field: string;
   value: string;
@@ -58,6 +58,9 @@ export interface MonthCoverage {
   duplicates: number;
   issues: number;
   state: MonthCoverageState;
+  /** Потребление и выдача за месяц по исходным значениям, kWh. */
+  offtakeKwh?: number;
+  injectionKwh?: number;
 }
 
 export interface FieldReport {
@@ -84,13 +87,18 @@ export interface InvoiceFileMeta {
   rows: number;
 }
 
-/** Отчёт анализа invoice.csv. Строки файла не хранятся — только агрегаты и проблемы. */
+/** Отчёт анализа invoice.csv. Строки файла не хранятся – только агрегаты и проблемы. */
 export interface InvoiceReport {
   meta: InvoiceFileMeta;
   period: { first: string | null; last: string | null };
   /** Медианный шаг исходных данных, минуты (исходная детализация сохраняется). */
   detectedStepMinutes: number | null;
-  window: { from: string; to: string; months: MonthCoverage[] } | null;
+  /** Окно проверки. checkPoint/timezone – если окно привязано к точке проверки (набор правил 1.5+). */
+  window: { from: string; to: string; months: MonthCoverage[]; checkPoint?: string; timezone?: string } | null;
+  /** Строк вне окна проверки (не анализируются). */
+  outsideWindow?: number;
+  /** Что обработано согласованным правилом пустых значений (набор 1.5+). */
+  valuePolicy?: { lagEmpty: number; fallbackUsed: number; infoEmpty: Record<string, number>; publicationLagDays: number; lagFrom: string | null };
   missingMonths: string[];
   completeness: { expected: number; present: number; missing: number; pct: number };
   duplicates: number;
