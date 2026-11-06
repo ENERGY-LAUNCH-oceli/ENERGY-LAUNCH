@@ -17,6 +17,8 @@ import {
   type TransitionError,
 } from '@/engine';
 import { auditRepository, saveLaunchInputs, sessionRepository } from '@/services';
+import { makeInvoiceRun } from '@/engine/invoice';
+import type { InvoiceReport } from '@/types';
 import type { AuditEvent, Evidence, LaunchInputs, LaunchSession, RulesConfig, StageConfirmation, StageId } from '@/types';
 
 /** Адаптер сохранения: подменяется в тестах. */
@@ -71,6 +73,8 @@ interface LaunchState {
   addEvidence(evidence: Omit<Evidence, 'id' | 'sessionId' | 'createdAt' | 'createdBy'>): boolean;
   addConfirmation(input: Omit<StageConfirmation, 'id' | 'confirmedAt'>): boolean;
   clearError(): void;
+  /** Новая загрузка invoice.csv: новая версия набора, предыдущая уходит в историю. */
+  importInvoiceReport(report: InvoiceReport): void;
 }
 
 const reportPersistError = (e: unknown) => console.error('[launch-store] persist failed', e);
@@ -176,10 +180,71 @@ export const useLaunchStore = create<LaunchState>()((set, get) => {
     validateStage: (stageId) => {
       const { inputs, ruleset } = get();
       if (!inputs) return false;
-      return withSession((s) => validateStage(s, stageId, inputs, ruleset, ctx()));
+      const c = ctx();
+      const ok = withSession((s) => validateStage(s, stageId, inputs, ruleset, c));
+      if (ok && stageId === 'METER_HISTORY') {
+        const results = get().session!.stages.METER_HISTORY.validationResults;
+        const runs = inputs.invoiceRuns ?? [];
+        set({ inputs: { ...inputs, invoiceRuns: [...runs, makeInvoiceRun(inputs.invoice, results, ruleset.meterHistory, ruleset.version, c.now(), runs)] } });
+      }
+      return ok;
     },
 
-    completeStage: (stageId) => withSession((s) => completeStage(s, stageId, get().ruleset, ctx())),
+    importInvoiceReport: (report) => {
+      const { inputs, session } = get();
+      if (!inputs || !session) return;
+      const c = ctx();
+      const prev = inputs.invoice;
+      const version = (prev?.version ?? 0) + 1;
+      const dataset = {
+        kind: 'INVOICE' as const,
+        id: `invoice-${session.objectId}-v${version}`,
+        objectId: session.objectId,
+        source: report.meta.source === 'DEMO' ? ('DEMO' as const) : ('CSV_IMPORT' as const),
+        fileName: report.meta.fileName,
+        importedAt: report.meta.uploadedAt,
+        periodStart: report.period.first ?? report.meta.uploadedAt,
+        periodEnd: report.period.last ?? report.meta.uploadedAt,
+        version,
+        report,
+      };
+      const event: AuditEvent = {
+        id: c.newId(),
+        action: 'DATASET_IMPORTED',
+        actor: c.actor,
+        timestamp: c.now(),
+        sessionId: session.id,
+        objectId: session.objectId,
+        stageId: 'METER_HISTORY',
+        rulesetVersion: session.rulesetVersion,
+        payload: { fileName: report.meta.fileName, version, rows: report.meta.rows, sizeBytes: report.meta.sizeBytes },
+      };
+      set((s) => ({
+        inputs: { ...inputs, invoice: dataset, invoiceHistory: [...(inputs.invoiceHistory ?? []), ...(prev ? [prev] : [])] },
+        auditLog: [...s.auditLog, event],
+      }));
+      if (session.stages.METER_HISTORY.status !== 'COMPLETED') {
+        get().addEvidence({ stageId: 'METER_HISTORY', type: 'FILE', title: `invoice.csv v${version}`, fileName: report.meta.fileName, sizeBytes: report.meta.sizeBytes, mimeType: 'text/csv' });
+      }
+      notify({ tone: 'info', title: `Загружена выгрузка v${version}`, description: `${report.meta.rows.toLocaleString('ru-RU')} строк · запустите проверку` });
+    },
+
+    completeStage: (stageId) => {
+      const { inputs, session } = get();
+      // Изменённые входные данные делают результат проверки неактуальным (ТЗ 2.2.4)
+      const lastRun = inputs?.invoiceRuns?.at(-1);
+      if (stageId === 'METER_HISTORY' && session && inputs?.invoice && lastRun && lastRun.datasetVersion !== inputs.invoice.version) {
+        const c = ctx();
+        const error = { code: 'VALIDATION_NOT_RUN' as const, stageId, message: `Загружена версия v${inputs.invoice.version}, а проверялась v${lastRun.datasetVersion}: повторите проверку` };
+        set((s) => ({
+          lastError: error,
+          auditLog: [...s.auditLog, { id: c.newId(), action: 'TRANSITION_REJECTED' as const, actor: c.actor, timestamp: c.now(), sessionId: session.id, objectId: session.objectId, stageId, rulesetVersion: session.rulesetVersion, payload: { code: error.code, message: error.message } }],
+        }));
+        notify({ tone: 'warning', title: 'Переход отклонён', description: error.message });
+        return false;
+      }
+      return withSession((s) => completeStage(s, stageId, get().ruleset, ctx()));
+    },
 
     resolveBlocker: (blockerId, resolution, status) =>
       withSession((s) => resolveBlocker(s, blockerId, { resolution, ...(status ? { status } : {}) }, ctx())),
