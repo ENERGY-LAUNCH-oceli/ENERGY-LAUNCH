@@ -1,6 +1,12 @@
 /**
- * Feature-модуль «control-testing» (Presentation Layer).
- * Компоненты и хуки этой функциональной области. Бизнес-правила — только в src/engine.
- * Реализация — в следующих фазах (см. README, раздел «Дорожная карта»).
+ * Feature-модуль «control-testing» (Presentation Layer): этап 3, тесты управления через имитатор.
+ * Бизнес-правила – в src/engine/control, имитатор – в src/simulator/control.
  */
-export {};
+export { AssetsTable } from './AssetsTable';
+export { CommandDetail } from './CommandDetail';
+export { CommandStateBadge } from './CommandStateBadge';
+export { CommandTimeline } from './CommandTimeline';
+export { ControlChart } from './ControlChart';
+export { ControlRuns } from './ControlRuns';
+export { TestForm } from './TestForm';
+export * from './labels';
