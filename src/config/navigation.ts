@@ -15,7 +15,7 @@ export interface NavItem {
 
 /** Восемь разделов боковой навигации. */
 export const PRIMARY_NAV: NavItem[] = [
-  { id: 'overview', label: 'Обзор', icon: Gauge, to: () => ROUTES.overview, hint: 'Портфель объектов и статусы запусков' },
+  { id: 'overview', label: 'Обзор', icon: Gauge, to: () => ROUTES.overview, hint: 'Launch Control Center: готовность всех объектов' },
   { id: 'objects', label: 'Объекты', icon: Building2, to: () => ROUTES.objects, section: 'object', hint: 'Паспорта, активы, точки подключения' },
   { id: 'launch', label: 'Запуски', icon: Rocket, to: (id) => ROUTES.objectSection(id, 'launch'), section: 'launch', hint: 'Карточка запуска текущего объекта' },
   { id: 'checks', label: 'Проверки', icon: ShieldCheck, to: (id) => ROUTES.objectSection(id, 'history'), section: 'history', hint: 'История счётчиков и телеметрия' },
