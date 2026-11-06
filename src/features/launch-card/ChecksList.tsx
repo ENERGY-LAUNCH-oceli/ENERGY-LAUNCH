@@ -16,21 +16,21 @@ export function ChecksList({ checks, source }: { checks: CheckView[]; source: st
           <li key={rule.id} data-check={rule.id} data-check-status={status} className={cn('grid gap-3 px-5 py-4 lg:grid-cols-[minmax(0,1fr)_200px]', bad && 'bg-error-subtle/40')}>
             <div className="flex min-w-0 flex-col gap-1.5">
               <div className="flex flex-wrap items-center gap-2">
-                <span className="font-mono text-caption font-semibold text-text-muted">{rule.id}</span>
-                <span className="text-body-sm font-bold">{rule.title}</span>
-                <Badge size="sm" tone={rule.blocking ? 'inverse' : 'neutral'}>
+                <span className="font-mono text-caption font-medium text-text-muted">{rule.id}</span>
+                <span className="text-body-sm font-medium">{rule.title}</span>
+                <Badge size="sm" tone={rule.blocking ? 'accent' : 'neutral'}>
                   {rule.blocking ? 'Обязательная' : 'Рекомендуемая'}
                 </Badge>
                 <Badge size="sm">{CHECK_DIMENSION_LABEL[rule.dimension]}</Badge>
               </div>
               <p className="text-caption text-text-secondary">{rule.description}</p>
-              {result && <p className={cn('text-body-sm', bad ? 'font-semibold text-error' : 'text-text-primary')}>{result.message}</p>}
+              {result && <p className={cn('text-body-sm', bad ? 'font-medium text-error' : 'text-text-primary')}>{result.message}</p>}
               <div className="flex flex-wrap gap-x-4 gap-y-1 text-caption text-text-muted">
                 <span>
                   Источник: <span className="font-mono text-text-secondary">{source}</span>
                 </span>
                 <span className="tabular">{result ? formatDateTime(result.evaluatedAt) : 'не выполнялась'}</span>
-                <span>Правило v{result?.rulesetVersion ?? '—'}</span>
+                <span>Правило v{result?.rulesetVersion ?? '–'}</span>
               </div>
             </div>
             <div className="flex flex-row items-start justify-between gap-2 lg:flex-col lg:items-end">
