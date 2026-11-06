@@ -60,7 +60,7 @@ export function StageDetail({ stageId }: { stageId: StageId }) {
   );
 }
 
-function ConfirmDialog({ stageId }: { stageId: StageId }) {
+export function ConfirmDialog({ stageId }: { stageId: StageId }) {
   const session = useLaunchStore((s) => s.session)!;
   const ruleset = useLaunchStore((s) => s.ruleset);
   const addEvidence = useLaunchStore((s) => s.addEvidence);

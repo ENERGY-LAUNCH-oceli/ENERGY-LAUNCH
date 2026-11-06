@@ -1,3 +1,3 @@
 export { StageCardContainer } from './StageCardContainer';
-export { StageDetail } from './StageDetail';
+export { ConfirmDialog, StageDetail } from './StageDetail';
 export { toValidationView } from './adapters';
