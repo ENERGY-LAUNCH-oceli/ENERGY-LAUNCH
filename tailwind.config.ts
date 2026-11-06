@@ -1,7 +1,7 @@
 import type { Config } from 'tailwindcss';
 import animate from 'tailwindcss-animate';
 import plugin from 'tailwindcss/plugin';
-import { buildCssVariables, colors, fontFamily, motion, typography } from './src/design/tokens';
+import { buildAccentVariables, buildCssVariables, buildThemeVariables, colors, fontFamily, motion, typography } from './src/design/tokens';
 
 const kebab = (s: string) => s.replace(/([a-z0-9])([A-Z])/g, '$1-$2').toLowerCase();
 const rgbVar = (name: string) => `rgb(var(--el-${name}) / <alpha-value>)`;
@@ -9,7 +9,6 @@ const rgbVar = (name: string) => `rgb(var(--el-${name}) / <alpha-value>)`;
 /** Цвета Tailwind из семантических токенов: bg-surface, text-text-secondary, border-border … */
 const semanticColors = Object.fromEntries(
   Object.entries(colors)
-    .filter(([, v]) => v.startsWith('#'))
     .map(([k]) => [kebab(k), rgbVar(kebab(k))]),
 );
 
@@ -26,7 +25,7 @@ export default {
   theme: {
     container: { center: true, padding: { DEFAULT: '1rem', md: '2rem' }, screens: { '2xl': '1440px' } },
     extend: {
-      fontFamily: { sans: [...fontFamily.sans], mono: [...fontFamily.mono] },
+      fontFamily: { sans: [...fontFamily.sans], heading: [...fontFamily.heading], mono: [...fontFamily.mono] },
       fontSize: typography as unknown as NonNullable<Config['theme']>['fontSize'],
       colors: {
         ...semanticColors,
@@ -51,7 +50,6 @@ export default {
         pill: 'var(--el-radius-pill)',
       },
       boxShadow: { xs: 'var(--el-shadow-xs)', md: 'var(--el-shadow-md)', lg: 'var(--el-shadow-lg)' },
-      backgroundImage: { brand: 'var(--el-brand-gradient)' },
       transitionTimingFunction: { brand: motion.easing },
       transitionDuration: { fast: motion.fast, base: motion.base, slow: motion.slow },
       keyframes: {
@@ -63,7 +61,14 @@ export default {
   plugins: [
     animate,
     plugin(({ addBase }) => {
-      addBase({ ':root': buildCssVariables() });
+      addBase({
+        ':root': buildCssVariables(),
+        ':root[data-theme="dark"]': buildThemeVariables('dark'),
+        ':root[data-accent="blue"]': buildAccentVariables('blue', 'light'),
+        ':root[data-theme="dark"][data-accent="blue"]': buildAccentVariables('blue', 'dark'),
+        // Печать / PDF протокола — всегда в светлой теме
+        '@media print': { ':root[data-theme="dark"]': buildThemeVariables('light') },
+      });
     }),
   ],
 } satisfies Config;
