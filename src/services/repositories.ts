@@ -1,7 +1,7 @@
 import type { AuditEvent, ControlTest, Dashboard, Dataset, EnergyObject, Id, LaunchInputs, LaunchSession } from '@/types';
 import { getDb } from './db';
 
-/** Репозитории — единственная точка доступа к хранилищу для остальных слоёв. */
+/** Репозитории – единственная точка доступа к хранилищу для остальных слоёв. */
 export const objectRepository = {
   list: (): Promise<EnergyObject[]> => getDb().objects.toArray(),
   get: (id: Id) => getDb().objects.get(id),

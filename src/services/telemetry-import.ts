@@ -3,12 +3,12 @@ import { parseObjectJson, TelemetryAnalyzer } from '@/engine/telemetry';
 import type { SitePassport, TelemetryReport, TelemetryRules } from '@/types';
 import { InvoiceFormatError, type InvoiceImportProgress } from './invoice-import';
 
-/** Чтение object.json. Текст внутри файла — только данные: он не влияет на правила и переходы. */
+/** Чтение object.json. Текст внутри файла – только данные: он не влияет на правила и переходы. */
 export async function importPassport(source: File | string, opts: { fileName?: string; source?: 'UPLOAD' | 'DEMO' } = {}): Promise<SitePassport> {
   const text = typeof source === 'string' ? source : await source.text();
   let json: unknown;
   try {
-    json = JSON.parse(text.replace(/^﻿/, ''));
+    json = JSON.parse(text.replace(/^\uFEFF/, ''));
   } catch {
     throw new InvoiceFormatError('object.json не является корректным JSON');
   }
@@ -39,7 +39,7 @@ export async function importTelemetry(
             line++;
             if (!header) {
               delimiter = res.meta.delimiter;
-              if (cells.length < 2 || !/timestamp/i.test(cells[0] ?? '')) throw new InvoiceFormatError('Файл не похож на telemetry.csv: первая колонка — timestamp, разделитель «;»');
+              if (cells.length < 2 || !/timestamp/i.test(cells[0] ?? '')) throw new InvoiceFormatError('Файл не похож на telemetry.csv: первая колонка – timestamp, разделитель «;»');
               analyzer.header(cells);
               header = true;
             } else analyzer.row(cells, line);
