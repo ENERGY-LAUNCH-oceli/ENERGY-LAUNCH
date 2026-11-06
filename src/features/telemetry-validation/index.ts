@@ -1,6 +1,6 @@
-/**
- * Feature-модуль «telemetry-validation» (Presentation Layer).
- * Компоненты и хуки этой функциональной области. Бизнес-правила — только в src/engine.
- * Реализация — в следующих фазах (см. README, раздел «Дорожная карта»).
- */
-export {};
+export { InputsPanel } from './InputsPanel';
+export { PassportCard } from './PassportCard';
+export { SignalMapping, DiagnosisLegend } from './SignalMapping';
+export { QualityHeatmap } from './QualityHeatmap';
+export { TelemetryIssues } from './TelemetryIssues';
+export { TelemetryRuns } from './TelemetryRuns';
