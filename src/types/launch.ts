@@ -1,7 +1,7 @@
 import type { ConfirmationRole, Id, IsoDateTime, Severity } from './common';
 import type { RuleId, ValidationResult } from './validation';
 
-/** Четыре последовательных этапа запуска. Порядок массива — порядок этапов. */
+/** Четыре последовательных этапа запуска. Порядок массива – порядок этапов. */
 export const STAGE_IDS = [
   'METER_HISTORY',
   'REALTIME_TELEMETRY',
@@ -24,6 +24,9 @@ export interface StageConfirmation {
   confirmedAt: IsoDateTime;
   evidenceIds: Id[];
   comment?: string;
+  /** Подтверждение устарело: после него изменились проверенные входы (до повторного подтверждения). */
+  staleSince?: IsoDateTime;
+  staleReason?: string;
 }
 
 export interface LaunchStage {
