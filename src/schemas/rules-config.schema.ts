@@ -33,6 +33,11 @@ export const rulesConfigSchema = z
       unitRatioThreshold: positiveNumberSchema,
       eanLength: z.number().int().positive(),
       fields: z.array(z.object({ field: z.string().min(1), unit: z.string().min(1), sign: z.enum(['NON_NEGATIVE', 'NON_POSITIVE', 'ANY']), required: z.boolean() })).min(1),
+      checkPoint: z.iso.datetime({ offset: true }).optional(),
+      timezone: z.string().min(1).optional(),
+      valuePairs: z.array(z.tuple([z.string(), z.string()])).optional(),
+      publicationLagDays: z.number().min(0).optional(),
+      infoOnlyEmptyFields: z.array(z.string()).optional(),
     }),
     telemetry: z.object({
       intervalMinutes: positiveNumberSchema,
@@ -47,6 +52,7 @@ export const rulesConfigSchema = z
       maxEnergyKwhPerInterval: positiveNumberSchema,
       maxSocJumpPct: percentSchema,
       setpointToleranceKw: z.number().min(0),
+      eventSignals: z.array(z.string().min(1)).optional(),
     }),
     control: z
       .object({
@@ -60,6 +66,30 @@ export const rulesConfigSchema = z
       .refine((c) => c.minIntervalBetweenCommandsSec <= c.maxIntervalBetweenCommandsSec, {
         message: 'minIntervalBetweenCommandsSec не может превышать maxIntervalBetweenCommandsSec',
       }),
+    controlTesting: z
+      .object({
+        ackTimeoutSec: positiveNumberSchema,
+        responseWindowSec: positiveNumberSchema,
+        observationSec: positiveNumberSchema,
+        toleranceKw: z.number().min(0),
+        tolerancePct: percentSchema,
+        minStepKw: z.number().min(0),
+        requireBatterySetpoint: z.boolean(),
+        requirePvCurtailment: z.boolean(),
+      })
+      .refine((c) => c.observationSec > c.responseWindowSec, { message: 'observationSec должен быть больше responseWindowSec' })
+      .optional(),
+    dashboardConfig: z
+      .object({
+        requiredWidgets: z.object({
+          METER_HISTORY: z.array(z.string()),
+          ASSETS: z.array(z.string()),
+          CONTROL: z.array(z.string()),
+          QUALITY_STATUS: z.array(z.string()),
+        }),
+        requireAcceptance: z.boolean(),
+      })
+      .optional(),
     dashboards: z.object({
       requiredBlockTypes: z.array(z.enum(DASHBOARD_BLOCK_TYPES)),
       requiredSignals: z.array(z.enum(SIGNAL_KINDS)),
