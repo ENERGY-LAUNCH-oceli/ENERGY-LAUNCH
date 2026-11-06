@@ -20,7 +20,7 @@ describe('Dexie-репозитории', () => {
     await saveLaunchInputs(inputs);
     const restored = await loadLaunchInputs(inputs.object.id);
     expect(restored?.object.id).toBe(inputs.object.id);
-    expect(restored?.invoice?.lines).toEqual(inputs.invoice?.lines);
+    expect(restored?.invoice?.report.completeness).toEqual(inputs.invoice?.report.completeness);
     expect(restored?.telemetry?.measurements.length).toBe(inputs.telemetry?.measurements.length);
 
     const session = createLaunchSession(inputs.object.id, RULESET_V1.version, createFixedContext('t', '2026-11-05T00:00:00.000Z'));

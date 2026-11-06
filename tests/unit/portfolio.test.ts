@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { RULESET_V1 } from '@/config/rules';
+import { ACTIVE_RULESET as RULESET_V1 } from '@/config/rules';
 import { OBJECT_CATALOG, seedWorkspace } from '@/data/objects';
 import { STAGE_IDS } from '@/types';
 
