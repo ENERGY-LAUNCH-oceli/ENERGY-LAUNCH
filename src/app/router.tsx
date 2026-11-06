@@ -3,6 +3,7 @@ import { AppLayout } from '@/layouts/AppLayout';
 import { ObjectLayout } from '@/layouts/ObjectLayout';
 import { DesignSystemPage } from '@/pages/DesignSystemPage';
 import { InvoiceValidationPage } from '@/pages/InvoiceValidationPage';
+import { TelemetryValidationPage } from '@/pages/TelemetryValidationPage';
 import { LaunchPage } from '@/pages/LaunchPage';
 import { NotFoundPage } from '@/pages/NotFoundPage';
 import { ObjectAuditPage } from '@/pages/ObjectAuditPage';
@@ -28,7 +29,7 @@ export const router = createBrowserRouter([
           { index: true, element: <ObjectPassportPage /> },
           { path: 'launch', element: <LaunchPage /> },
           { path: 'history', element: <InvoiceValidationPage /> },
-          { path: 'telemetry', element: <StagePage stageId="REALTIME_TELEMETRY" /> },
+          { path: 'telemetry', element: <TelemetryValidationPage /> },
           { path: 'control', element: <StagePage stageId="ASSET_CONTROL" /> },
           { path: 'dashboards', element: <StagePage stageId="FINAL_DASHBOARDS" /> },
           { path: 'audit', element: <ObjectAuditPage /> },
