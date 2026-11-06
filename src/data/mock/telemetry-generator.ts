@@ -106,6 +106,12 @@ export function* telemetryRows(passport: SitePassport, o: TelemetryGenOptions): 
   const soc: Record<string, number> = {};
   const silent = new Set(o.silentAssets ?? []);
   const hours = step / 3_600_000;
+  // Крупные объекты: мощность на установку масштабируется, чтобы суммы площадки оставались в физическом пределе правил
+  // (для объектов до ~60 PV и ~75 батарей значения прежние)
+  const pvCount = passport.assets.filter((a) => a.type === 'PV').length;
+  const batCount = passport.assets.length - pvCount;
+  const pvPeak = Math.min(60, (rules.maxAbsPowerKw * 0.7) / Math.max(pvCount, 1));
+  const batKw = Math.min(20, (rules.maxAbsPowerKw * 0.3) / Math.max(batCount, 1));
 
   for (let i = 0; i < total; i++) {
     const t = start + i * step;
@@ -116,13 +122,13 @@ export function* telemetryRows(passport: SitePassport, o: TelemetryGenOptions): 
     let batTotal = 0;
     for (const a of passport.assets) {
       if (a.type === 'PV') {
-        const p = Math.max(0, Math.sin(((h - 6) / 12) * Math.PI)) * 60 * (0.85 + rng() * 0.15);
+        const p = Math.max(0, Math.sin(((h - 6) / 12) * Math.PI)) * pvPeak * (0.85 + rng() * 0.15);
         v[`${a.prefix}.power_kW`] = negPv.has(i) ? -5 : p;
         v[`${a.prefix}.energy_kWh.production`] = p * hours;
         v[`${a.prefix}.power_kW.setpoint_received`] = 80;
         pvTotal += p;
       } else {
-        const sp = h >= 10 && h < 14 ? 20 : h >= 17 && h < 21 ? -20 : 0;
+        const sp = h >= 10 && h < 14 ? batKw : h >= 17 && h < 21 ? -batKw : 0;
         soc[a.prefix] = Math.min(95, Math.max(10, (soc[a.prefix] ?? 50) + (sp * hours) / 2));
         const p = batSign.has(i) && sp !== 0 ? -sp : sp;
         v[`${a.prefix}.power_kW`] = p;
