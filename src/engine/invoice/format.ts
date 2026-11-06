@@ -23,7 +23,7 @@ export function parseDecimal(raw: string | undefined): ParsedNumber {
   }
   const s = (raw ?? '').trim();
   if (s === '' || s.toLowerCase() === 'null' || s.toLowerCase() === 'nan') return { kind: 'empty' };
-  const normalized = s.replace(/[\s ]/g, '').replace(',', '.');
+  const normalized = s.replace(/[\s\u00A0]/g, '').replace(',', '.');
   if (!/^[-+]?(\d+(\.\d*)?|\.\d+)([eE][-+]?\d+)?$/.test(normalized)) return { kind: 'invalid', raw: s };
   const value = Number(normalized);
   return Number.isFinite(value) ? { kind: 'ok', value } : { kind: 'invalid', raw: s };
@@ -35,7 +35,7 @@ export type ParsedTimestamp =
 
 const ISO = /^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})(?::(\d{2})(?:\.\d+)?)?(Z|[+-]\d{2}:?\d{2})?$/;
 
-/** Строгий ISO 8601. Без смещения — неоднозначная зона; смещение ≠ 0 — не UTC. */
+/** Строгий ISO 8601. Без смещения – неоднозначная зона; смещение ≠ 0 – не UTC. */
 export function parseTimestamp(raw: string | undefined): ParsedTimestamp {
   // Быстрый путь: канонический вид YYYY-MM-DDTHH:MM:SSZ
   if (raw && raw.length === 20 && raw[10] === 'T' && raw[19] === 'Z' && raw[4] === '-' && raw[13] === ':') {
@@ -81,4 +81,65 @@ export function isValidEan(code: string | null | undefined, length: number): boo
   return gs1CheckDigit(code.slice(0, -1)) === Number(code.at(-1));
 }
 
+/** Точная причина некорректного EAN (null – код корректен). */
+export function eanProblem(code: string | null | undefined, length: number): string | null {
+  if (!code) return 'не указан (null)';
+  if (!/^\d+$/.test(code)) return `«${code}» содержит не только цифры`;
+  if (code.length !== length) return `${code}: ${code.length} цифр вместо ${length}`;
+  const expected = gs1CheckDigit(code.slice(0, -1));
+  if (expected !== Number(code.at(-1))) return `${code}: контрольная цифра GS1 ${code.at(-1)}, ожидается ${expected}`;
+  return null;
+}
+
 export const withCheckDigit = (body: string) => `${body}${gs1CheckDigit(body)}`;
+
+/** Смещение часового пояса (местное − UTC), мс, в момент utcMs. */
+export function tzOffsetMs(utcMs: number, tz: string): number {
+  const parts = new Intl.DateTimeFormat('en-US', { timeZone: tz, hourCycle: 'h23', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' }).formatToParts(new Date(utcMs));
+  const g = (t: string) => Number(parts.find((p) => p.type === t)!.value);
+  return Date.UTC(g('year'), g('month') - 1, g('day'), g('hour'), g('minute'), g('second')) - utcMs;
+}
+
+/** UTC-момент местной полуночи даты (месяц 1–12; переполнение месяца допускается). */
+export function localMidnightUtc(y: number, m: number, d: number, tz: string): number {
+  const guess = Date.UTC(y, m - 1, d);
+  const first = guess - tzOffsetMs(guess, tz);
+  return guess - tzOffsetMs(first, tz);
+}
+
+export interface HistorySegment {
+  /** Местный календарный месяц `YYYY-MM`. */
+  key: string;
+  from: number;
+  to: number;
+}
+
+export interface AnchoredWindow {
+  from: number;
+  to: number;
+  segments: HistorySegment[];
+}
+
+/**
+ * Окно истории, привязанное к точке проверки: N месяцев до местной полуночи дня точки проверки
+ * (Europe/Brussels). Части календарных месяцев на краях окна – отдельные сегменты.
+ */
+export function anchoredWindow(checkPoint: string, periodMonths: number, tz: string): AnchoredWindow {
+  const cp = Date.parse(checkPoint);
+  const local = new Date(cp + tzOffsetMs(cp, tz));
+  const [y, m, d] = [local.getUTCFullYear(), local.getUTCMonth() + 1, local.getUTCDate()];
+  const to = localMidnightUtc(y, m, d, tz);
+  const from = localMidnightUtc(y, m - periodMonths, d, tz);
+  const segments: HistorySegment[] = [];
+  const startLocal = new Date(from + tzOffsetMs(from, tz));
+  let [sy, sm] = [startLocal.getUTCFullYear(), startLocal.getUTCMonth() + 1];
+  for (;;) {
+    const ms = localMidnightUtc(sy, sm, 1, tz);
+    const me = localMidnightUtc(sy, sm + 1, 1, tz);
+    if (ms >= to) break;
+    segments.push({ key: `${sy}-${String(sm).padStart(2, '0')}`, from: Math.max(ms, from), to: Math.min(me, to) });
+    sm++;
+    if (sm > 12) [sy, sm] = [sy + 1, 1];
+  }
+  return { from, to, segments };
+}
