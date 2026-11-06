@@ -9,7 +9,7 @@ async function chooseScenario(page: Page, title: string) {
 
 test('карточка запуска показывает четыре этапа и блокирует порядок', async ({ page }) => {
   await page.goto('/objects/obj-001/launch');
-  await chooseScenario(page, 'Пропуски в истории учёта');
+  await chooseScenario(page, 'Дефекты истории');
   await chooseScenario(page, 'Успешный запуск');
   for (const id of STAGES) await expect(page.getByTestId(`stage-${id}`)).toBeVisible();
   // Строгая последовательность: завершить этап 3 до этапа 2 нельзя, показаны зависимости
@@ -22,18 +22,18 @@ test('карточка запуска показывает четыре этап
 
 test('отрицательный сценарий блокирует этап после проверки', async ({ page }) => {
   await page.goto('/objects/obj-001/launch');
-  await chooseScenario(page, 'Расхождение счёта и учёта');
+  await chooseScenario(page, 'Ошибки знаков и единиц');
   const stage = page.getByTestId('stage-METER_HISTORY');
   await page.getByRole('button', { name: 'Начать этап' }).click();
   await page.getByRole('button', { name: 'Запустить проверки' }).click();
   await expect(stage).toHaveAttribute('data-stage-status', 'BLOCKED');
-  await expect(page.locator('[data-check="MH-005"]')).toHaveAttribute('data-check-status', 'FAILED');
-  await expect(page.locator('[data-blocker-status="OPEN"]')).toContainText('invoice.csv');
+  await expect(page.locator('[data-check="MH-008"]')).toHaveAttribute('data-check-status', 'FAILED');
+  await expect(page.locator('[data-blocker-status="OPEN"]').first()).toContainText('invoice.csv');
 });
 
 test('успешный запуск проходит все этапы через интерфейс', async ({ page }) => {
   await page.goto('/objects/obj-001/launch');
-  await chooseScenario(page, 'Пропуски в истории учёта');
+  await chooseScenario(page, 'Дефекты истории');
   await chooseScenario(page, 'Успешный запуск');
   for (const id of STAGES) {
     const stage = page.getByTestId(`stage-${id}`);
@@ -106,4 +106,31 @@ test('центр запуска: сводка, фильтры, поиск, вн�
   await page.getByRole('navigation', { name: 'Навигационная цепочка' }).getByRole('link', { name: 'Центр запуска' }).click();
   await expect(page).toHaveURL(/status=blocked/);
   await expect(page.locator('[data-testid^="object-row-"]')).toHaveCount(1);
+});
+
+test('история счётчиков: 19 из 24 месяцев, повторная загрузка и повторная проверка', async ({ page }) => {
+  await page.goto('/objects/obj-002/history');
+  await expect(page.getByTestId('missing-months')).toHaveText('2024-11, 2024-12, 2025-01, 2025-02, 2025-03');
+  await expect(page.locator('[data-month-state="MISSING"]')).toHaveCount(5);
+  await expect(page.locator('[data-block="coverage"]')).toHaveAttribute('data-block-status', 'FAILED');
+  await expect(page.getByTestId('stage-status-METER_HISTORY')).toHaveAttribute('data-status', 'BLOCKED');
+
+  // Исправленный файл через тот же потоковый импорт (PapaParse)
+  await page.getByRole('button', { name: 'Полная история' }).click();
+  await expect(page.getByText('Результат проверки неактуален')).toBeVisible();
+  await expect(page.locator('[data-block="coverage"]')).toHaveAttribute('data-block-status', 'STALE');
+  await page.getByRole('button', { name: 'Завершить этап' }).click();
+  await expect(page.getByText(/повторите проверку/).first()).toBeVisible();
+
+  await page.getByRole('button', { name: 'Повторить проверки' }).click();
+  await expect(page.locator('[data-month-state="MISSING"]')).toHaveCount(0);
+  await expect(page.getByTestId('runs-history').locator('tbody tr')).toHaveCount(2);
+  await expect(page.locator('[data-block="coverage"]')).toHaveAttribute('data-block-status', 'PASSED');
+  await expect(page.getByTestId('stage-status-METER_HISTORY')).toHaveAttribute('data-status', 'IN_PROGRESS');
+});
+
+test('история счётчиков: файл не того формата не принимается', async ({ page }) => {
+  await page.goto('/objects/obj-002/history');
+  await page.locator('input[type="file"]').setInputFiles({ name: 'invoice.csv', mimeType: 'text/csv', buffer: Buffer.from('hello world\n1,2,3\n') });
+  await expect(page.getByText('Файл не принят')).toBeVisible();
 });
