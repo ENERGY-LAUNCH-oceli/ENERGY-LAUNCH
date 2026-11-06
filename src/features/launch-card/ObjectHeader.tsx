@@ -11,7 +11,7 @@ function Meta({ icon, label, children }: { icon: React.ReactNode; label: string;
       <span className="mt-0.5 text-text-muted [&_svg]:size-4">{icon}</span>
       <div className="flex min-w-0 flex-col">
         <dt className="text-caption text-text-muted">{label}</dt>
-        <dd className="text-body-sm font-semibold">{children}</dd>
+        <dd className="text-body-sm font-medium">{children}</dd>
       </div>
     </div>
   );
@@ -23,7 +23,7 @@ export function ObjectHeader({ entry, inputs, status, startedAt, actions }: { en
     <section aria-label="Объект" className="rounded-lg border border-border bg-surface">
       <div className="flex flex-wrap items-start justify-between gap-4 px-6 pb-5 pt-6">
         <div className="flex min-w-0 flex-col gap-2">
-          <span className="text-label uppercase text-accent-strong">Карточка запуска</span>
+          <span className="text-label text-text-muted">Карточка запуска</span>
           <div className="flex flex-wrap items-center gap-3">
             <h1 className="text-h1">{entry.name}</h1>
             <span className="rounded-xs bg-surface-sunken px-2 py-0.5 font-mono text-body-sm text-text-secondary">{entry.code}</span>
@@ -49,8 +49,8 @@ export function ObjectHeader({ entry, inputs, status, startedAt, actions }: { en
           <span className="tabular">{entry.assetCount}</span> · {entry.assets}
         </Meta>
         <Meta icon={<PlugZap />} label="EAN offtake / injection">
-          <span className="block font-mono text-caption font-semibold">{entry.ean.offtake}</span>
-          <span className="block font-mono text-caption font-semibold">{entry.ean.injection}</span>
+          <span className="block font-mono text-caption font-medium">{entry.ean.offtake}</span>
+          <span className="block font-mono text-caption font-medium">{entry.ean.injection}</span>
         </Meta>
         <Meta icon={<UserRound />} label="Инженер запуска">{entry.responsible}</Meta>
         <Meta icon={<CalendarClock />} label="Начало запуска">
