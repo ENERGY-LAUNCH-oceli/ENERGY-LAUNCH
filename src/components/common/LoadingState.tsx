@@ -3,7 +3,7 @@ import { cn } from '@/utils/cn';
 
 export interface LoadingStateProps {
   label?: string;
-  /** skeleton — каркас содержимого; spinner — индикатор с подписью. */
+  /** skeleton – каркас содержимого; spinner – индикатор с подписью. */
   variant?: 'skeleton' | 'spinner';
   rows?: number;
   className?: string;

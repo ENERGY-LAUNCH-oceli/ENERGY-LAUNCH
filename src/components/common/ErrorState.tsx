@@ -22,10 +22,10 @@ export function ErrorState({ title = 'Источник недоступен', de
         <CloudOff className="size-5" aria-hidden />
       </span>
       <div className="flex max-w-md flex-col gap-1">
-        <p className="text-body font-semibold">{title}</p>
+        <p className="text-body font-medium">{title}</p>
         {description && <p className="text-body-sm text-text-secondary">{description}</p>}
         <p className="text-caption text-text-muted">
-          Последняя успешная проверка: <span className="tabular font-semibold text-text-secondary">{lastSuccessAt ? formatDateTime(lastSuccessAt) : 'не выполнялась'}</span>
+          Последняя успешная проверка: <span className="tabular font-medium text-text-secondary">{lastSuccessAt ? formatDateTime(lastSuccessAt) : 'не выполнялась'}</span>
         </p>
       </div>
       {onRetry && (
