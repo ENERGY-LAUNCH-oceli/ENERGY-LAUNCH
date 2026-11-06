@@ -1,4 +1,5 @@
 import type { Id, IsoDateTime } from './common';
+import type { InvoiceReport } from './invoice';
 import type { Measurement } from './measurement';
 
 export const DATASET_SOURCES = ['CSV_IMPORT', 'DEMO', 'API'] as const;
@@ -15,30 +16,12 @@ interface DatasetBase {
   periodEnd: IsoDateTime;
 }
 
-/** Строка счёта за электроэнергию по точке поставки. */
-export interface InvoiceLine {
-  id: Id;
-  meteringPointId: Id;
-  periodStart: IsoDateTime;
-  periodEnd: IsoDateTime;
-  energyKwh: number;
-  tariffZone?: string;
-}
-
-/** Интервальная история прибора учёта по точке поставки. */
-export interface MeterSeries {
-  meteringPointId: Id;
-  signalId: Id;
-  measurements: Measurement[];
-}
-
-/** Этап 1 (Meter History): счета + история приборов учёта для сверки. */
+/** Этап 1 (Meter History): отчёт анализа официальной выгрузки invoice.csv. */
 export interface InvoiceDataset extends DatasetBase {
   kind: 'INVOICE';
-  invoiceNumber: string;
-  supplier: string;
-  lines: InvoiceLine[];
-  meterSeries: MeterSeries[];
+  /** Номер загрузки по объекту: повторная загрузка получает новую версию, старая остаётся в истории. */
+  version: number;
+  report: InvoiceReport;
 }
 
 /** Этап 2 (Real-time Telemetry): поток оперативных измерений. */

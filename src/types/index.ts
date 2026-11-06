@@ -9,3 +9,4 @@ export * from './dashboard';
 export * from './audit';
 export * from './scenario';
 export * from './rules-config';
+export * from './invoice';
