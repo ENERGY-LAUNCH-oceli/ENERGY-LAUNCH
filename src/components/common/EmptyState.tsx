@@ -16,7 +16,7 @@ export function EmptyState({ title, description, icon, action, className, compac
     <div className={cn('flex flex-col items-center justify-center gap-3 rounded-lg border border-dashed border-border-strong bg-surface-secondary text-center', compact ? 'p-6' : 'p-10', className)}>
       <span className="flex size-11 items-center justify-center rounded-full bg-accent-subtle text-accent-strong [&_svg]:size-5">{icon ?? <Inbox aria-hidden />}</span>
       <div className="flex max-w-md flex-col gap-1">
-        <p className="text-body font-semibold">{title}</p>
+        <p className="text-body font-medium">{title}</p>
         {description && <p className="text-body-sm text-text-secondary">{description}</p>}
       </div>
       {action}
