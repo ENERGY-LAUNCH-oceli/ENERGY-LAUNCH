@@ -35,7 +35,7 @@ export const router = createBrowserRouter([
       },
       { path: 'settings', element: <SettingsPage /> },
       { path: 'design-system', element: <DesignSystemPage /> },
-      { path: 'launch', element: <Navigate to={ROUTES.objectSection('building-1', 'launch')} replace /> },
+      { path: 'launch', element: <Navigate to={ROUTES.objectSection('obj-001', 'launch')} replace /> },
       { path: '*', element: <NotFoundPage /> },
     ],
   },
