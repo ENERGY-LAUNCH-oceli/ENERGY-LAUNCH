@@ -17,7 +17,7 @@ export function ObjectLayout() {
   const entry = findObject(objectId);
   // Карточка запуска сама показывает следующее действие и журнал — контекстная панель там не нужна
   const { pathname } = useLocation();
-  const isLaunch = pathname.endsWith('/launch') || pathname.endsWith('/history');
+  const isLaunch = pathname.endsWith('/launch') || pathname.endsWith('/history') || pathname.endsWith('/telemetry');
 
   useEffect(() => {
     if (entry && current !== entry.id) selectObject(entry.id);
