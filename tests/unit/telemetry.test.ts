@@ -50,7 +50,7 @@ describe('object.json', () => {
     expect(() => parseObjectJson({ name: 'x' }, { version: 1, source: 'DEMO', fileName: 'o', loadedAt: 'x' })).toThrow(PassportFormatError);
   });
 
-  it('обязательные сигналы по каждому активу; total — не сигнал оборудования', () => {
+  it('обязательные сигналы по каждому активу; total – не сигнал оборудования', () => {
     const req = requiredSignals(demoPassport(SPEC), rules).map((r) => r.signal);
     expect(req).toContain('Battery2.SOC_%');
     expect(req).toContain('PV1.power_kW.setpoint_received');
@@ -62,7 +62,7 @@ describe('object.json', () => {
   });
 });
 
-describe('telemetry.csv — этап 2', () => {
+describe('telemetry.csv – этап 2', () => {
   it('корректный поток проходит все проверки; 192 интервала за 48 ч', () => {
     const { failed, sig } = run();
     expect(failed).toEqual([]);
@@ -77,7 +77,7 @@ describe('telemetry.csv — этап 2', () => {
     expect(results.find((r) => r.ruleId === 'TM-003')!.message).toMatch(/не означает неисправность/);
   });
 
-  it('нет колонки — отсутствие сигнала; нет в карте — неполная карта', () => {
+  it('нет колонки – отсутствие сигнала; нет в карте – неполная карта', () => {
     expect(run({ dropSignals: ['PV1.power_kW.setpoint_received'] }).sig('PV1.power_kW.setpoint_received').diagnosis).toBe('NOT_IN_DATA');
     const r = run({}, { ...SPEC, omitFromMap: ['Battery1.setpoint_sent'] });
     expect(r.status('TM-002')).toBe('FAILED');
@@ -113,7 +113,7 @@ describe('telemetry.csv — этап 2', () => {
     expect(run({ wrongUnit: { signal: 'Battery1.SOC_%', unit: 'kWh' } }).status('TM-007')).toBe('FAILED');
   });
 
-  it('без паспорта и без данных — не успех', () => {
+  it('без паспорта и без данных – не успех', () => {
     const noPassport = validateTelemetryReport(undefined, undefined, rules, env);
     expect(noPassport.find((r) => r.ruleId === 'TM-001')!.status).toBe('FAILED');
     const passport = demoPassport(SPEC);
