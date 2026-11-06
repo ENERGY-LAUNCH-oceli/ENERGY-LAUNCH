@@ -61,13 +61,15 @@ export function obstacleView(blocker: Blocker, session: LaunchSession, inputs: L
   const result = session.stages[blocker.stageId].validationResults.find((r) => r.ruleId === blocker.ruleId);
   const d = (result?.details ?? {}) as Record<string, unknown>;
   const arr = (k: string) => (Array.isArray(d[k]) ? (d[k] as unknown[]).map(String) : []);
-  const fields = [...arr('signals'), ...arr('fields').map((mp) => `Grid.energy_kWh.offtake_invoice (${mp})`), ...arr('commands')];
+  const fields = [...arr('signals'), ...arr('fields'), ...arr('commands')];
+  const months = arr('missingMonths');
   const foreign = arr('unknownSignalIds');
   const interval = d.interval as { from?: string; to?: string } | null | undefined;
   const location = [
     { label: 'Файл', value: STAGE_SOURCE[blocker.stageId] },
     { label: 'Объект', value: `${inputs.object.code} · ${inputs.object.name}` },
     ...(fields.length ? [{ label: blocker.stageId === 'ASSET_CONTROL' ? 'Команды' : 'Поле / сигнал', value: fields.join(', ') }] : []),
+    ...(months.length ? [{ label: 'Недостающие месяцы', value: months.join(', ') }] : []),
     ...(foreign.length ? [{ label: 'В потоке', value: foreign.slice(0, 3).join(', ') + (foreign.length > 3 ? '…' : '') }] : []),
     ...(interval?.from ? [{ label: 'Интервал (UTC)', value: `${day(interval.from)} – ${day(interval.to)}` }] : []),
     { label: 'Критичность', value: blocker.severity === 'CRITICAL' ? 'Критично — блокирует этап' : blocker.severity === 'WARNING' ? 'Предупреждение' : 'Информация' },
