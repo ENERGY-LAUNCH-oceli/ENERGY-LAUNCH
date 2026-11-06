@@ -17,7 +17,7 @@ export const CHECK_STATUS_STYLE: Record<CheckStatus, { icon: typeof CircleCheck;
 export function CheckStatusLabel({ status, className, iconOnly }: { status: CheckStatus; className?: string; iconOnly?: boolean }) {
   const { icon: Icon, className: tone } = CHECK_STATUS_STYLE[status];
   return (
-    <span data-check-status={status} className={cn('inline-flex items-center gap-1.5 text-caption font-semibold', className)} title={iconOnly ? CHECK_STATUS_LABEL[status] : undefined}>
+    <span data-check-status={status} className={cn('inline-flex items-center gap-1.5 text-caption font-medium', className)} title={iconOnly ? CHECK_STATUS_LABEL[status] : undefined}>
       <Icon className={cn('size-4 shrink-0', tone)} aria-hidden />
       {iconOnly ? <span className="sr-only">{CHECK_STATUS_LABEL[status]}</span> : <span className="text-text-primary">{CHECK_STATUS_LABEL[status]}</span>}
     </span>
