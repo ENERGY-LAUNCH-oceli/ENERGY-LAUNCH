@@ -16,3 +16,4 @@ blob-report/
 .vscode/*
 !.vscode/extensions.json
 npm-debug.log*
+*.bundle
