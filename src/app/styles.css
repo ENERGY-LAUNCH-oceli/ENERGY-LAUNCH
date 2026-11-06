@@ -2,7 +2,10 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Токены (CSS-переменные --el-*) генерируются из src/design/tokens.ts плагином в tailwind.config.ts. */
+/*
+ * Токены (CSS-переменные --el-*) генерируются из src/design/tokens.ts плагином в tailwind.config.ts.
+ * Тёмная тема – :root[data-theme='dark'], переключатель в шапке.
+ */
 
 @layer base {
   *,
@@ -14,6 +17,7 @@
   html {
     -webkit-text-size-adjust: 100%;
     text-rendering: optimizeLegibility;
+    scrollbar-gutter: stable;
   }
 
   body {
@@ -25,18 +29,17 @@
   h2,
   h3,
   h4 {
-    @apply text-text-primary;
+    @apply font-heading text-text-primary;
   }
 
   ::selection {
-    @apply bg-accent-subtle text-text-primary;
+    @apply bg-accent/20 text-text-primary;
   }
 
   :focus-visible {
-    @apply outline-none ring-2 ring-ring ring-offset-2 ring-offset-surface;
+    @apply outline-none ring-2 ring-ring ring-offset-2 ring-offset-background;
   }
 
-  /* Нативные элементы форм не используются без стилизации */
   button,
   input,
   select,
@@ -44,9 +47,28 @@
     font: inherit;
     color: inherit;
   }
+
+  /* Плавная смена темы без анимации всего подряд */
+  html.theme-switching,
+  html.theme-switching * {
+    transition: background-color 240ms var(--el-ease), border-color 240ms var(--el-ease), color 240ms var(--el-ease) !important;
+  }
 }
 
 @layer utilities {
+  /* Заголовочная гарнитура для крупного текста и чисел */
+  .text-display,
+  .text-h1,
+  .text-h2,
+  .text-h3,
+  .text-numeric {
+    font-family: theme('fontFamily.heading');
+  }
+  /* Надзаголовки и подписи групп: моноширинные, uppercase, приглушённые */
+  .text-label {
+    font-family: theme('fontFamily.mono');
+    text-transform: uppercase;
+  }
   /* Табличные цифры для всех числовых показателей */
   .tabular {
     font-variant-numeric: tabular-nums;
@@ -56,14 +78,254 @@
     text-wrap: balance;
   }
   .skeleton {
-    background: linear-gradient(
-      90deg,
-      rgb(var(--el-surface-sunken)) 0%,
-      rgb(var(--el-surface-secondary)) 50%,
-      rgb(var(--el-surface-sunken)) 100%
-    );
+    background: linear-gradient(90deg, rgb(var(--el-surface-sunken)) 0%, rgb(var(--el-surface-hover)) 50%, rgb(var(--el-surface-sunken)) 100%);
     background-size: 800px 100%;
     @apply animate-shimmer rounded-sm;
+  }
+  /* Ссылка: линия прочерчивается слева при наведении */
+  .link-line {
+    background: linear-gradient(currentColor, currentColor) 0 100% / 0 1px no-repeat;
+    transition: background-size 0.6s var(--el-ease);
+    padding-bottom: 1px;
+  }
+  .link-line:hover {
+    background-size: 100% 1px;
+  }
+}
+
+/* ===== Прелоадер: линия электропередачи ===== */
+.preloader {
+  --pl-ease: cubic-bezier(0.16, 1, 0.3, 1);
+  --pl-line: rgb(var(--el-text-muted));
+  --pl-energy: rgb(var(--el-accent));
+  clip-path: inset(0 0 0 0);
+  color: rgb(var(--el-text-muted));
+}
+.preloader .pl-horizon {
+  fill: none;
+  stroke-width: 1;
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  animation: pl-draw 1400ms var(--pl-ease) forwards;
+}
+/* Опоры прорисовываются от ближней к дальней */
+.preloader .pl-tower {
+  transform-box: fill-box;
+  transition: opacity 600ms ease, translate 900ms var(--pl-ease);
+  transition-delay: calc(var(--far) * 70ms);
+}
+.preloader .pl-tower-body,
+.preloader .pl-insulators {
+  fill: none;
+  stroke: var(--pl-line);
+  stroke-width: 1;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  animation: pl-draw 1300ms var(--pl-ease) forwards;
+  animation-delay: calc(var(--i) * 110ms);
+}
+.preloader .pl-insulators {
+  stroke-width: 1.6;
+  animation-delay: calc(var(--i) * 110ms + 700ms);
+}
+.preloader .pl-clamp {
+  fill: rgb(var(--el-background));
+  stroke: var(--pl-line);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+  opacity: 0;
+  animation: pl-fade 400ms ease forwards;
+  animation-delay: calc(var(--i) * 110ms + 900ms);
+}
+.preloader .pl-earth {
+  fill: none;
+  stroke: var(--pl-line);
+  stroke-width: 0.6;
+  opacity: 0.55;
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  animation: pl-draw 1500ms var(--pl-ease) 600ms forwards;
+  transition: opacity 400ms ease;
+}
+/* Фазные провода: провисают по цепной линии, прорисовываются после опор */
+.preloader .pl-wire {
+  fill: none;
+  stroke: var(--pl-line);
+  stroke-width: 1.1;
+  opacity: 0.75;
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  animation: pl-draw 1500ms var(--pl-ease) forwards;
+  animation-delay: calc(500ms + var(--w) * 90ms);
+}
+/* Импульс тока: мягкое свечение + яркое ядро */
+.preloader .pl-halo,
+.preloader .pl-core {
+  fill: none;
+  stroke: var(--pl-energy);
+  stroke-linecap: round;
+  stroke-dasharray: 9 91;
+  stroke-dashoffset: 9;
+  opacity: 0;
+  animation:
+    pl-current var(--pl-cycle) cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite,
+    pl-fade 400ms ease 1300ms forwards;
+  animation-delay: calc(var(--w) * 120ms), 1300ms;
+}
+.preloader .pl-halo {
+  stroke-width: 7;
+  --pl-o: 0.45;
+}
+.preloader .pl-core {
+  stroke-width: 1.8;
+  stroke-dasharray: 6 94;
+  stroke-dashoffset: 6;
+}
+/* Вспышка: вся линия «запитывается» */
+.preloader .pl-charge {
+  fill: none;
+  stroke: var(--pl-energy);
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  opacity: 0;
+  transition: stroke-dashoffset 600ms var(--pl-ease), opacity 250ms ease;
+  transition-delay: calc(var(--w) * 60ms);
+}
+/* ── После загрузки ── */
+.preloader:is(.is-reveal, .is-exit) .pl-charge {
+  opacity: 1;
+  animation: pl-charge 2600ms forwards;
+  animation-delay: calc(var(--w) * 60ms);
+}
+.preloader:is(.is-reveal, .is-exit) :is(.pl-halo, .pl-core) {
+  animation: none;
+  opacity: 0;
+}
+.preloader:is(.is-reveal, .is-exit) .pl-tower {
+  opacity: 0;
+  translate: 0 14px;
+}
+.preloader:is(.is-reveal, .is-exit) .pl-earth,
+.preloader:is(.is-reveal, .is-exit) .pl-horizon {
+  opacity: 0;
+  transition: opacity 500ms ease 200ms;
+}
+.preloader:is(.is-reveal, .is-exit) .pl-wire {
+  opacity: 0;
+  transition: opacity 400ms ease 500ms;
+}
+/* Название: проявляется слева направо с бирюзовым фронтом (ток доходит до букв) */
+.preloader .pl-title {
+  transform: translateY(-50%);
+}
+.preloader .pl-word {
+  font-size: clamp(34px, 5.6vw, 60px);
+  font-weight: 600;
+  letter-spacing: -0.045em;
+  line-height: 1;
+  padding: 0.06em 0.04em 0.1em;
+  color: transparent;
+  background-image: linear-gradient(
+    90deg,
+    rgb(var(--el-text-primary)) 0%,
+    rgb(var(--el-text-primary)) 44%,
+    rgb(var(--el-accent)) 48.5%,
+    rgb(var(--el-accent) / 0) 52%,
+    rgb(var(--el-accent) / 0) 100%
+  );
+  background-size: 260% 100%;
+  background-position: 100% 0;
+  -webkit-background-clip: text;
+  background-clip: text;
+  transition: background-position 1300ms cubic-bezier(0.65, 0, 0.35, 1) 1300ms;
+}
+.preloader:is(.is-reveal, .is-exit) .pl-word {
+  background-position: 0% 0;
+}
+/* Подзаголовок: спокойное проявление после названия */
+.preloader .pl-tagline {
+  margin-top: 14px;
+  max-width: 34em;
+  font-size: clamp(13px, 1.5vw, 16px);
+  line-height: 1.45;
+  letter-spacing: -0.005em;
+  color: rgb(var(--el-text-secondary));
+  opacity: 0;
+  transform: translateY(8px);
+  transition:
+    opacity 700ms ease 2200ms,
+    transform 900ms var(--pl-ease) 2200ms;
+}
+.preloader:is(.is-reveal, .is-exit) .pl-tagline {
+  opacity: 1;
+  transform: none;
+}
+.preloader .pl-status {
+  transition: opacity 300ms ease;
+}
+.preloader.is-reveal .pl-status {
+  opacity: 0;
+}
+/* Уход: текстовый блок поднимается и растворяется, затем шторка */
+.preloader.is-exit .pl-title {
+  transform: translateY(calc(-50% - 28px));
+  opacity: 0;
+  transition:
+    transform 700ms cubic-bezier(0.7, 0, 0.84, 0),
+    opacity 450ms ease 150ms;
+}
+.preloader.is-exit {
+  clip-path: inset(0 0 100% 0);
+  transition: clip-path 800ms cubic-bezier(0.76, 0, 0.24, 1) 300ms;
+}
+/* Вспышка (линия запитывается) → пауза, пока провода стягиваются → черта втягивается слева направо */
+@keyframes pl-charge {
+  0% {
+    stroke-dashoffset: 1;
+    animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  23% {
+    stroke-dashoffset: 0;
+  }
+  50% {
+    stroke-dashoffset: 0;
+    animation-timing-function: cubic-bezier(0.65, 0, 0.35, 1);
+  }
+  100% {
+    stroke-dashoffset: -1;
+  }
+}
+@keyframes pl-draw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+@keyframes pl-fade {
+  to {
+    opacity: var(--pl-o, 1);
+  }
+}
+@keyframes pl-current {
+  from {
+    stroke-dashoffset: 10;
+  }
+  to {
+    stroke-dashoffset: -100;
+  }
+}
+
+/* Пульс маркера «Заблокирован» */
+@keyframes pulse-ring {
+  0%,
+  100% {
+    box-shadow: 0 0 0 3px rgb(var(--el-status-blocked-solid) / 0.2);
+  }
+  50% {
+    box-shadow: 0 0 0 6px rgb(var(--el-status-blocked-solid) / 0);
   }
 }
 
@@ -73,5 +335,29 @@
   ::after {
     animation-duration: 0.01ms !important;
     transition-duration: 0.01ms !important;
+  }
+}
+
+/* ===== Печать протокола (экспорт в PDF) ===== */
+@media print {
+  @page {
+    size: A4;
+    margin: 14mm 12mm;
+  }
+  body * {
+    visibility: hidden;
+  }
+  .protocol,
+  .protocol * {
+    visibility: visible;
+  }
+  .protocol {
+    position: absolute;
+    inset: 0 auto auto 0;
+    width: 100%;
+    background: #fff;
+  }
+  body {
+    background: #fff;
   }
 }
