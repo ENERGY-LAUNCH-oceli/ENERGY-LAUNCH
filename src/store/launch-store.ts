@@ -18,7 +18,8 @@ import {
 } from '@/engine';
 import { auditRepository, saveLaunchInputs, sessionRepository } from '@/services';
 import { makeInvoiceRun } from '@/engine/invoice';
-import type { InvoiceReport } from '@/types';
+import type { InvoiceReport, SitePassport, TelemetryReport } from '@/types';
+import { makeTelemetryRun } from '@/engine/telemetry';
 import type { AuditEvent, Evidence, LaunchInputs, LaunchSession, RulesConfig, StageConfirmation, StageId } from '@/types';
 
 /** Адаптер сохранения: подменяется в тестах. */
@@ -75,6 +76,9 @@ interface LaunchState {
   clearError(): void;
   /** Новая загрузка invoice.csv: новая версия набора, предыдущая уходит в историю. */
   importInvoiceReport(report: InvoiceReport): void;
+  /** Новая загрузка telemetry.csv или исправленного object.json — новая версия; прежняя в истории. */
+  importTelemetryReport(report: TelemetryReport): void;
+  importPassport(passport: SitePassport): void;
 }
 
 const reportPersistError = (e: unknown) => console.error('[launch-store] persist failed', e);
@@ -182,12 +186,46 @@ export const useLaunchStore = create<LaunchState>()((set, get) => {
       if (!inputs) return false;
       const c = ctx();
       const ok = withSession((s) => validateStage(s, stageId, inputs, ruleset, c));
+      if (ok && stageId === 'REALTIME_TELEMETRY') {
+        const results = get().session!.stages.REALTIME_TELEMETRY.validationResults;
+        const cur = get().inputs!;
+        const runs = cur.telemetryRuns ?? [];
+        set({ inputs: { ...cur, telemetryRuns: [...runs, makeTelemetryRun(cur.telemetry, cur.passport, results, ruleset.telemetry, ruleset.version, c.now(), runs)] } });
+      }
       if (ok && stageId === 'METER_HISTORY') {
         const results = get().session!.stages.METER_HISTORY.validationResults;
         const runs = inputs.invoiceRuns ?? [];
         set({ inputs: { ...inputs, invoiceRuns: [...runs, makeInvoiceRun(inputs.invoice, results, ruleset.meterHistory, ruleset.version, c.now(), runs)] } });
       }
       return ok;
+    },
+
+    importTelemetryReport: (report) => {
+      const { inputs, session } = get();
+      if (!inputs || !session) return;
+      const c = ctx();
+      const prev = inputs.telemetry;
+      const version = (prev?.version ?? 0) + 1;
+      const dataset = { kind: 'TELEMETRY' as const, id: `telemetry-${session.objectId}-v${version}`, objectId: session.objectId, version, report };
+      set((s) => ({
+        inputs: { ...inputs, telemetry: dataset, telemetryHistory: [...(inputs.telemetryHistory ?? []), ...(prev ? [prev] : [])] },
+        auditLog: [...s.auditLog, { id: c.newId(), action: 'DATASET_IMPORTED' as const, actor: c.actor, timestamp: c.now(), sessionId: session.id, objectId: session.objectId, stageId: 'REALTIME_TELEMETRY' as const, rulesetVersion: session.rulesetVersion, payload: { fileName: report.meta.fileName, version, rows: report.meta.rows } }],
+      }));
+      if (session.stages.REALTIME_TELEMETRY.status !== 'COMPLETED') get().addEvidence({ stageId: 'REALTIME_TELEMETRY', type: 'FILE', title: `telemetry.csv v${version}`, fileName: report.meta.fileName, sizeBytes: report.meta.sizeBytes, mimeType: 'text/csv' });
+      notify({ tone: 'info', title: `Загружена телеметрия v${version}`, description: `${report.meta.rows.toLocaleString('ru-RU')} строк · запустите проверку` });
+    },
+
+    importPassport: (passport) => {
+      const { inputs, session } = get();
+      if (!inputs || !session) return;
+      const c = ctx();
+      const prev = inputs.passport;
+      const next = { ...passport, version: (prev?.version ?? 0) + 1 };
+      set((s) => ({
+        inputs: { ...inputs, passport: next, passportHistory: [...(inputs.passportHistory ?? []), ...(prev ? [prev] : [])] },
+        auditLog: [...s.auditLog, { id: c.newId(), action: 'DATASET_IMPORTED' as const, actor: c.actor, timestamp: c.now(), sessionId: session.id, objectId: session.objectId, stageId: 'REALTIME_TELEMETRY' as const, rulesetVersion: session.rulesetVersion, payload: { fileName: passport.fileName, kind: 'object.json', version: next.version, assets: next.assets.map((a) => a.assetId) } }],
+      }));
+      notify({ tone: 'info', title: `Паспорт объекта v${next.version}`, description: 'Карта сигналов обновлена — загрузите телеметрию заново или повторите проверку' });
     },
 
     importInvoiceReport: (report) => {
@@ -233,9 +271,16 @@ export const useLaunchStore = create<LaunchState>()((set, get) => {
       const { inputs, session } = get();
       // Изменённые входные данные делают результат проверки неактуальным (ТЗ 2.2.4)
       const lastRun = inputs?.invoiceRuns?.at(-1);
-      if (stageId === 'METER_HISTORY' && session && inputs?.invoice && lastRun && lastRun.datasetVersion !== inputs.invoice.version) {
+      const tRun = inputs?.telemetryRuns?.at(-1);
+      const staleMsg =
+        stageId === 'METER_HISTORY' && inputs?.invoice && lastRun && lastRun.datasetVersion !== inputs.invoice.version
+          ? `Загружена версия v${inputs.invoice.version}, а проверялась v${lastRun.datasetVersion}: повторите проверку`
+          : stageId === 'REALTIME_TELEMETRY' && tRun && ((inputs?.telemetry?.version ?? 0) !== tRun.datasetVersion || (inputs?.passport?.version ?? 0) !== tRun.passportVersion)
+            ? `Телеметрия или паспорт изменены после проверки (данные v${inputs?.telemetry?.version ?? 0}, паспорт v${inputs?.passport?.version ?? 0}): повторите проверку`
+            : null;
+      if (session && staleMsg) {
         const c = ctx();
-        const error = { code: 'VALIDATION_NOT_RUN' as const, stageId, message: `Загружена версия v${inputs.invoice.version}, а проверялась v${lastRun.datasetVersion}: повторите проверку` };
+        const error = { code: 'VALIDATION_NOT_RUN' as const, stageId, message: staleMsg };
         set((s) => ({
           lastError: error,
           auditLog: [...s.auditLog, { id: c.newId(), action: 'TRANSITION_REJECTED' as const, actor: c.actor, timestamp: c.now(), sessionId: session.id, objectId: session.objectId, stageId, rulesetVersion: session.rulesetVersion, payload: { code: error.code, message: error.message } }],
