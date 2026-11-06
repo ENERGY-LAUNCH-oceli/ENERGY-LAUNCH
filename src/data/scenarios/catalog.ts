@@ -1,14 +1,17 @@
-import { ACTIVE_RULESET } from '@/config/rules';
-import { buildInvoiceDataset, DEMO_OBJECT, DEMO_OBJECT_ID, generateControlTests, generateDashboards, generateTelemetryDataset } from '@/data/mock';
+
+import { buildInvoiceDataset, buildTelemetryDataset, DEMO_OBJECT, DEMO_OBJECT_ID, demoPassport, generateControlTests, generateDashboards, type TelemetryGenOptions } from '@/data/mock';
 import type { LaunchInputs, TestScenario } from '@/types';
 
-const cfg = ACTIVE_RULESET;
-const TELEMETRY_SIGNALS = ['sig-p', 'sig-q', 'sig-u', 'sig-f', 'sig-brk'];
+
+/** Паспорт демо-объекта: одна PV-установка и одна батарея. */
+export const DEMO_PASSPORT = demoPassport({ objectId: DEMO_OBJECT_ID, name: 'Демо-объект', city: 'Брюссель', ean: { offtake: '541448800000000017', injection: '541448800000000024' }, assets: [{ id: 'pv-1', type: 'pv', prefix: 'PV1' }, { id: 'battery-1', type: 'battery', prefix: 'Battery1' }] });
+const telemetry = (o: TelemetryGenOptions = {}) => buildTelemetryDataset(DEMO_PASSPORT, o);
 
 const baseInputs = (): LaunchInputs => ({
   object: DEMO_OBJECT,
   invoice: buildInvoiceDataset({ objectId: DEMO_OBJECT_ID }),
-  telemetry: generateTelemetryDataset({ periodStart: '2026-11-02T00:00:00.000Z', hours: cfg.telemetry.observationPeriodHours, frequencySec: cfg.telemetry.expectedFrequencySec, signalIds: TELEMETRY_SIGNALS, seed: 21 }),
+  passport: DEMO_PASSPORT,
+  telemetry: telemetry(),
   controlTests: generateControlTests({ startAt: '2026-11-03T09:00:00.000Z', intervalSec: 120 }),
   dashboards: generateDashboards({ published: true }),
 });
@@ -80,48 +83,45 @@ const DESCRIPTORS: ScenarioDescriptor[] = [
   {
     id: 'wrong-binding',
     title: 'Ошибочная привязка',
-    description: 'Поток телеметрии принадлежит другому объекту: идентификаторы сигналов не совпадают с картой сигналов.',
+    description: 'В telemetry.csv — данные другого объекта: батарея подписана как Battery2, object_id чужой.',
     tags: ['negative', 'telemetry'],
-    build: () => {
-      const foreign = generateTelemetryDataset({ periodStart: '2026-11-02T00:00:00.000Z', hours: cfg.telemetry.observationPeriodHours, frequencySec: cfg.telemetry.expectedFrequencySec, signalIds: TELEMETRY_SIGNALS, seed: 21 });
-      return {
-        inputs: { ...baseInputs(), telemetry: { ...foreign, measurements: foreign.measurements.map((m) => ({ ...m, signalId: `obj-foreign:${m.signalId}` })) } },
-        expectations: [
-          { stageId: 'METER_HISTORY', statusAfterValidation: 'IN_PROGRESS', failingRuleIds: [] },
-          { stageId: 'REALTIME_TELEMETRY', statusAfterValidation: 'BLOCKED', failingRuleIds: ['TM-001', 'TM-002', 'TM-003', 'TM-004'] },
-        ],
-      };
-    },
+    build: () => ({
+      inputs: { ...baseInputs(), telemetry: telemetry({ renamePrefix: { from: 'Battery1', to: 'Battery2' }, objectIdInFile: 'OBJ-FOREIGN-07' }) },
+      expectations: [
+        { stageId: 'METER_HISTORY', statusAfterValidation: 'IN_PROGRESS', failingRuleIds: [] },
+        { stageId: 'REALTIME_TELEMETRY', statusAfterValidation: 'BLOCKED', failingRuleIds: ['TM-003', 'TM-004', 'TM-005', 'TM-006', 'TM-011'] },
+      ],
+    }),
   },
   {
     id: 'telemetry-latency',
-    title: 'Высокая задержка телеметрии',
-    description: '10% сообщений доставляются с задержкой 120 с.',
+    title: 'Устаревшая телеметрия',
+    description: 'Поток прервался за 90 минут до точки проверки.',
     tags: ['negative', 'telemetry'],
     build: () => ({
       inputs: {
         ...baseInputs(),
-        telemetry: generateTelemetryDataset({ periodStart: '2026-11-02T00:00:00.000Z', hours: cfg.telemetry.observationPeriodHours, frequencySec: cfg.telemetry.expectedFrequencySec, signalIds: TELEMETRY_SIGNALS, lateRatio: 0.1, lateLatencySec: 120, seed: 21 }),
+        telemetry: telemetry({ staleMinutes: 90 }),
       },
       expectations: [
         { stageId: 'METER_HISTORY', statusAfterValidation: 'IN_PROGRESS', failingRuleIds: [] },
-        { stageId: 'REALTIME_TELEMETRY', statusAfterValidation: 'BLOCKED', failingRuleIds: ['TM-004'] },
+        { stageId: 'REALTIME_TELEMETRY', statusAfterValidation: 'BLOCKED', failingRuleIds: ['TM-005', 'TM-006', 'TM-011'] },
       ],
     }),
   },
   {
     id: 'missing-signal',
-    title: 'Нет обязательного сигнала',
-    description: 'По частоте сети (FREQUENCY) данные не поступают.',
+    title: 'Нет телеметрии батареи',
+    description: 'История принята, но установленная батарея не передаёт данные: колонки есть, значений нет.',
     tags: ['negative', 'telemetry'],
     build: () => ({
       inputs: {
         ...baseInputs(),
-        telemetry: generateTelemetryDataset({ periodStart: '2026-11-02T00:00:00.000Z', hours: cfg.telemetry.observationPeriodHours, frequencySec: cfg.telemetry.expectedFrequencySec, signalIds: TELEMETRY_SIGNALS.filter((s) => s !== 'sig-f'), seed: 21 }),
+        telemetry: telemetry({ silentAssets: ['Battery1'] }),
       },
       expectations: [
         { stageId: 'METER_HISTORY', statusAfterValidation: 'IN_PROGRESS', failingRuleIds: [] },
-        { stageId: 'REALTIME_TELEMETRY', statusAfterValidation: 'BLOCKED', failingRuleIds: ['TM-001'] },
+        { stageId: 'REALTIME_TELEMETRY', statusAfterValidation: 'BLOCKED', failingRuleIds: ['TM-003', 'TM-005', 'TM-006', 'TM-011'] },
       ],
     }),
   },
