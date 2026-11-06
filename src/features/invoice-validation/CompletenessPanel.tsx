@@ -2,7 +2,7 @@ import type { InvoiceReport } from '@/types';
 import { cn } from '@/utils/cn';
 import { monthLabel } from './labels';
 
-/** Полнота по месяцам: столбик = доля фактических интервалов; линия — порог из правил. */
+/** Полнота по месяцам: столбик = доля фактических интервалов; линия – порог из правил. */
 export function CompletenessPanel({ report, minPct, stepMinutes }: { report: InvoiceReport | undefined; minPct: number; stepMinutes: number }) {
   const months = report?.window?.months ?? [];
   const c = report?.completeness;
@@ -14,7 +14,7 @@ export function CompletenessPanel({ report, minPct, stepMinutes }: { report: Inv
   return (
     <section id="completeness" aria-label="Полнота" className="min-w-0 scroll-mt-24 rounded-lg border border-border bg-surface p-5">
       <div className="mb-4 flex flex-col gap-0.5">
-        <span className="text-label uppercase text-accent-strong">Completeness</span>
+        <span className="text-label text-text-muted">Completeness</span>
         <h2 className="text-h3">Полнота {stepMinutes}-минутных интервалов</h2>
       </div>
       {c ? (
@@ -28,13 +28,13 @@ export function CompletenessPanel({ report, minPct, stepMinutes }: { report: Inv
             ].map(([k, v, cls]) => (
               <div key={k} className="flex flex-col gap-0.5 rounded-sm bg-surface-secondary px-3 py-2">
                 <dt className="text-caption text-text-muted">{k}</dt>
-                <dd className={cn('tabular text-body font-bold', cls)}>{v}</dd>
+                <dd className={cn('tabular text-body font-medium', cls)}>{v}</dd>
               </div>
             ))}
           </dl>
           {report.detectedStepMinutes && report.detectedStepMinutes !== stepMinutes && (
             <p className="mb-3 rounded-sm border border-warning-border bg-warning-subtle px-3 py-2 text-caption text-text-secondary">
-              Исходный шаг — {report.detectedStepMinutes} мин. Данные хранятся в исходной детализации: интервалы не досоздаются, поэтому полнота {stepMinutes}-минутного ряда не подтверждена.
+              Исходный шаг – {report.detectedStepMinutes} мин. Данные хранятся в исходной детализации: интервалы не досоздаются, поэтому полнота {stepMinutes}-минутного ряда не подтверждена.
             </p>
           )}
           <div className="overflow-x-auto">
@@ -74,7 +74,7 @@ export function CompletenessPanel({ report, minPct, stepMinutes }: { report: Inv
           </div>
         </>
       ) : (
-        <p className="text-body-sm text-text-secondary">Нет данных — полнота не рассчитана.</p>
+        <p className="text-body-sm text-text-secondary">Нет данных – полнота не рассчитана.</p>
       )}
     </section>
   );

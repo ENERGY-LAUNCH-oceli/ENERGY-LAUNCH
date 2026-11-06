@@ -10,13 +10,13 @@ export function CoverageTimeline({ report, periodMonths }: { report: InvoiceRepo
     <section id="coverage" aria-label="Покрытие 24 месяцев" className="scroll-mt-24 rounded-lg border border-border bg-surface p-5">
       <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
         <div className="flex flex-col gap-0.5">
-          <span className="text-label uppercase text-accent-strong">Coverage</span>
+          <span className="text-label text-text-muted">Coverage</span>
           <h2 className="text-h3">Покрытие {periodMonths} последовательных месяцев</h2>
         </div>
         {months && (
           <span className={cn('tabular text-h2', present < periodMonths ? 'text-status-blocked' : 'text-status-completed')}>
             {present}
-            <span className="text-body-sm font-semibold text-text-secondary"> из {periodMonths} мес</span>
+            <span className="text-body-sm font-medium text-text-secondary"> из {periodMonths} мес</span>
           </span>
         )}
       </div>
@@ -44,7 +44,7 @@ export function CoverageTimeline({ report, periodMonths }: { report: InvoiceRepo
                     m.state === 'MISSING' && 'border-dashed border-status-blocked-border bg-[repeating-linear-gradient(135deg,rgb(var(--el-error-subtle)),rgb(var(--el-error-subtle))_4px,rgb(var(--el-surface))_4px,rgb(var(--el-surface))_8px)]',
                   )}
                 >
-                  <span className={cn('text-[11px] font-bold', m.state === 'MISSING' ? 'text-status-blocked' : 'text-text-primary')}>{monthLabel(m.month)}</span>
+                  <span className={cn('text-[11px] font-medium', m.state === 'MISSING' ? 'text-status-blocked' : 'text-text-primary')}>{monthLabel(m.month)}</span>
                   <span className="tabular text-[10px] text-text-secondary">{m.state === 'MISSING' ? 'нет данных' : `${Math.floor(pct * 10) / 10}%`}</span>
                   {m.duplicates > 0 && <span className="absolute right-1 top-1 size-1.5 rounded-full bg-warning" aria-label="Есть дубли" />}
                   <span aria-hidden className={cn('absolute inset-x-0 bottom-0 h-1', m.state === 'FULL' ? 'bg-status-completed-solid' : m.state === 'PARTIAL' ? 'bg-warning' : 'bg-transparent')} style={{ width: `${pct}%` }} />
@@ -55,21 +55,21 @@ export function CoverageTimeline({ report, periodMonths }: { report: InvoiceRepo
           <dl className="mt-4 grid gap-3 text-body-sm sm:grid-cols-2 xl:grid-cols-5">
             <div>
               <dt className="text-caption text-text-muted">Начало окна</dt>
-              <dd className="tabular font-semibold">{report.window!.from.slice(0, 10)}</dd>
+              <dd className="tabular font-medium">{report.window!.from.slice(0, 10)}</dd>
             </div>
             <div>
               <dt className="text-caption text-text-muted">Конец окна</dt>
-              <dd className="tabular font-semibold">{report.window!.to.slice(0, 10)}</dd>
+              <dd className="tabular font-medium">{report.window!.to.slice(0, 10)}</dd>
             </div>
             <div>
               <dt className="text-caption text-text-muted">Фактическое покрытие</dt>
-              <dd className="tabular font-semibold">
+              <dd className="tabular font-medium">
                 {present} из {periodMonths} мес
               </dd>
             </div>
             <div className="xl:col-span-2">
               <dt className="text-caption text-text-muted">Недостающие месяцы</dt>
-              <dd className={cn('font-mono text-caption font-semibold', report.missingMonths.length ? 'text-status-blocked' : 'text-status-completed')} data-testid="missing-months">
+              <dd className={cn('font-mono text-caption font-medium', report.missingMonths.length ? 'text-status-blocked' : 'text-status-completed')} data-testid="missing-months">
                 {report.missingMonths.length ? report.missingMonths.join(', ') : 'нет'}
               </dd>
             </div>
