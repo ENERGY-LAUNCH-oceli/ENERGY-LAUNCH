@@ -1,4 +1,5 @@
 import type { RulesConfig } from '@/types';
+import { METER_HISTORY_TZ } from './meter-history';
 
 /**
  * Набор правил v1.0.0.
@@ -8,6 +9,7 @@ import type { RulesConfig } from '@/types';
  *   - Техническое задание «Кейс 4. Запуск энергетического объекта на платформе»;
  *   - Паспорт кейса OE-04.
  * При расхождении создаётся новая версия набора (ruleset.vX.ts), а не правка этой.
+ * Этап 1 в v1.0.0 сохранён как в v1.1.0 (формат правил изменился при сверке с ТЗ; v1.0.0 не применялся в эксплуатации).
  */
 export const RULESET_V1: RulesConfig = {
   version: '1.0.0',
@@ -19,13 +21,8 @@ export const RULESET_V1: RulesConfig = {
   ],
   provisional: true,
 
-  meterHistory: {
-    intervalMinutes: 30,
-    checkPeriodDays: 30,
-    minCompletenessPct: 98,
-    maxConsecutiveGaps: 4,
-    invoiceTolerancePct: 1,
-  },
+  meterHistory: METER_HISTORY_TZ,
+
 
   telemetry: {
     expectedFrequencySec: 60,
