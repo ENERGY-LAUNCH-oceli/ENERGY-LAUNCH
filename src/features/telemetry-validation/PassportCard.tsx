@@ -4,42 +4,42 @@ import type { SitePassport } from '@/types';
 
 /** Поля паспорта object.json: только то, что в нём есть. */
 export function PassportCard({ passport }: { passport: SitePassport }) {
-  const rows: [string, React.ReactNode][] = [
-    ['object_id', <span className="font-mono">{passport.objectId}</span>],
-    ['name', passport.name],
-    ['address', passport.address ?? <span className="text-text-muted">не указан (null)</span>],
-    ['coordinates', passport.coordinates ? <span className="tabular">{passport.coordinates.lat}, {passport.coordinates.lon}</span> : <span className="text-text-muted">null</span>],
-    ['timezone', `${passport.timezone} (только отображение)`],
-    ['grid_connection', <span className="font-mono text-caption">offtake {passport.ean.offtake ?? '—'} · injection {passport.ean.injection ?? '—'}</span>],
-    ['data_files', <span className="font-mono text-caption">invoice: {passport.dataFiles.invoice ?? 'null'} · telemetry: {passport.dataFiles.telemetry ?? 'null'}</span>],
-    ['csv_format', <span className="font-mono text-caption">«{passport.csvFormat.delimiter}» · «{passport.csvFormat.decimal}» · {passport.csvFormat.encoding} · {passport.csvFormat.stepMinutes} мин</span>],
+  const rows: { label: string; value: React.ReactNode; mono?: boolean; wide?: boolean }[] = [
+    { label: 'Идентификатор объекта', value: passport.objectId, mono: true },
+    { label: 'Название', value: passport.name },
+    { label: 'Адрес', value: passport.address ?? <span className="text-text-muted">Не указан</span>, wide: true },
+    { label: 'Координаты', value: passport.coordinates ? `${passport.coordinates.lat.toFixed(5)}, ${passport.coordinates.lon.toFixed(5)}` : <span className="text-text-muted">Не указаны</span>, mono: true },
+    { label: 'Часовой пояс', value: passport.timezone },
+    { label: 'Точки подключения', value: <span className="flex flex-wrap gap-x-3 gap-y-1"><span>Потребление: {passport.ean.offtake ?? '–'}</span><span>Выдача: {passport.ean.injection ?? '–'}</span></span>, mono: true, wide: true },
+    { label: 'Файлы данных', value: <span className="flex flex-wrap gap-x-3 gap-y-1"><span>Учёт: {passport.dataFiles.invoice ?? 'не указан'}</span><span>Телеметрия: {passport.dataFiles.telemetry ?? 'не указана'}</span></span>, mono: true, wide: true },
+    { label: 'Формат CSV', value: <span>Разделитель «{passport.csvFormat.delimiter}» · десятичный знак «{passport.csvFormat.decimal}» · {passport.csvFormat.encoding} · шаг {passport.csvFormat.stepMinutes} мин</span>, wide: true },
   ];
   return (
     <section id="passport" aria-label="Паспорт объекта" className="min-w-0 scroll-mt-24 rounded-lg border border-border bg-surface p-5">
       <div className="mb-4 flex flex-col gap-0.5">
-        <span className="text-label uppercase text-accent-strong">object.json</span>
+        <span className="text-label text-text-muted">Данные из object.json</span>
         <h2 className="text-h3">Паспорт объекта</h2>
       </div>
-      <dl className="grid gap-x-6 gap-y-2.5 text-body-sm sm:grid-cols-[140px_1fr]">
-        {rows.map(([k, v]) => (
-          <div key={k} className="contents">
-            <dt className="font-mono text-caption text-text-muted">{k}</dt>
-            <dd className="min-w-0 break-words">{v}</dd>
+      <dl className="grid gap-2 sm:grid-cols-2">
+        {rows.map(({ label, value, mono, wide }) => (
+          <div key={label} className={`min-w-0 rounded-md bg-surface-secondary px-3 py-2.5 ${wide ? 'sm:col-span-2' : ''}`}>
+            <dt className="text-caption text-text-muted">{label}</dt>
+            <dd className={`mt-1 min-w-0 break-words text-body-sm ${mono ? 'font-mono text-caption' : ''}`}>{value}</dd>
           </div>
         ))}
       </dl>
       <div className="mt-4 flex flex-col gap-2">
-        <span className="font-mono text-caption text-text-muted">assets</span>
+        <span className="text-label text-text-muted">Оборудование · {passport.assets.length}</span>
         <ul className="grid gap-2 sm:grid-cols-2">
           {passport.assets.map((a) => (
             <li key={a.assetId} className="flex items-center gap-3 rounded-sm bg-surface-secondary px-3 py-2">
               {a.type === 'PV' ? <Sun className="size-4 text-warning" aria-hidden /> : <Battery className="size-4 text-accent-strong" aria-hidden />}
               <span className="flex flex-col">
-                <span className="text-body-sm font-semibold">
+                <span className="text-body-sm font-medium">
                   {a.assetId} <span className="font-mono text-caption text-text-muted">· {a.prefix}</span>
                 </span>
                 <span className="text-caption text-text-muted">
-                  {a.type === 'PV' ? 'pv' : 'battery'} · сигналов {a.signals.length}
+                  {a.type === 'PV' ? 'Солнечная установка' : 'Батарея'} · сигналов {a.signals.length}
                 </span>
               </span>
             </li>

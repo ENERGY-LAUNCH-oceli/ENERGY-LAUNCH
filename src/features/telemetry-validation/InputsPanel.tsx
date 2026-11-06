@@ -65,7 +65,7 @@ export function InputsPanel({ passport, dataset }: { passport: SitePassport | un
         <div className="flex items-center gap-2">
           <FileJson className="size-5 text-accent-strong" aria-hidden />
           <h2 className="text-h3">Паспорт object.json</h2>
-          {passport && <span className="rounded-pill bg-primary px-2 py-0.5 text-[11px] font-bold text-primary-foreground">v{passport.version}</span>}
+          {passport && <span className="rounded-xs bg-surface-sunken px-1.5 py-0.5 font-mono text-[11px] text-text-secondary">v{passport.version}</span>}
         </div>
         <p className="text-caption text-text-secondary">
           {passport ? (
@@ -73,7 +73,7 @@ export function InputsPanel({ passport, dataset }: { passport: SitePassport | un
               <span className="font-mono">{passport.fileName}</span> · загружен {formatDateTime(passport.loadedAt)} · активов {passport.assets.length} · сигналов в карте {passport.assets.reduce((n, a) => n + a.signals.length, 0) + passport.siteSignals.length}
             </>
           ) : (
-            'Паспорт не загружен — карта сигналов неизвестна.'
+            'Паспорт не загружен – карта сигналов неизвестна.'
           )}
         </p>
         {busy === 'passport' ? <Loader2 className="size-5 animate-spin text-accent" /> : <FileUpload accept=".json" label="Перетащите object.json или выберите файл" onFilesChange={(f) => f[0] && void loadPassport(f[0], f[0].name, 'UPLOAD')} />}
@@ -89,7 +89,7 @@ export function InputsPanel({ passport, dataset }: { passport: SitePassport | un
         <div className="flex items-center gap-2">
           <FileSpreadsheet className="size-5 text-accent-strong" aria-hidden />
           <h2 className="text-h3">Поток telemetry.csv</h2>
-          {dataset && <span className="rounded-pill bg-primary px-2 py-0.5 text-[11px] font-bold text-primary-foreground">v{dataset.version}</span>}
+          {dataset && <span className="rounded-xs bg-surface-sunken px-1.5 py-0.5 font-mono text-[11px] text-text-secondary">v{dataset.version}</span>}
         </div>
         <p className="text-caption text-text-secondary">
           {r ? (
