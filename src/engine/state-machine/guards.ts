@@ -31,7 +31,8 @@ export function getUnmetConfirmations(
   const evidenceById = new Map(session.evidence.map((e) => [e.id, e]));
   return config.confirmations[stageId].filter((req) => {
     const confirmation = stage.confirmations.find((c) => c.requirementId === req.id && c.role === req.role);
-    if (!confirmation) return true;
+    // Устаревшее подтверждение (входы изменились после него) не засчитывается до повторного подтверждения
+    if (!confirmation || confirmation.staleSince) return true;
     const validEvidence = confirmation.evidenceIds.filter((id) => {
       const ev = evidenceById.get(id);
       return ev && ev.stageId === stageId && req.evidenceTypes.includes(ev.type);
