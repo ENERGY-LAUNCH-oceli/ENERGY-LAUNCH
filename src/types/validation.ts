@@ -11,7 +11,7 @@ export type RuleId = string;
 export const CHECK_DIMENSIONS = ['PRESENCE', 'QUALITY', 'FUNCTION'] as const;
 export type CheckDimension = (typeof CHECK_DIMENSIONS)[number];
 
-/** Описание правила проверки (метаданные; логика — в src/engine/validators). */
+/** Описание правила проверки (метаданные; логика – в src/engine/validators). */
 export interface ValidationRule {
   id: RuleId;
   stageId: StageId;
@@ -23,11 +23,15 @@ export interface ValidationRule {
   blocking: boolean;
   /** Путь к порогу в RulesConfig, например `meterHistory.minCompletenessPct`. */
   configRef?: string;
+  /** Правило действует в наборах правил начиная с версии (включительно). */
+  sinceRuleset?: string;
+  /** Правило действует в наборах правил до версии (включительно). */
+  untilRuleset?: string;
 }
 
 export const VALIDATION_STATUSES = ['PASSED', 'FAILED', 'WARNING', 'SKIPPED', 'NOT_APPLICABLE'] as const;
 /**
- * NOT_APPLICABLE — только для отдельной проверки при подтверждённом паспортом
+ * NOT_APPLICABLE – только для отдельной проверки при подтверждённом паспортом
  * отсутствии актива или функции (ТЗ 2.1); никогда для этапа целиком.
  */
 export type ValidationStatus = (typeof VALIDATION_STATUSES)[number];
