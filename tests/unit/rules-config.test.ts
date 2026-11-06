@@ -1,11 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { getRuleset, parseRuleset, RULESET_V1, UnknownRulesetError } from '@/config/rules';
+import { ACTIVE_RULESET, getRuleset, parseRuleset, RULESETS, RULESET_V1, UnknownRulesetError } from '@/config/rules';
 import { RULE_CATALOG } from '@/engine';
 import { STAGE_IDS } from '@/types';
 
 describe('конфигурация правил', () => {
-  it('активный набор проходит схему', () => {
-    expect(parseRuleset(RULESET_V1)).toEqual(RULESET_V1);
+  it('все наборы проходят схему', () => {
+    for (const r of Object.values(RULESETS)) expect(parseRuleset(r)).toEqual(r);
+    expect(ACTIVE_RULESET.controlTesting).toBeDefined();
   });
 
   it('отклоняет некорректные пороги', () => {
@@ -29,7 +30,8 @@ describe('конфигурация правил', () => {
   it('configRef каждого правила указывает на существующий параметр', () => {
     for (const rule of Object.values(RULE_CATALOG)) {
       if (!rule.configRef) continue;
-      const value = rule.configRef.split('.').reduce<unknown>((o, k) => (o as Record<string, unknown>)?.[k], RULESET_V1);
+      // параметр ищется в наборе, где правило начинает действовать
+      const value = rule.configRef.split('.').reduce<unknown>((o, k) => (o as Record<string, unknown>)?.[k], getRuleset(rule.sinceRuleset ?? RULESET_V1.version));
       expect(value, rule.id).not.toBeUndefined();
     }
   });
