@@ -19,7 +19,7 @@ export interface FileUploadProps {
 
 const formatSize = (b: number) => (b < 1024 * 1024 ? `${Math.max(1, Math.round(b / 1024))} КБ` : `${(b / 1024 / 1024).toFixed(1)} МБ`);
 
-/** Загрузка файлов: перетаскивание или выбор. Проверка типа и размера — до передачи в импорт. */
+/** Загрузка файлов: перетаскивание или выбор. Проверка типа и размера – до передачи в импорт. */
 export function FileUpload({ accept, multiple, maxSizeMb = 50, disabled, label = 'Перетащите файл или выберите', hint, error, files = [], onFilesChange, className }: FileUploadProps) {
   const inputRef = React.useRef<HTMLInputElement>(null);
   const [dragging, setDragging] = React.useState(false);
@@ -71,7 +71,7 @@ export function FileUpload({ accept, multiple, maxSizeMb = 50, disabled, label =
         <span className="flex size-10 items-center justify-center rounded-full bg-surface text-accent-strong shadow-xs">
           <UploadCloud className="size-5" aria-hidden />
         </span>
-        <span className="text-body-sm font-semibold">{dragging ? 'Отпустите, чтобы загрузить' : label}</span>
+        <span className="text-body-sm font-medium">{dragging ? 'Отпустите, чтобы загрузить' : label}</span>
         <span className="text-caption text-text-muted">{hint ?? `${accept ? `Форматы: ${accept}. ` : ''}До ${maxSizeMb} МБ`}</span>
         <input ref={inputRef} type="file" className="sr-only" accept={accept} multiple={multiple} disabled={disabled} onChange={(e) => add(e.target.files)} tabIndex={-1} />
       </div>
