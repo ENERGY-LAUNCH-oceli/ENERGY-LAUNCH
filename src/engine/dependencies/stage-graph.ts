@@ -1,6 +1,6 @@
 import { STAGE_IDS, type LaunchInputs, type StageId } from '@/types';
 
-/** Порядок этапов — строго последовательный. */
+/** Порядок этапов – строго последовательный. */
 export const STAGE_ORDER: readonly StageId[] = STAGE_IDS;
 
 export function stageIndex(stageId: StageId): number {
