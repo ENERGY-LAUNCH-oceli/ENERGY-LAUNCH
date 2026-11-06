@@ -22,8 +22,7 @@
     "noUnusedParameters": true,
     "exactOptionalPropertyTypes": false,
 
-    "baseUrl": ".",
-    "paths": { "@/*": ["src/*"] }
+    "paths": { "@/*": ["./src/*"] }
   },
   "include": ["src", "tests/unit", "tests/setup.ts"]
 }
