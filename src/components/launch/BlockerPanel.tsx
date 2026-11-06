@@ -9,7 +9,7 @@ export interface BlockerPanelProps {
   renderActions?: (blockerId: string) => React.ReactNode;
 }
 
-/** Препятствия этапа: открытые — сверху и полностью; устранённые — свёрнуты, но доступны. */
+/** Препятствия этапа: открытые – сверху и полностью; устранённые – свёрнуты, но доступны. */
 export function BlockerPanel({ items, renderActions, className }: BlockerPanelProps) {
   const [showClosed, setShowClosed] = React.useState(false);
   const open = items.filter((i) => i.blocker.status === 'OPEN');
@@ -22,7 +22,7 @@ export function BlockerPanel({ items, renderActions, className }: BlockerPanelPr
           <h3 className="text-h3">Препятствия</h3>
           <span
             className={cn(
-              'tabular inline-flex h-6 min-w-6 items-center justify-center rounded-pill px-2 text-caption font-bold',
+              'tabular inline-flex h-6 min-w-6 items-center justify-center rounded-pill px-2 text-caption font-medium',
               open.length ? 'bg-status-blocked-bg text-status-blocked' : 'bg-surface-sunken text-text-secondary',
             )}
           >
@@ -34,7 +34,7 @@ export function BlockerPanel({ items, renderActions, className }: BlockerPanelPr
       {open.length === 0 ? (
         <div className="flex items-center gap-3 rounded-md bg-status-completed-bg px-4 py-3 text-body-sm">
           <ShieldCheck className="size-5 text-status-completed" aria-hidden />
-          <span className="font-semibold text-text-primary">Открытых препятствий нет</span>
+          <span className="font-medium text-text-primary">Открытых препятствий нет</span>
         </div>
       ) : (
         <div className="flex flex-col gap-2">
@@ -50,7 +50,7 @@ export function BlockerPanel({ items, renderActions, className }: BlockerPanelPr
             type="button"
             onClick={() => setShowClosed((v) => !v)}
             aria-expanded={showClosed}
-            className="inline-flex items-center gap-1 self-start text-caption font-semibold text-text-secondary hover:text-text-primary"
+            className="inline-flex items-center gap-1 self-start text-caption font-medium text-text-secondary hover:text-text-primary"
           >
             <ChevronDown className={cn('size-4 transition-transform duration-fast', showClosed && 'rotate-180')} aria-hidden />
             Устранённые ({closed.length})

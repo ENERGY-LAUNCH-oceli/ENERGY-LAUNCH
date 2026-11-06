@@ -15,8 +15,8 @@ export interface BlockerCardProps {
 }
 
 /**
- * Препятствие. Выделяется акцентной левой границей, коралловой иконкой и светлой
- * подложкой — без сплошной красной заливки, чтобы список блокеров оставался читаемым.
+ * Препятствие. Коралловая рамка и иконка, без сплошной заливки,
+ * чтобы список блокеров оставался читаемым.
  */
 export function BlockerCard({ blocker: b, location, nextAction, actions, className }: BlockerCardProps) {
   const open = b.status === 'OPEN';
@@ -24,18 +24,17 @@ export function BlockerCard({ blocker: b, location, nextAction, actions, classNa
     <article
       data-blocker-status={b.status}
       className={cn(
-        'relative flex gap-3 overflow-hidden rounded-md border bg-surface p-4 pl-5',
+        'relative flex gap-3 overflow-hidden rounded-md border bg-surface p-4',
         open ? 'border-status-blocked-border' : 'border-border bg-surface-secondary',
         className,
       )}
     >
-      <span aria-hidden className={cn('absolute inset-y-0 left-0 w-[3px]', open ? 'bg-status-blocked-solid' : 'bg-status-completed-solid')} />
-      <span className={cn('mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-full', open ? 'bg-status-blocked-bg text-status-blocked' : 'bg-status-completed-bg text-status-completed')}>
+      <span className={cn('mt-0.5 flex shrink-0', open ? 'text-status-blocked' : 'text-status-completed')}>
         {open ? <OctagonAlert className="size-4" aria-hidden /> : <CircleCheck className="size-4" aria-hidden />}
       </span>
       <div className="flex min-w-0 flex-1 flex-col gap-2">
         <div className="flex flex-wrap items-start justify-between gap-2">
-          <h4 className={cn('text-body-sm font-semibold', !open && 'text-text-secondary line-through decoration-text-muted/50')}>{b.title}</h4>
+          <h4 className={cn('text-body-sm font-medium', !open && 'text-text-secondary line-through decoration-text-muted/50')}>{b.title}</h4>
           <div className="flex items-center gap-1.5">
             {b.severity === 'CRITICAL' && open && (
               <Badge tone="error" size="sm">
@@ -66,7 +65,7 @@ export function BlockerCard({ blocker: b, location, nextAction, actions, classNa
           </dl>
         )}
         {nextAction && open && (
-          <p className="flex items-start gap-1.5 text-body-sm font-semibold text-accent-strong">
+          <p className="flex items-start gap-1.5 text-body-sm font-medium text-accent-strong">
             <ArrowRight className="mt-0.5 size-4 shrink-0" aria-hidden />
             {nextAction}
           </p>
