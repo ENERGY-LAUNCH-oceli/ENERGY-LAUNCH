@@ -31,7 +31,7 @@ export function Progress({ value, max = 100, tone = 'accent', size = 'md', label
       {(label || showValue) && (
         <div className="flex items-baseline justify-between gap-2 text-caption">
           {label && <span className="text-text-secondary">{label}</span>}
-          {showValue && <span className="tabular font-semibold text-text-primary">{(Math.round(pct * 10) / 10).toLocaleString('ru-RU')} %</span>}
+          {showValue && <span className="tabular font-mono text-text-primary">{(Math.round(pct * 10) / 10).toLocaleString('ru-RU')} %</span>}
         </div>
       )}
       <div
@@ -40,7 +40,7 @@ export function Progress({ value, max = 100, tone = 'accent', size = 'md', label
         aria-valuemax={max}
         aria-valuenow={value}
         aria-label={label}
-        className={cn('relative w-full overflow-hidden rounded-pill bg-surface-sunken', size === 'sm' ? 'h-1.5' : 'h-2')}
+        className={cn('relative w-full overflow-hidden rounded-pill bg-surface-sunken', size === 'sm' ? 'h-1' : 'h-1.5')}
       >
         <div className={cn('h-full rounded-pill transition-[width] duration-slow ease-brand', TONE[tone])} style={{ width: `${pct}%` }} />
         {threshold !== undefined && (
