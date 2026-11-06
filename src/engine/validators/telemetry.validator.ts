@@ -2,6 +2,9 @@ import type { AssetSignal, TelemetryDataset, TelemetryRules, ValidationResult } 
 import { analyzeGrid, deltas, groupBy, makeResult, median, MS, percentile, round, sortByTime, toMs, type ValidatorEnv } from './helpers';
 
 /** Этап 2: качество потока телеметрии в реальном времени. */
+/** Есть ли у объекта батарея: определяется по сигналам актива типа BATTERY или SoC. */
+const assetsWithBattery = (signals: readonly AssetSignal[]) => signals.some((s) => s.assetId.includes('battery') || s.kind === 'STATE_OF_CHARGE');
+
 export function validateTelemetry(
   dataset: TelemetryDataset | undefined,
   signals: readonly AssetSignal[],
@@ -25,14 +28,32 @@ export function validateTelemetry(
       message: missing.length ? `Нет данных по сигналам: ${missing.join(', ')}` : 'Все обязательные сигналы поступают',
       actual: rules.requiredSignals.length - missing.length,
       expected: rules.requiredSignals.length,
-      details: { missing },
+      details: {
+        missing,
+        signals: coverage.filter((c) => !c.covered).flatMap((c) => signals.filter((s) => s.kind === c.kind && s.direction !== 'WRITE').map((s) => s.tag)),
+        unknownSignalIds: [...bySignal.keys()].filter((id) => !signals.some((s) => s.id === id)).slice(0, 10),
+        interval: dataset ? { from: dataset.periodStart, to: dataset.periodEnd } : null,
+      },
     },
     env,
   );
 
+  // TM-006 — SoC батареи: применимо только при наличии батареи в паспорте объекта
+  const batteries = assetsWithBattery(signals);
+  const socSignals = signals.filter((s) => s.kind === 'STATE_OF_CHARGE');
+  const socResult = !batteries
+    ? makeResult('TM-006', 'NOT_APPLICABLE', { message: 'В паспорте объекта нет батареи — проверка уровня заряда не применима' }, env)
+    : makeResult(
+        'TM-006',
+        socSignals.some((s) => (bySignal.get(s.id)?.length ?? 0) > 0),
+        { message: socSignals.length ? 'Проверено поступление SoC батареи' : 'Батарея есть, сигнал SoC в карте сигналов отсутствует', details: { signals: socSignals.map((s) => s.tag) } },
+        env,
+      );
+
   if (!dataset || measurements.length === 0) {
     return [
       coverageResult,
+      socResult,
       ...(['TM-002', 'TM-003', 'TM-004', 'TM-005'] as const).map((id) =>
         makeResult(id, 'SKIPPED', { message: 'Поток телеметрии не загружен' }, env),
       ),
@@ -113,5 +134,5 @@ export function validateTelemetry(
     env,
   );
 
-  return [coverageResult, freqResult, completenessResult, latencyResult, periodResult];
+  return [coverageResult, freqResult, completenessResult, latencyResult, periodResult, socResult];
 }

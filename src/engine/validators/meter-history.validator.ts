@@ -72,7 +72,11 @@ export function validateMeterHistory(
       message: `Минимальная полнота по точкам: ${minCompleteness}% (порог ${rules.minCompletenessPct}%)`,
       actual: minCompleteness,
       expected: rules.minCompletenessPct,
-      details: { grids },
+      details: {
+        grids,
+        interval: grids.map((g) => g.longestGap).find((x) => x) ?? null,
+        fields: grids.filter((g) => g.completenessPct < rules.minCompletenessPct).map((g) => `${g.meteringPointId}`),
+      },
     },
     env,
   );
@@ -83,6 +87,7 @@ export function validateMeterHistory(
       message: `Максимум подряд пропущенных интервалов: ${maxGaps} (предел ${rules.maxConsecutiveGaps})`,
       actual: maxGaps,
       expected: rules.maxConsecutiveGaps,
+      details: { interval: grids.map((g) => g.longestGap).find((x) => x) ?? null },
     },
     env,
   );
@@ -96,6 +101,7 @@ export function validateMeterHistory(
       message: `Период истории ${periodDays} сут (требуется ${rules.checkPeriodDays})`,
       actual: periodDays,
       expected: rules.checkPeriodDays,
+      details: { interval: { from: dataset.periodStart, to: dataset.periodEnd }, missingDays: Math.max(0, round(rules.checkPeriodDays - periodDays)) },
     },
     env,
   );
