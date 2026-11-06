@@ -22,7 +22,7 @@ const MARKER: Record<StageStatus, string> = {
   NOT_STARTED: 'border-status-not-started-border bg-surface text-status-not-started',
   IN_PROGRESS: 'border-status-in-progress-solid bg-status-in-progress-bg text-status-in-progress',
   BLOCKED: 'border-status-blocked-solid bg-status-blocked-bg text-status-blocked',
-  COMPLETED: 'border-status-completed-solid bg-status-completed-solid text-white',
+  COMPLETED: 'border-status-completed-solid bg-status-completed-solid text-surface',
 };
 
 /** Пошаговая навигация по последовательным этапам. */
@@ -50,12 +50,12 @@ export function Stepper({ steps, currentId, onStepClick, orientation = 'horizont
               aria-current={isCurrent ? 'step' : undefined}
               className={cn('group relative flex items-start gap-3 text-left', vertical ? '' : 'sm:flex-col sm:gap-2 sm:pr-4', onStepClick && 'rounded-sm')}
             >
-              <span className={cn('flex size-8 shrink-0 items-center justify-center rounded-full border-2 text-caption font-bold tabular transition-colors', MARKER[step.status], isCurrent && 'ring-4 ring-accent/20')}>
+              <span className={cn('flex size-8 shrink-0 items-center justify-center rounded-full border-2 text-caption font-medium tabular transition-colors', MARKER[step.status], isCurrent && 'ring-4 ring-accent/20')}>
                 {step.status === 'COMPLETED' ? <Check className="size-4" strokeWidth={3} /> : step.status === 'BLOCKED' ? <OctagonAlert className="size-4" /> : i + 1}
               </span>
               <span className="flex flex-col gap-0.5">
-                <span className={cn('text-body-sm font-semibold', onStepClick && 'group-hover:text-accent-strong')}>{step.title}</span>
-                <span className={cn('text-caption', step.status === 'BLOCKED' ? 'font-semibold text-status-blocked' : 'text-text-muted')}>
+                <span className={cn('text-body-sm font-medium', onStepClick && 'group-hover:text-accent-strong')}>{step.title}</span>
+                <span className={cn('text-caption', step.status === 'BLOCKED' ? 'font-medium text-status-blocked' : 'text-text-muted')}>
                   {step.description ?? STAGE_STATUS_LABEL[step.status]}
                 </span>
               </span>
