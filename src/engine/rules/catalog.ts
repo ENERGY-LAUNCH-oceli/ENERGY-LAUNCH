@@ -60,7 +60,7 @@ const RULES = [
     stageId: 'METER_HISTORY',
     dimension: 'QUALITY',
     title: 'Корректность timestamp',
-    description: 'Отметки времени — ISO 8601 в UTC и выровнены по началу интервала.',
+    description: 'Отметки времени – ISO 8601 в UTC и выровнены по началу интервала.',
     severity: 'CRITICAL',
     blocking: true,
     configRef: 'meterHistory.maxInvalidTimestamps',
@@ -195,7 +195,7 @@ const RULES = [
     stageId: 'REALTIME_TELEMETRY',
     dimension: 'QUALITY',
     title: 'Знаки и диапазоны',
-    description: 'Grid и Battery — по направлению потока, PV ≥ 0, SoC 0–100 %, энергия ≥ 0.',
+    description: 'Grid и Battery – по направлению потока, PV ≥ 0, SoC 0–100 %, энергия ≥ 0.',
     severity: 'CRITICAL',
     blocking: true,
     configRef: 'telemetry.maxAbsPowerKw',
@@ -214,7 +214,7 @@ const RULES = [
     stageId: 'REALTIME_TELEMETRY',
     dimension: 'QUALITY',
     title: 'Правдоподобность',
-    description: 'Скачки SoC и расхождение уставок — повод проверить, а не доказательство неисправности.',
+    description: 'Скачки SoC и расхождение уставок – повод проверить, а не доказательство неисправности.',
     severity: 'WARNING',
     blocking: false,
     configRef: 'telemetry.maxSocJumpPct',
@@ -224,13 +224,14 @@ const RULES = [
     stageId: 'REALTIME_TELEMETRY',
     dimension: 'PRESENCE',
     title: 'Сигналы батарей',
-    description: 'SoC, заряд и разряд по каждой батарее паспорта; без батареи в паспорте — не применимо.',
+    description: 'SoC, заряд и разряд по каждой батарее паспорта; без батареи в паспорте – не применимо.',
     severity: 'CRITICAL',
     blocking: true,
   },
   // ── Этап 3. Asset Control ─────────────────────────────────────────────
   {
     id: 'CT-001',
+    untilRuleset: '1.2.0',
     stageId: 'ASSET_CONTROL',
     dimension: 'FUNCTION',
     title: 'Покрытие команд',
@@ -241,6 +242,7 @@ const RULES = [
   },
   {
     id: 'CT-002',
+    untilRuleset: '1.2.0',
     stageId: 'ASSET_CONTROL',
     dimension: 'FUNCTION',
     title: 'Время квитирования',
@@ -251,6 +253,7 @@ const RULES = [
   },
   {
     id: 'CT-003',
+    untilRuleset: '1.2.0',
     stageId: 'ASSET_CONTROL',
     dimension: 'FUNCTION',
     title: 'Время исполнения',
@@ -261,6 +264,7 @@ const RULES = [
   },
   {
     id: 'CT-004',
+    untilRuleset: '1.2.0',
     stageId: 'ASSET_CONTROL',
     dimension: 'FUNCTION',
     title: 'Интервалы между командами',
@@ -271,6 +275,7 @@ const RULES = [
   },
   {
     id: 'CT-005',
+    untilRuleset: '1.2.0',
     stageId: 'ASSET_CONTROL',
     dimension: 'FUNCTION',
     title: 'Отработка уставки',
@@ -281,6 +286,7 @@ const RULES = [
   },
   {
     id: 'CT-006',
+    untilRuleset: '1.2.0',
     stageId: 'ASSET_CONTROL',
     dimension: 'FUNCTION',
     title: 'Отказы команд',
@@ -288,9 +294,86 @@ const RULES = [
     severity: 'CRITICAL',
     blocking: true,
   },
+  // ── Этап 3 с v1.3.0: тесты управления через локальный имитатор (фаза 08) ──
+  {
+    id: 'CT-010',
+    sinceRuleset: '1.3.0',
+    stageId: 'ASSET_CONTROL',
+    dimension: 'FUNCTION',
+    title: 'Только тестовый контур',
+    description: 'Команды отправляются только в локальный имитатор; интеграций с реальным оборудованием нет.',
+    severity: 'CRITICAL',
+    blocking: true,
+  },
+  {
+    id: 'CT-011',
+    sinceRuleset: '1.3.0',
+    stageId: 'ASSET_CONTROL',
+    dimension: 'PRESENCE',
+    title: 'Команда отправлена',
+    description: 'По каждому обязательному активу отправлена тестовая команда с корректным значением. Отправка сама по себе – не успех.',
+    severity: 'CRITICAL',
+    blocking: true,
+  },
+  {
+    id: 'CT-012',
+    sinceRuleset: '1.3.0',
+    stageId: 'ASSET_CONTROL',
+    dimension: 'FUNCTION',
+    title: 'Команда принята контроллером',
+    description: 'Контроллер подтвердил приём (setpoint_received) в допустимое время, значение совпадает с отправленным.',
+    severity: 'CRITICAL',
+    blocking: true,
+    configRef: 'controlTesting.ackTimeoutSec',
+  },
+  {
+    id: 'CT-013',
+    sinceRuleset: '1.3.0',
+    stageId: 'ASSET_CONTROL',
+    dimension: 'FUNCTION',
+    title: 'Отклик фактической мощности',
+    description: 'Фактическая мощность актива вошла в полосу допуска в ожидаемом интервале после приёма команды.',
+    severity: 'CRITICAL',
+    blocking: true,
+    configRef: 'controlTesting.responseWindowSec',
+  },
+  {
+    id: 'CT-014',
+    sinceRuleset: '1.3.0',
+    stageId: 'ASSET_CONTROL',
+    dimension: 'FUNCTION',
+    title: 'Батарея: тест setpoint',
+    description: 'Последний тест setpoint каждой батареи паспорта пройден; без батареи в паспорте – не применимо.',
+    severity: 'CRITICAL',
+    blocking: true,
+    configRef: 'controlTesting.requireBatterySetpoint',
+  },
+  {
+    id: 'CT-015',
+    sinceRuleset: '1.3.0',
+    stageId: 'ASSET_CONTROL',
+    dimension: 'FUNCTION',
+    title: 'PV: ограничение выработки',
+    description: 'Для PV с управлением ограничением выработки: setpoint принят, фактическая мощность снизилась до ограничения.',
+    severity: 'CRITICAL',
+    blocking: true,
+    configRef: 'controlTesting.requirePvCurtailment',
+  },
+  {
+    id: 'CT-016',
+    sinceRuleset: '1.3.0',
+    stageId: 'ASSET_CONTROL',
+    dimension: 'QUALITY',
+    title: 'Корректность значений команд',
+    description: 'Команды с некорректным значением отклоняются до отправки и фиксируются в журнале.',
+    severity: 'WARNING',
+    blocking: false,
+    configRef: 'controlTesting.minStepKw',
+  },
   // ── Этап 4. Final Dashboards ──────────────────────────────────────────
   {
     id: 'DB-001',
+    untilRuleset: '1.3.0',
     stageId: 'FINAL_DASHBOARDS',
     dimension: 'PRESENCE',
     title: 'Обязательные блоки',
@@ -301,6 +384,7 @@ const RULES = [
   },
   {
     id: 'DB-002',
+    untilRuleset: '1.3.0',
     stageId: 'FINAL_DASHBOARDS',
     dimension: 'PRESENCE',
     title: 'Покрытие сигналов',
@@ -311,6 +395,7 @@ const RULES = [
   },
   {
     id: 'DB-003',
+    untilRuleset: '1.3.0',
     stageId: 'FINAL_DASHBOARDS',
     dimension: 'QUALITY',
     title: 'Целостность привязок',
@@ -320,6 +405,7 @@ const RULES = [
   },
   {
     id: 'DB-004',
+    untilRuleset: '1.3.0',
     stageId: 'FINAL_DASHBOARDS',
     dimension: 'FUNCTION',
     title: 'Публикация',
@@ -327,6 +413,82 @@ const RULES = [
     severity: 'CRITICAL',
     blocking: true,
     configRef: 'dashboards.requirePublished',
+  },
+  // ── Этап 4 с v1.4.0: рабочая панель объекта и приёмка (фаза 09) ──
+  {
+    id: 'DB-010',
+    sinceRuleset: '1.4.0',
+    stageId: 'FINAL_DASHBOARDS',
+    dimension: 'PRESENCE',
+    title: 'Привязка к объекту',
+    description: 'Панель и все источники данных (история, паспорт, телеметрия, команды) относятся к одному object_id.',
+    severity: 'CRITICAL',
+    blocking: true,
+  },
+  {
+    id: 'DB-011',
+    sinceRuleset: '1.4.0',
+    stageId: 'FINAL_DASHBOARDS',
+    dimension: 'FUNCTION',
+    title: 'Блок «История учёта»',
+    description: 'Потребление, выдача, договорные ограничения, период и качество исходных данных; есть история объекта.',
+    severity: 'CRITICAL',
+    blocking: true,
+    configRef: 'dashboardConfig.requiredWidgets.METER_HISTORY',
+  },
+  {
+    id: 'DB-012',
+    sinceRuleset: '1.4.0',
+    stageId: 'FINAL_DASHBOARDS',
+    dimension: 'FUNCTION',
+    title: 'Блок «Текущие активы»',
+    description: 'PV, батареи, текущая мощность, SoC, актуальность телеметрии, состояние оборудования.',
+    severity: 'CRITICAL',
+    blocking: true,
+    configRef: 'dashboardConfig.requiredWidgets.ASSETS',
+  },
+  {
+    id: 'DB-013',
+    sinceRuleset: '1.4.0',
+    stageId: 'FINAL_DASHBOARDS',
+    dimension: 'FUNCTION',
+    title: 'Блок «Управление»',
+    description: 'Управляемые активы, последние команды, результаты тестов, подтверждения, состояние контура.',
+    severity: 'CRITICAL',
+    blocking: true,
+    configRef: 'dashboardConfig.requiredWidgets.CONTROL',
+  },
+  {
+    id: 'DB-014',
+    sinceRuleset: '1.4.0',
+    stageId: 'FINAL_DASHBOARDS',
+    dimension: 'FUNCTION',
+    title: 'Блок «Качество данных и статус запуска»',
+    description: 'Качество истории и телеметрии, незакрытые препятствия, результаты проверок, статус этапов.',
+    severity: 'CRITICAL',
+    blocking: true,
+    configRef: 'dashboardConfig.requiredWidgets.QUALITY_STATUS',
+  },
+  {
+    id: 'DB-015',
+    sinceRuleset: '1.4.0',
+    stageId: 'FINAL_DASHBOARDS',
+    dimension: 'FUNCTION',
+    title: 'Публикация конфигурации',
+    description: 'Конфигурация опубликована как версия; принимается только опубликованная версия.',
+    severity: 'CRITICAL',
+    blocking: true,
+  },
+  {
+    id: 'DB-016',
+    sinceRuleset: '1.4.0',
+    stageId: 'FINAL_DASHBOARDS',
+    dimension: 'FUNCTION',
+    title: 'Приёмка ответственным',
+    description: 'Ответственный за приёмку просмотрел четыре блока и подтвердил их корректность для текущей версии.',
+    severity: 'CRITICAL',
+    blocking: true,
+    configRef: 'dashboardConfig.requireAcceptance',
   },
 ] as const satisfies readonly ValidationRule[];
 
@@ -340,8 +502,28 @@ export function getRule(id: KnownRuleId): ValidationRule {
   return RULE_CATALOG[id];
 }
 
-export function getRulesForStage(stageId: StageId): ValidationRule[] {
-  return RULES.filter((r) => r.stageId === stageId);
+/** Сравнение версий вида 1.2.0. */
+export function compareVersions(a: string, b: string): number {
+  const pa = a.split('.').map(Number);
+  const pb = b.split('.').map(Number);
+  for (let i = 0; i < Math.max(pa.length, pb.length); i++) {
+    const d = (pa[i] ?? 0) - (pb[i] ?? 0);
+    if (d) return Math.sign(d);
+  }
+  return 0;
+}
+
+/** Действует ли правило в наборе правил указанной версии. */
+export function ruleAppliesTo(rule: ValidationRule, rulesetVersion: string | undefined): boolean {
+  if (!rulesetVersion) return !rule.untilRuleset;
+  if (rule.sinceRuleset && compareVersions(rulesetVersion, rule.sinceRuleset) < 0) return false;
+  if (rule.untilRuleset && compareVersions(rulesetVersion, rule.untilRuleset) > 0) return false;
+  return true;
+}
+
+/** Правила этапа для версии набора правил (без версии – действующие правила). */
+export function getRulesForStage(stageId: StageId, rulesetVersion?: string): ValidationRule[] {
+  return (RULES as readonly ValidationRule[]).filter((r) => r.stageId === stageId && ruleAppliesTo(r, rulesetVersion));
 }
 
 export function isKnownRule(id: RuleId): id is KnownRuleId {
