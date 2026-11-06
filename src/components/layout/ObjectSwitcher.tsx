@@ -60,7 +60,7 @@ export function ObjectSwitcher() {
         </div>
         <ul role="listbox" aria-label="Объекты" className="max-h-[min(55vh,22rem)] overflow-y-auto overscroll-contain border-t border-border p-1.5">
           {list.map((o) => (
-            <li key={o.id} role="option" aria-selected={o.id === currentId}>
+            <li key={o.id} role="option" aria-selected={o.id === currentId} data-object-id={o.id}>
               <button
                 type="button"
                 onClick={() => choose(o.id)}

@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
+import { AppContextMenu } from '@/components/layout/AppContextMenu';
 import { Header } from '@/components/layout/Header';
 import { Sidebar } from '@/components/layout/Sidebar';
 import { Toaster } from '@/components/layout/Toaster';
@@ -39,6 +40,7 @@ export function AppLayout() {
         </main>
       </div>
       <Toaster />
+      <AppContextMenu />
     </div>
   );
 }

@@ -481,3 +481,40 @@ test('добавление объекта: проверка формы, созд
   await expect(page).toHaveURL(/\/objects$/);
   await expect(page.getByRole('link', { name: 'Кампус «Южный»' })).toHaveCount(0);
 });
+
+test('контекстное меню: действия объекта, клавиатура, родное меню в полях ввода', async ({ page }) => {
+  await page.goto('/objects');
+  await page.locator('tr[data-object-id="obj-003"]').click({ button: 'right', position: { x: 400, y: 15 } });
+  const menu = page.getByTestId('app-context-menu');
+  await expect(menu).toBeVisible();
+  await expect(menu.getByRole('menuitem', { name: /Копировать код OBJ-003/ })).toBeVisible();
+  await page.keyboard.press('ArrowDown');
+  await page.keyboard.press('Enter');
+  await expect(page).toHaveURL(/\/objects\/obj-003$/);
+  await expect(menu).toHaveCount(0);
+
+  await page.mouse.click(700, 120, { button: 'right' });
+  await expect(menu.getByRole('menuitem', { name: 'Тёмная тема' })).toBeVisible();
+  await menu.getByRole('menuitem', { name: 'Тёмная тема' }).click();
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+
+  await page.goto('/objects');
+  await page.locator('tr[data-object-id="obj-003"]').click({ button: 'right', position: { x: 400, y: 15 } });
+  const passportFile = page.waitForEvent('download');
+  await menu.getByRole('menuitem', { name: 'Сохранить паспорт (JSON)' }).click();
+  expect((await passportFile).suggestedFilename()).toBe('OBJ-003.passport.json');
+
+  await page.mouse.click(700, 120, { button: 'right' });
+  const pageFile = page.waitForEvent('download');
+  await menu.getByRole('menuitem', { name: 'Сохранить страницу как…' }).click();
+  expect((await pageFile).suggestedFilename()).toMatch(/\.html$/);
+
+  await page.mouse.click(700, 120, { button: 'right' });
+  await page.keyboard.press('Escape');
+  await expect(menu).toHaveCount(0);
+
+  await page.goto('/objects');
+  await page.getByTestId('add-object').click();
+  await page.getByLabel('Название').click({ button: 'right' });
+  await expect(menu).toHaveCount(0);
+});

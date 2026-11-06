@@ -15,7 +15,7 @@ const COLS = 'lg:grid-cols-[minmax(220px,1.4fr)_164px_132px_112px_88px_minmax(13
 export function ObjectRow({ row, search }: { row: PortfolioRow; search: string }) {
   const { entry, session, status, progress, blockers, lastCheck } = row;
   return (
-    <li className="border-b border-border last:border-b-0">
+    <li className="border-b border-border last:border-b-0" data-object-id={entry.id}>
       <Link
         to={`${ROUTES.objectSection(entry.id, 'launch')}`}
         state={{ from: `${ROUTES.overview}${search}` }}

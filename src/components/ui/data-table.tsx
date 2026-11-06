@@ -33,6 +33,8 @@ export interface DataTableProps<T> {
   getRowId?: (row: T, index: number) => string;
   /** Подсветка строки (например, строка с нарушением). */
   rowTone?: (row: T) => 'error' | 'warning' | undefined;
+  /** Data-атрибуты строки (например, data-object-id для контекстного меню). */
+  rowData?: (row: T) => Record<`data-${string}`, string>;
   caption?: string;
   className?: string;
 }
@@ -48,6 +50,7 @@ export function DataTable<T>({
   onRowClick,
   getRowId,
   rowTone,
+  rowData,
   caption,
   className,
 }: DataTableProps<T>) {
@@ -109,6 +112,7 @@ export function DataTable<T>({
             return (
               <tr
                 key={row.id}
+                {...rowData?.(row.original)}
                 onClick={onRowClick ? () => onRowClick(row.original) : undefined}
                 className={cn(
                   'border-b border-border last:border-b-0 transition-colors duration-fast',

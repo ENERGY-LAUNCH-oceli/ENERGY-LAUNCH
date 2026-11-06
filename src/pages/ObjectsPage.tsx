@@ -40,6 +40,7 @@ export function ObjectsPage() {
         columns={COLUMNS}
         data={OBJECT_CATALOG.map((o) => ({ ...o, session: sessions[o.id] }))}
         onRowClick={(r) => navigate(ROUTES.object(r.id))}
+        rowData={(r) => ({ 'data-object-id': r.id })}
         rowTone={(r) => (sessionStatus(r.session) === 'BLOCKED' ? 'error' : undefined)}
       />
     </div>
