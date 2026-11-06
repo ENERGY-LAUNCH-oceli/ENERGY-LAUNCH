@@ -35,4 +35,17 @@ export const useNotifications = create<NotificationsState>()((set) => ({
   clear: () => set({ items: [], toasts: [] }),
 }));
 
-export const notify = (n: Omit<AppNotification, 'id' | 'createdAt' | 'read'>) => useNotifications.getState().push(n);
+let muted = 0;
+/** Выполнить без всплывающих уведомлений (прогон сценариев в песочнице). */
+export function withMutedNotifications<T>(fn: () => T): T {
+  muted++;
+  try {
+    return fn();
+  } finally {
+    muted--;
+  }
+}
+
+export const notify = (n: Omit<AppNotification, 'id' | 'createdAt' | 'read'>) => {
+  if (!muted) useNotifications.getState().push(n);
+};
