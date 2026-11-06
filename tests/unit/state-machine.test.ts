@@ -150,3 +150,29 @@ describe('конечный автомат запуска', () => {
     expect(!r.ok && r.error.code).toBe('RULESET_MISMATCH');
   });
 });
+
+describe('требования фазы 05', () => {
+  const { inputs } = loadScenario('happy-path');
+  it('отказ завершить этап 3 перечисляет все незакрытые зависимости и сохраняет материалы', () => {
+    let s = createLaunchSession(inputs.object.id, cfg.version, ctx);
+    s = unwrap(addEvidence(s, { stageId: 'ASSET_CONTROL', type: 'COMMAND_LOG', title: 'Журнал заранее' }, ctx));
+    const r = completeStage(s, 'ASSET_CONTROL', cfg, ctx);
+    expect(r.ok).toBe(false);
+    if (!r.ok) {
+      expect(r.error.code).toBe('PREVIOUS_STAGE_NOT_COMPLETED');
+      expect((r.error.details?.dependencies as { stageId: string }[]).map((d) => d.stageId)).toEqual(['METER_HISTORY', 'REALTIME_TELEMETRY']);
+    }
+    expect(s.evidence).toHaveLength(1);
+  });
+
+  it('SoC батареи — Not Applicable без батареи и не блокирует этап', () => {
+    let s = unwrap(startStage(createLaunchSession(inputs.object.id, cfg.version, ctx), 'METER_HISTORY', ctx));
+    s = unwrap(validateStage(s, 'METER_HISTORY', inputs, cfg, ctx));
+    s = confirmAll(s, 'METER_HISTORY');
+    s = unwrap(completeStage(s, 'METER_HISTORY', cfg, ctx));
+    s = unwrap(startStage(s, 'REALTIME_TELEMETRY', ctx));
+    s = unwrap(validateStage(s, 'REALTIME_TELEMETRY', inputs, cfg, ctx));
+    expect(s.stages.REALTIME_TELEMETRY.validationResults.find((r) => r.ruleId === 'TM-006')?.status).toBe('NOT_APPLICABLE');
+    expect(s.stages.REALTIME_TELEMETRY.status).toBe('IN_PROGRESS');
+  });
+});

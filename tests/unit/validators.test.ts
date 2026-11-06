@@ -19,7 +19,7 @@ describe('helpers', () => {
       signalId: 's', timestamp: new Date(i * 60_000).toISOString(), value, unit: 'kW', quality: value === null ? 'MISSING' : 'GOOD',
     });
     const series = [m(0, 1), m(1, null), m(2, null), m(3, 1)];
-    expect(analyzeGrid(series, 0, 5 * 60_000, 60_000)).toEqual({ expected: 5, present: 2, completenessPct: 40, maxConsecutiveGaps: 2 });
+    expect(analyzeGrid(series, 0, 5 * 60_000, 60_000)).toEqual({ expected: 5, present: 2, completenessPct: 40, maxConsecutiveGaps: 2, longestGap: { from: new Date(60_000).toISOString(), to: new Date(180_000).toISOString() } });
   });
 });
 
