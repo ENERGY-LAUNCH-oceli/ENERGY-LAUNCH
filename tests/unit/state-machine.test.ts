@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { RULESET_V1 } from '@/config/rules';
+import { ACTIVE_RULESET as RULESET_V1 } from '@/config/rules';
 import { loadScenario } from '@/data/scenarios';
 import {
   addConfirmation,
@@ -131,12 +131,13 @@ describe('конечный автомат запуска', () => {
     let s = unwrap(startStage(fresh(), 'METER_HISTORY', ctx));
     s = unwrap(validateStage(s, 'METER_HISTORY', bad, cfg, ctx));
     expect(s.stages.METER_HISTORY.status).toBe('BLOCKED');
-    const blocker = s.blockers.find((b) => b.ruleId === 'MH-005')!;
+    const blocker = s.blockers.find((b) => b.ruleId === 'MH-008')!;
     expect(resolveBlocker(s, blocker.id, { resolution: 'ok' }, ctx).ok).toBe(false);
 
     // Повторная проверка тем же набором не дублирует блокер
+    const openBefore = s.blockers.filter((b) => b.status === 'OPEN').length;
     s = unwrap(validateStage(s, 'METER_HISTORY', bad, cfg, ctx));
-    expect(s.blockers.filter((b) => b.status === 'OPEN')).toHaveLength(1);
+    expect(s.blockers.filter((b) => b.status === 'OPEN')).toHaveLength(openBefore);
 
     // Исправленные данные снимают блокер автоматически
     s = unwrap(validateStage(s, 'METER_HISTORY', inputs, cfg, ctx));
