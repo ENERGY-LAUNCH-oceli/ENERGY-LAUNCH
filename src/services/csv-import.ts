@@ -4,7 +4,7 @@ import { measurementCsvRowSchema } from '@/schemas';
 import type { Measurement } from '@/types';
 
 export interface CsvRowError {
-  /** Номер строки в файле (1 — заголовок, данные с 2). */
+  /** Номер строки в файле (1 – заголовок, данные с 2). */
   row: number;
   field?: string;
   message: string;
