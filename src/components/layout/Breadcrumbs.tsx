@@ -10,7 +10,7 @@ interface Crumb {
   to?: string;
 }
 
-const STATIC: Record<string, string> = { overview: 'Центр запуска', objects: 'Объекты', settings: 'Настройки', 'design-system': 'Дизайн-система' };
+const STATIC: Record<string, string> = { overview: 'Центр запуска', objects: 'Объекты', settings: 'Настройки' };
 
 export function useBreadcrumbs(): Crumb[] {
   const { pathname } = useLocation();
@@ -47,7 +47,7 @@ export function Breadcrumbs() {
                 {c.label}
               </Link>
             ) : (
-              <span aria-current="page" className="truncate font-semibold text-text-primary">
+              <span aria-current="page" className="truncate font-medium text-text-primary">
                 {c.label}
               </span>
             )}
