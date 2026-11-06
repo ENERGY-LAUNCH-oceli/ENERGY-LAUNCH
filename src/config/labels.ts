@@ -4,7 +4,7 @@ import type { AuditAction, CheckDimension, EvidenceType, ValidationStatus } from
 
 /**
  * Статус отдельной проверки в интерфейсе. Шире доменного ValidationStatus:
- * NOT_APPLICABLE, STALE и UNAVAILABLE — требования ТЗ (п. 2.1, 2.2.2, 2.2.4).
+ * NOT_APPLICABLE, STALE и UNAVAILABLE – требования ТЗ (п. 2.1, 2.2.2, 2.2.4).
  */
 export type CheckStatus = ValidationStatus | 'NOT_APPLICABLE' | 'STALE' | 'UNAVAILABLE' | 'PENDING';
 
@@ -48,4 +48,10 @@ export const AUDIT_ACTION_LABEL: Record<AuditAction, string> = {
   EVIDENCE_ADDED: 'Добавлен материал',
   CONFIRMATION_ADDED: 'Получено подтверждение',
   DATASET_IMPORTED: 'Загружены данные',
+  CONTROL_COMMAND: 'Тестовая команда (имитатор)',
+  DASHBOARD_UPDATED: 'Изменена конфигурация панели',
+  DASHBOARD_PUBLISHED: 'Опубликована версия панели',
+  DASHBOARD_ACCEPTANCE: 'Приёмка панели',
+  CONFIRMATIONS_STALE: 'Подтверждения устарели',
+  ACCESS_DENIED: 'Отказано в доступе',
 };
