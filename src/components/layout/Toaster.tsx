@@ -14,10 +14,10 @@ function Toast({ n }: { n: AppNotification }) {
   }, [dismiss, n.id]);
   const Icon = ICON[n.tone];
   return (
-    <div role="status" className="pointer-events-auto flex w-80 gap-3 rounded-md border border-border bg-surface p-4 shadow-lg animate-in fade-in-0 slide-in-from-bottom-2">
+    <div role="status" className="pointer-events-auto flex w-[calc(100vw-2rem)] max-w-80 gap-3 rounded-md border border-border bg-surface p-4 shadow-lg animate-in fade-in-0 slide-in-from-bottom-2">
       <Icon className={cn('mt-0.5 size-[18px] shrink-0', TONE[n.tone])} aria-hidden />
       <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-        <span className="text-body-sm font-semibold">{n.title}</span>
+        <span className="text-body-sm font-medium">{n.title}</span>
         {n.description && <span className="text-caption text-text-secondary">{n.description}</span>}
       </div>
       <button type="button" onClick={() => dismiss(n.id)} aria-label="Закрыть" className="self-start text-text-muted hover:text-text-primary">
@@ -27,7 +27,7 @@ function Toast({ n }: { n: AppNotification }) {
   );
 }
 
-/** Всплывающие уведомления в правом нижнем углу; полная история — в колокольчике шапки. */
+/** Всплывающие уведомления в правом нижнем углу; полная история – в колокольчике шапки. */
 export function Toaster() {
   const toasts = useNotifications((s) => s.toasts);
   const items = useNotifications((s) => s.items);
