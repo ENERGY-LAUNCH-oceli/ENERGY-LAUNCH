@@ -14,18 +14,21 @@ export interface NextActionCardProps {
 }
 
 /**
- * Следующее действие — самый заметный блок рабочего экрана. Тёмно-синяя поверхность
- * и бирюзовый надзаголовок повторяют подвал и CTA-кнопки Oceli Energy.
+ * Следующее действие – самый заметный блок рабочего экрана: бирюзовая подложка
+ * и бирюзовая рамка, одна кнопка действия.
  */
 export function NextActionCard({ stageLabel, title, description, reason, action, className }: NextActionCardProps) {
   return (
-    <section aria-label="Следующее действие" className={cn('flex flex-col gap-4 rounded-lg bg-surface-inverse p-6 text-text-inverse sm:flex-row sm:items-center sm:justify-between', className)}>
+    <section aria-label="Следующее действие" className={cn('flex flex-col gap-4 rounded-lg border border-accent/35 bg-accent-subtle px-5 py-4 sm:flex-row sm:items-center sm:justify-between', className)}>
       <div className="flex min-w-0 flex-col gap-2">
-        <span className="text-label uppercase text-[#22AFBF]">Следующее действие{stageLabel && ` · ${stageLabel}`}</span>
-        <h3 className="text-h3 text-text-inverse">{title}</h3>
-        {description && <p className="text-body-sm text-white/80">{description}</p>}
+        <span className="flex items-center gap-2 text-label text-accent-strong">
+          <span aria-hidden className="size-1.5 rounded-full bg-accent" />
+          Следующее действие{stageLabel && ` · ${stageLabel}`}
+        </span>
+        <h3 className="text-h3">{title}</h3>
+        {description && <p className="text-body-sm text-text-secondary">{description}</p>}
         {reason && (
-          <p className="flex items-start gap-1.5 text-caption text-white/60">
+          <p className="flex items-start gap-1.5 text-caption text-text-muted">
             <ArrowRight className="mt-px size-3.5 shrink-0" aria-hidden />
             {reason}
           </p>

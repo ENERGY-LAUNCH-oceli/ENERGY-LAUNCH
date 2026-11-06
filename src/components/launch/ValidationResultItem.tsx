@@ -32,7 +32,7 @@ export interface ValidationResultProps {
 }
 
 const fmt = (v: string | number | null | undefined, unit?: string) =>
-  v === undefined || v === null ? '—' : `${typeof v === 'number' ? v.toLocaleString('ru-RU') : v}${unit ? ` ${unit}` : ''}`;
+  v === undefined || v === null ? '–' : `${typeof v === 'number' ? v.toLocaleString('ru-RU') : v}${unit ? ` ${unit}` : ''}`;
 
 /** Результат одной проверки с подтверждением: источник, результат, время и версия правила. */
 export function ValidationResult({ result, onOpen, className }: ValidationResultProps) {
@@ -50,8 +50,8 @@ export function ValidationResult({ result, onOpen, className }: ValidationResult
     >
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div className="flex min-w-0 items-center gap-2">
-          <span className="font-mono text-caption font-semibold text-text-secondary">{result.ruleId}</span>
-          <span className="truncate text-body-sm font-semibold">{result.title}</span>
+          <span className="font-mono text-caption font-medium text-text-secondary">{result.ruleId}</span>
+          <span className="truncate text-body-sm font-medium">{result.title}</span>
         </div>
         <div className="flex items-center gap-2">
           <Badge tone="neutral" size="sm">
@@ -71,11 +71,11 @@ export function ValidationResult({ result, onOpen, className }: ValidationResult
         <dl className="flex flex-wrap gap-x-6 gap-y-1 text-caption">
           <div className="flex gap-1.5">
             <dt className="text-text-muted">Факт</dt>
-            <dd className={cn('tabular font-semibold', failed ? 'text-error' : 'text-text-primary')}>{fmt(result.actual, result.unit)}</dd>
+            <dd className={cn('tabular font-medium', failed ? 'text-error' : 'text-text-primary')}>{fmt(result.actual, result.unit)}</dd>
           </div>
           <div className="flex gap-1.5">
             <dt className="text-text-muted">Требование</dt>
-            <dd className="tabular font-semibold">{fmt(result.expected, result.unit)}</dd>
+            <dd className="tabular font-medium">{fmt(result.expected, result.unit)}</dd>
           </div>
         </dl>
       )}
