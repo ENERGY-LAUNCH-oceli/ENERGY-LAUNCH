@@ -34,7 +34,7 @@ export function Timeline({ items, className }: { items: TimelineItem[]; classNam
           </span>
           <div className="flex min-w-0 flex-1 flex-col gap-0.5 pt-0.5">
             <div className="flex flex-wrap items-baseline justify-between gap-x-3">
-              <span className="text-body-sm font-semibold">{item.title}</span>
+              <span className="text-body-sm font-medium">{item.title}</span>
               <span className="tabular text-caption text-text-muted">{item.time}</span>
             </div>
             {item.description && <div className="text-body-sm text-text-secondary">{item.description}</div>}
