@@ -3,19 +3,22 @@ import { Link, useLocation } from 'react-router-dom';
 import { ROUTES } from '@/app/routes';
 import { OBJECT_TABS } from '@/config/navigation';
 import { findObject } from '@/data/objects';
+import { useUi } from '@/store';
 
 interface Crumb {
   label: string;
   to?: string;
 }
 
-const STATIC: Record<string, string> = { overview: 'Обзор', objects: 'Объекты', settings: 'Настройки', 'design-system': 'Дизайн-система' };
+const STATIC: Record<string, string> = { overview: 'Центр запуска', objects: 'Объекты', settings: 'Настройки', 'design-system': 'Дизайн-система' };
 
 export function useBreadcrumbs(): Crumb[] {
   const { pathname } = useLocation();
+  const overviewSearch = useUi((s) => s.overviewSearch);
   const parts = pathname.split('/').filter(Boolean);
   const crumbs: Crumb[] = [];
   if (parts[0] === 'objects') {
+    if (parts[1]) crumbs.push({ label: 'Центр запуска', to: `${ROUTES.overview}${overviewSearch}` });
     crumbs.push({ label: 'Объекты', to: ROUTES.objects });
     const id = parts[1] ? decodeURIComponent(parts[1]) : undefined;
     if (id) {

@@ -33,16 +33,16 @@ export function ObjectSwitcher() {
         <button
           type="button"
           aria-label="Текущий объект"
-          className="flex h-10 min-w-0 items-center gap-2.5 rounded-pill border border-border bg-surface pl-1.5 pr-3 text-left transition-colors hover:border-border-strong"
+          className="flex h-10 min-w-0 items-center gap-2.5 rounded-pill border border-border bg-surface pl-1.5 pr-1.5 text-left sm:pr-3 transition-colors hover:border-border-strong"
         >
           <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-accent-subtle text-accent-strong">
             <Building2 className="size-3.5" aria-hidden />
           </span>
-          <span className="flex min-w-0 flex-col leading-tight">
+          <span className="hidden min-w-0 max-w-48 flex-col leading-tight sm:flex">
             <span className="truncate text-body-sm font-semibold">{current?.name ?? 'Выберите объект'}</span>
             {current && <span className="truncate text-[11px] text-text-muted">{current.city} · {current.assets}</span>}
           </span>
-          <ChevronsUpDown className="ml-1 size-4 shrink-0 text-text-muted" aria-hidden />
+          <ChevronsUpDown className="ml-1 hidden size-4 sm:block shrink-0 text-text-muted" aria-hidden />
         </button>
       </PopoverTrigger>
       <PopoverContent className="w-80 p-0">
