@@ -2,6 +2,7 @@ import { addConfirmation, addEvidence, completeStage, createFixedContext, create
 import type { AuditEvent, LaunchInputs, LaunchSession, RulesConfig } from '@/types';
 import { STAGE_IDS } from '@/types';
 import { makeInvoiceRun } from '@/engine/invoice';
+import { makeTelemetryRun } from '@/engine/telemetry';
 import { loadObjectInputs, type ObjectCatalogEntry } from './catalog';
 
 export interface SeededWorkspace {
@@ -34,6 +35,9 @@ export function seedWorkspace(entry: ObjectCatalogEntry, ruleset: RulesConfig): 
   for (const stageId of STAGE_IDS.slice(0, STAGE_IDS.indexOf(entry.seedUntil) + 1)) {
     apply(startStage(session, stageId, ctx));
     apply(validateStage(session, stageId, inputs, ruleset, ctx));
+    if (stageId === 'REALTIME_TELEMETRY') {
+      inputs.telemetryRuns = [makeTelemetryRun(inputs.telemetry, inputs.passport, session.stages.REALTIME_TELEMETRY.validationResults, ruleset.telemetry, ruleset.version, session.stages.REALTIME_TELEMETRY.lastValidatedAt!, [])];
+    }
     if (stageId === 'METER_HISTORY') {
       inputs.invoiceRuns = [makeInvoiceRun(inputs.invoice, session.stages.METER_HISTORY.validationResults, ruleset.meterHistory, ruleset.version, session.stages.METER_HISTORY.lastValidatedAt!, [])];
     }
