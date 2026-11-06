@@ -2,6 +2,8 @@ import { create } from 'zustand';
 import { env } from '@/config/env';
 import { getRuleset } from '@/config/rules';
 import { DEFAULT_SCENARIO_ID, loadScenario } from '@/data/scenarios';
+import { findObject, loadObjectInputs } from '@/data/objects';
+import { notify } from './notifications-store';
 import {
   addConfirmation,
   addEvidence,
@@ -36,8 +38,20 @@ export const noopPersistence: LaunchPersistence = {
   appendAudit: async () => {},
 };
 
+/** Состояние запуска одного объекта. */
+export interface ObjectWorkspace {
+  scenarioId: string | null;
+  inputs: LaunchInputs;
+  session: LaunchSession;
+  auditLog: AuditEvent[];
+}
+
 interface LaunchState {
   actor: string;
+  currentObjectId: string | null;
+  /** Сохранённые состояния других объектов портфеля. */
+  workspaces: Record<string, ObjectWorkspace>;
+  selectObject(objectId: string): void;
   scenarioId: string | null;
   ruleset: RulesConfig;
   inputs: LaunchInputs | null;
@@ -69,6 +83,12 @@ export const useLaunchStore = create<LaunchState>()((set, get) => {
   /** Применить результат движка: обновить состояние, журнал, сохранить. */
   const commit = (result: MachineResult): boolean => {
     const { persistence } = get();
+    if (!result.ok) notify({ tone: 'warning', title: 'Переход отклонён', description: result.error.message });
+    for (const e of result.events) {
+      if (e.action === 'STAGE_COMPLETED') notify({ tone: 'success', title: 'Этап завершён', description: e.stageId ?? '' });
+      if (e.action === 'STAGE_BLOCKED') notify({ tone: 'error', title: 'Этап заблокирован', description: 'Найдены препятствия — см. панель этапа' });
+      if (e.action === 'SESSION_COMPLETED') notify({ tone: 'success', title: 'Объект готов к эксплуатации' });
+    }
     if (env.debugStateMachine) console.debug('[state-machine]', result);
     set((s) => ({
       auditLog: [...s.auditLog, ...result.events],
@@ -86,7 +106,9 @@ export const useLaunchStore = create<LaunchState>()((set, get) => {
   };
 
   return {
-    actor: 'demo-user',
+    actor: 'Инженер запуска',
+    currentObjectId: null,
+    workspaces: {},
     scenarioId: null,
     ruleset: getRuleset(env.rulesetVersion),
     inputs: null,
@@ -97,9 +119,42 @@ export const useLaunchStore = create<LaunchState>()((set, get) => {
 
     setPersistence: (persistence) => set({ persistence }),
 
+    selectObject: (objectId) => {
+      const s = get();
+      if (s.currentObjectId === objectId) return;
+      const entry = findObject(objectId);
+      if (!entry) return;
+      const workspaces = { ...s.workspaces };
+      if (s.currentObjectId && s.session && s.inputs) {
+        workspaces[s.currentObjectId] = { scenarioId: s.scenarioId, inputs: s.inputs, session: s.session, auditLog: s.auditLog };
+      }
+      const saved = workspaces[objectId];
+      if (saved) {
+        set({ workspaces, currentObjectId: objectId, ...saved, lastError: null });
+        return;
+      }
+      const inputs = loadObjectInputs(entry);
+      const c = ctx();
+      const session = createLaunchSession(objectId, s.ruleset.version, c);
+      const created: AuditEvent = {
+        id: c.newId(),
+        action: 'SESSION_CREATED',
+        actor: c.actor,
+        timestamp: c.now(),
+        sessionId: session.id,
+        objectId,
+        rulesetVersion: session.rulesetVersion,
+        payload: { scenarioId: entry.scenarioId },
+      };
+      set({ workspaces, currentObjectId: objectId, scenarioId: entry.scenarioId, inputs, session, auditLog: [created], lastError: null });
+      void s.persistence.saveInputs(inputs).then(() => s.persistence.saveSession(session)).catch(reportPersistError);
+    },
+
     loadScenario: (id = DEFAULT_SCENARIO_ID) => {
-      const scenario = loadScenario(id);
-      const { ruleset, persistence } = get();
+      const loaded = loadScenario(id);
+      const { ruleset, persistence, currentObjectId } = get();
+      const entry = findObject(currentObjectId ?? undefined);
+      const scenario = entry ? { ...loaded, inputs: loadObjectInputs({ ...entry, scenarioId: id }) } : loaded;
       const c = ctx();
       const session = createLaunchSession(scenario.inputs.object.id, ruleset.version, c);
       const created: AuditEvent = {
