@@ -7,6 +7,7 @@ import { Select } from '@/components/ui/select';
 import type { InvoiceIssue, InvoiceReport } from '@/types';
 import { ISSUE_LABEL, utc } from './labels';
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- значения колонок разных типов
 const COLUMNS: ColumnDef<InvoiceIssue, any>[] = [
   {
     accessorKey: 'timestamp',
@@ -38,7 +39,7 @@ const COLUMNS: ColumnDef<InvoiceIssue, any>[] = [
   { accessorKey: 'value', header: 'Значение', enableSorting: false, cell: (c) => <span className="tabular font-mono text-caption">{c.getValue<string>()}</span> },
   { accessorKey: 'expected', header: 'Правило', enableSorting: false, cell: (c) => <span className="text-caption">{c.getValue<string>()}</span> },
   { accessorKey: 'explanation', header: 'Объяснение', enableSorting: false, cell: (c) => <span className="text-caption text-text-secondary">{c.getValue<string>()}</span> },
-  { accessorKey: 'action', header: 'Исправление', enableSorting: false, cell: (c) => <span className="text-caption font-semibold text-accent-strong">{c.getValue<string>()}</span> },
+  { accessorKey: 'action', header: 'Исправление', enableSorting: false, cell: (c) => <span className="text-caption font-medium text-accent-strong">{c.getValue<string>()}</span> },
 ];
 
 const PAGE = 100;
@@ -63,7 +64,7 @@ export function IssuesTable({ report }: { report: InvoiceReport | undefined }) {
     <section id="issues" aria-label="Таблица препятствий" className="scroll-mt-24 flex flex-col gap-4 rounded-lg border border-border bg-surface p-5">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div className="flex flex-col gap-0.5">
-          <span className="text-label uppercase text-accent-strong">Препятствия</span>
+          <span className="text-label text-text-muted">Препятствия</span>
           <h2 className="text-h3">
             Найденные проблемы <span className="tabular text-text-secondary">· {total.toLocaleString('ru-RU')}</span>
           </h2>
@@ -97,7 +98,7 @@ export function IssuesTable({ report }: { report: InvoiceReport | undefined }) {
           {report?.issuesTruncated ? ` · ещё ${report.issuesTruncated.toLocaleString('ru-RU')} строковых проблем учтены в счётчиках, но не сохранены` : ''}
         </span>
         {limit < filtered.length && (
-          <button type="button" className="font-semibold text-accent-strong hover:underline" onClick={() => setLimit((l) => l + PAGE * 5)}>
+          <button type="button" className="font-medium text-accent-strong hover:underline" onClick={() => setLimit((l) => l + PAGE * 5)}>
             Показать ещё
           </button>
         )}
