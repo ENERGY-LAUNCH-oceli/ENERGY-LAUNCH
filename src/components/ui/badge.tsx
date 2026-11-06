@@ -2,18 +2,18 @@ import { cva, type VariantProps } from 'class-variance-authority';
 import type * as React from 'react';
 import { cn } from '@/utils/cn';
 
-export const badgeVariants = cva('inline-flex items-center gap-1 whitespace-nowrap rounded-pill border font-semibold [&_svg]:size-3.5', {
+export const badgeVariants = cva('inline-flex items-center gap-1 whitespace-nowrap rounded-pill font-medium [&_svg]:size-3.5', {
   variants: {
     tone: {
-      neutral: 'border-border bg-surface-sunken text-text-secondary',
-      accent: 'border-accent/30 bg-accent-subtle text-accent-strong',
-      info: 'border-info-border bg-info-subtle text-info',
-      success: 'border-success-border bg-success-subtle text-success',
-      warning: 'border-warning-border bg-warning-subtle text-warning',
-      error: 'border-error-border bg-error-subtle text-error',
-      inverse: 'border-transparent bg-primary text-primary-foreground',
+      neutral: 'bg-surface-sunken text-text-secondary',
+      accent: 'bg-accent-subtle text-accent-strong',
+      info: 'bg-info-subtle text-info',
+      success: 'bg-success-subtle text-success',
+      warning: 'bg-warning-subtle text-warning',
+      error: 'bg-error-subtle text-error',
+      inverse: 'bg-primary text-primary-foreground',
     },
-    size: { sm: 'h-5 px-2 text-[11px] leading-4', md: 'h-6 px-2.5 text-caption' },
+    size: { sm: 'h-5 px-1.5 text-[11px] leading-4', md: 'h-[22px] px-2 text-caption' },
   },
   defaultVariants: { tone: 'neutral', size: 'md' },
 });

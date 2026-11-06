@@ -5,28 +5,27 @@ import * as React from 'react';
 import { cn } from '@/utils/cn';
 
 /**
- * Кнопка. Форма «пилюля» и полужирное начертание — как у кнопок Oceli Energy.
- * primary — тёмно-синяя (основное действие), accent — бирюзовая (действие продвижения запуска),
- * secondary — белая с рамкой, outline — бирюзовая рамка (как «Посмотреть» на сайте),
- * ghost — без фона, danger — деструктивное действие.
+ * Кнопка. Сдержанная форма (скругление 8px), начертание 500.
+ * primary – основное действие экрана, accent – действие, продвигающее запуск,
+ * secondary – поверхность с рамкой, outline – бирюзовая рамка, ghost – без фона, danger – деструктивное.
  */
 export const buttonVariants = cva(
-  'inline-flex select-none items-center justify-center gap-2 whitespace-nowrap rounded-pill font-semibold transition-colors duration-fast ease-brand disabled:pointer-events-none disabled:opacity-45 [&_svg]:size-4 [&_svg]:shrink-0',
+  'inline-flex select-none items-center justify-center gap-2 whitespace-nowrap rounded-md font-medium transition-[background-color,border-color,color,transform] duration-fast ease-brand active:scale-[0.98] disabled:pointer-events-none disabled:opacity-45 [&_svg]:size-4 [&_svg]:shrink-0',
   {
     variants: {
       variant: {
-        primary: 'bg-primary text-primary-foreground hover:bg-primary-hover active:bg-[#031A30]',
-        accent: 'bg-accent-strong text-accent-foreground hover:bg-[#016E7A] active:bg-[#016570]',
-        secondary: 'border border-border-strong bg-surface text-text-primary hover:border-text-muted hover:bg-surface-secondary',
+        primary: 'bg-primary text-primary-foreground hover:bg-primary-hover',
+        accent: 'bg-accent-strong text-accent-foreground hover:bg-accent-hover',
+        secondary: 'border border-border bg-surface text-text-primary hover:border-border-strong hover:bg-surface-hover',
         outline: 'border border-accent bg-transparent text-accent-strong hover:bg-accent-subtle',
         ghost: 'text-text-secondary hover:bg-surface-sunken hover:text-text-primary',
-        danger: 'border border-error-border bg-error-subtle text-error hover:border-error hover:bg-[#FBE3DC]',
-        link: 'h-auto rounded-none px-0 text-accent-strong underline-offset-4 hover:underline',
+        danger: 'border border-error-border bg-error-subtle text-error hover:bg-error-hover',
+        link: 'link-line h-auto rounded-none px-0 text-accent-strong active:scale-100',
       },
       size: {
-        sm: 'h-8 px-3.5 text-caption font-semibold',
-        md: 'h-10 px-5 text-body-sm font-semibold',
-        lg: 'h-12 px-7 text-body font-semibold',
+        sm: 'h-8 px-3 text-caption font-medium',
+        md: 'h-9 px-4 text-body-sm font-medium',
+        lg: 'h-11 px-5 text-body font-medium',
         icon: 'size-9',
         'icon-sm': 'size-8',
       },
