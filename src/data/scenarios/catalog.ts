@@ -65,6 +65,35 @@ const DESCRIPTORS: ScenarioDescriptor[] = [
     }),
   },
   {
+    id: 'short-history',
+    title: 'Короткая история',
+    description: 'Официальная история покрывает меньше требуемого периода проверки.',
+    tags: ['negative', 'meter-history'],
+    build: () => ({
+      inputs: {
+        ...baseInputs(),
+        invoice: generateInvoiceDataset({ periodStart: '2026-10-12T00:00:00.000Z', days: 19, intervalMinutes: cfg.meterHistory.intervalMinutes, seed: 11 }),
+      },
+      expectations: [{ stageId: 'METER_HISTORY', statusAfterValidation: 'BLOCKED', failingRuleIds: ['MH-004'] }],
+    }),
+  },
+  {
+    id: 'wrong-binding',
+    title: 'Ошибочная привязка',
+    description: 'Поток телеметрии принадлежит другому объекту: идентификаторы сигналов не совпадают с картой сигналов.',
+    tags: ['negative', 'telemetry'],
+    build: () => {
+      const foreign = generateTelemetryDataset({ periodStart: '2026-11-02T00:00:00.000Z', hours: cfg.telemetry.observationPeriodHours, frequencySec: cfg.telemetry.expectedFrequencySec, signalIds: TELEMETRY_SIGNALS, seed: 21 });
+      return {
+        inputs: { ...baseInputs(), telemetry: { ...foreign, measurements: foreign.measurements.map((m) => ({ ...m, signalId: `obj-foreign:${m.signalId}` })) } },
+        expectations: [
+          { stageId: 'METER_HISTORY', statusAfterValidation: 'IN_PROGRESS', failingRuleIds: [] },
+          { stageId: 'REALTIME_TELEMETRY', statusAfterValidation: 'BLOCKED', failingRuleIds: ['TM-001', 'TM-002', 'TM-003', 'TM-004'] },
+        ],
+      };
+    },
+  },
+  {
     id: 'telemetry-latency',
     title: 'Высокая задержка телеметрии',
     description: '10% сообщений доставляются с задержкой 120 с.',
