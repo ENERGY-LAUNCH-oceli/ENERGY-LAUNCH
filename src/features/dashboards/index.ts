@@ -1,6 +1,9 @@
 /**
- * Feature-модуль «dashboards» (Presentation Layer).
- * Компоненты и хуки этой функциональной области. Бизнес-правила — только в src/engine.
- * Реализация — в следующих фазах (см. README, раздел «Дорожная карта»).
+ * Feature-модуль «dashboards» (Presentation Layer): этап 4 – рабочая панель объекта, конструктор, приёмка.
+ * Правила, права и готовность – в src/engine/dashboards.
  */
-export {};
+export { Acceptance } from './Acceptance';
+export { Builder } from './Builder';
+export { buildDashboardData, useDashboardData, type DashboardData } from './data';
+export { DashboardView } from './DashboardView';
+export { ReadinessPanel } from './ReadinessPanel';
