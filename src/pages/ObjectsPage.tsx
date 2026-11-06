@@ -1,4 +1,4 @@
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { ROUTES } from '@/app/routes';
 import { PageHeader } from '@/components/common/PageHeader';
 import { DataTable, type ColumnDef } from '@/components/ui/data-table';
@@ -10,8 +10,17 @@ import type { LaunchSession } from '@/types';
 
 type Row = ObjectCatalogEntry & { session: LaunchSession | undefined };
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- значения колонок разных типов
 const COLUMNS: ColumnDef<Row, any>[] = [
-  { accessorKey: 'name', header: 'Объект', cell: (c) => <span className="font-semibold">{c.getValue<string>()}</span> },
+  {
+    accessorKey: 'name',
+    header: 'Объект',
+    cell: (c) => (
+      <Link to={ROUTES.object(c.row.original.id)} onClick={(event) => event.stopPropagation()} className="font-medium hover:text-accent-strong hover:underline">
+        {c.getValue<string>()}
+      </Link>
+    ),
+  },
   { accessorKey: 'code', header: 'Код', cell: (c) => <span className="font-mono text-caption">{c.getValue<string>()}</span> },
   { accessorKey: 'city', header: 'Город' },
   { accessorKey: 'assets', header: 'Активы', enableSorting: false },
