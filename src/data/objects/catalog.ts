@@ -1,6 +1,6 @@
 import { loadScenario } from '@/data/scenarios';
 import { withCheckDigit } from '@/engine/invoice/format';
-import { buildTelemetryDataset, demoPassport, type TelemetryGenOptions } from '@/data/mock';
+import { buildControlCommands, buildDashboardWorkspace, buildTelemetryDataset, demoPassport, type ControlPlanStep, type TelemetryGenOptions } from '@/data/mock';
 import type { LaunchInputs, StageId } from '@/types';
 
 /**
@@ -24,24 +24,49 @@ export interface ObjectCatalogEntry {
   equipment: { id: string; type: 'pv' | 'battery'; prefix: string }[];
   /** Параметры демо-телеметрии объекта. */
   telemetry?: TelemetryGenOptions;
+  /** Демо-программа тестов управления (этап 3) через имитатор. */
+  control?: ControlPlanStep[];
   /** До какого этапа демо-сессия проходится автоматически (включительно). */
   seedUntil: StageId;
-  /** Фиксированная точка времени демо-проверок — данные воспроизводимы. */
+  /** Фиксированная точка времени демо-проверок – данные воспроизводимы. */
   seedAt: string;
+  /** Источник объекта: синтетика (по умолчанию) или набор кейса 4. */
+  source?: 'SYNTHETIC' | 'CASE4' | 'SCENARIO';
+  /** Папка объекта в наборе (Building1…6). */
+  folder?: string;
+  /** Готовые входные данные (набор кейса 4): файлы уже разобраны и проверены импортом. */
+  inputs?: LaunchInputs;
+  /** SHA-256 файлов объекта из manifest.json (имя файла → хеш). */
+  fileHashes?: Record<string, string>;
 }
 
 export const OBJECT_CATALOG: ObjectCatalogEntry[] = [
-  { id: 'obj-001', ean: { offtake: withCheckDigit('54144880000000101'), injection: withCheckDigit('54144880000000102') }, code: 'OBJ-001', name: 'Кампус «Северный»', city: 'Брюссель', address: 'Rue Synthétique 12, 1000 Брюссель', kind: 'Офисный кампус', assets: 'PV1 · Battery1', assetCount: 2, responsible: 'А. Верхаген', equipment: [{ id: 'pv-1', type: 'pv', prefix: 'PV1' }, { id: 'battery-1', type: 'battery', prefix: 'Battery1' }], scenarioId: 'happy-path', seedUntil: 'FINAL_DASHBOARDS', seedAt: '2026-11-05T07:40:00.000Z' },
+  { id: 'obj-001', ean: { offtake: withCheckDigit('54144880000000101'), injection: withCheckDigit('54144880000000102') }, code: 'OBJ-001', name: 'Кампус «Северный»', city: 'Брюссель', address: 'Rue Synthétique 12, 1000 Брюссель', kind: 'Офисный кампус', assets: 'PV1 · Battery1', assetCount: 2, responsible: 'А. Верхаген', equipment: [{ id: 'pv-1', type: 'pv', prefix: 'PV1' }, { id: 'battery-1', type: 'battery', prefix: 'Battery1' }], control: [{ assetId: 'battery-1', scenario: 'NOMINAL' }, { assetId: 'pv-1', scenario: 'NOMINAL' }], scenarioId: 'happy-path', seedUntil: 'FINAL_DASHBOARDS', seedAt: '2026-11-05T07:40:00.000Z' },
   { id: 'obj-002', ean: { offtake: withCheckDigit('54144880000000201'), injection: withCheckDigit('54144880000000202') }, code: 'OBJ-002', name: 'Логистический центр «Порт-7»', city: 'Антверпен', address: 'Havenweg 7, 2030 Антверпен', kind: 'Склад', assets: 'PV1', assetCount: 1, responsible: 'М. Янссенс', equipment: [{ id: 'pv-1', type: 'pv', prefix: 'PV1' }], scenarioId: 'short-history', seedUntil: 'METER_HISTORY', seedAt: '2026-11-05T08:05:00.000Z' },
   { id: 'obj-003', ean: { offtake: withCheckDigit('54144880000000301'), injection: withCheckDigit('54144880000000302') }, code: 'OBJ-003', name: 'Школа «Ливадия»', city: 'Гент', address: 'Schoolstraat 31, 9000 Гент', kind: 'Образовательное здание', assets: 'PV1', assetCount: 1, responsible: 'Л. Петерс', equipment: [{ id: 'pv-1', type: 'pv', prefix: 'PV1' }], scenarioId: 'meter-gaps', seedUntil: 'METER_HISTORY', seedAt: '2026-11-05T08:20:00.000Z' },
   { id: 'obj-004', ean: { offtake: withCheckDigit('54144880000000401'), injection: withCheckDigit('54144880000000402') }, code: 'OBJ-004', name: 'Медцентр «Ривьера»', city: 'Льеж', address: 'Quai Fictif 4, 4000 Льеж', kind: 'Медицинский центр', assets: 'PV1 · Battery1', assetCount: 2, responsible: 'А. Верхаген', equipment: [{ id: 'pv-1', type: 'pv', prefix: 'PV1' }, { id: 'battery-1', type: 'battery', prefix: 'Battery1' }], telemetry: { silentAssets: ['Battery1'] }, scenarioId: 'missing-signal', seedUntil: 'REALTIME_TELEMETRY', seedAt: '2026-11-05T08:45:00.000Z' },
   { id: 'obj-005', ean: { offtake: withCheckDigit('54144880000000501'), injection: withCheckDigit('54144880000000502') }, code: 'OBJ-005', name: 'Бизнес-парк «Меридиан»', city: 'Лёвен', address: 'Parklaan 55, 3000 Лёвен', kind: 'Бизнес-парк', assets: 'PV1 · Battery1', assetCount: 2, responsible: 'С. Дюбуа', equipment: [{ id: 'pv-1', type: 'pv', prefix: 'PV1' }, { id: 'battery-1', type: 'battery', prefix: 'Battery1' }], telemetry: { renamePrefix: { from: 'Battery1', to: 'Battery2' }, objectIdInFile: 'OBJ-FOREIGN-07' }, scenarioId: 'wrong-binding', seedUntil: 'REALTIME_TELEMETRY', seedAt: '2026-11-05T09:10:00.000Z' },
-  { id: 'obj-006', ean: { offtake: withCheckDigit('54144880000000601'), injection: withCheckDigit('54144880000000602') }, code: 'OBJ-006', name: 'Технопарк «Квант»', city: 'Брюгге', address: 'Kanaalstraat 9, 8000 Брюгге', kind: 'Производственное здание', assets: 'Battery1 · Battery2', assetCount: 2, responsible: 'М. Янссенс', equipment: [{ id: 'battery-1', type: 'battery', prefix: 'Battery1' }, { id: 'battery-2', type: 'battery', prefix: 'Battery2' }], scenarioId: 'control-timeout', seedUntil: 'ASSET_CONTROL', seedAt: '2026-11-05T09:30:00.000Z' },
+  { id: 'obj-006', ean: { offtake: withCheckDigit('54144880000000601'), injection: withCheckDigit('54144880000000602') }, code: 'OBJ-006', name: 'Технопарк «Квант»', city: 'Брюгге', address: 'Kanaalstraat 9, 8000 Брюгге', kind: 'Производственное здание', assets: 'Battery1 · Battery2', assetCount: 2, responsible: 'М. Янссенс', equipment: [{ id: 'battery-1', type: 'battery', prefix: 'Battery1' }, { id: 'battery-2', type: 'battery', prefix: 'Battery2' }], control: [{ assetId: 'battery-1', scenario: 'NOMINAL' }, { assetId: 'battery-2', scenario: 'SLOW_RESPONSE' }], scenarioId: 'control-timeout', seedUntil: 'ASSET_CONTROL', seedAt: '2026-11-05T09:30:00.000Z' },
 ];
 
-export const DEFAULT_OBJECT_ID = OBJECT_CATALOG[0]!.id;
+export let DEFAULT_OBJECT_ID = OBJECT_CATALOG[0]!.id;
 
-export const findObject = (id: string | undefined) => OBJECT_CATALOG.find((o) => o.id === id);
+/** Заменяет портфель (например, набором кейса 4). Ссылка на массив сохраняется. */
+export function replaceObjectCatalog(entries: ObjectCatalogEntry[]): void {
+  OBJECT_CATALOG.splice(0, OBJECT_CATALOG.length, ...entries);
+  DEFAULT_OBJECT_ID = OBJECT_CATALOG[0]!.id;
+}
+
+/** Песочницы демонстрационных сценариев: отдельно от портфеля, не попадают в обзор и реестр. */
+export const SANDBOX_CATALOG: ObjectCatalogEntry[] = [];
+
+export function registerSandbox(entry: ObjectCatalogEntry): void {
+  const i = SANDBOX_CATALOG.findIndex((e) => e.id === entry.id);
+  if (i >= 0) SANDBOX_CATALOG.splice(i, 1, entry);
+  else SANDBOX_CATALOG.push(entry);
+}
+
+export const findObject = (id: string | undefined) => OBJECT_CATALOG.find((o) => o.id === id) ?? SANDBOX_CATALOG.find((o) => o.id === id);
 
 /** Входные данные объекта: сценарий с подставленными реквизитами объекта. */
 export function objectPassport(entry: ObjectCatalogEntry) {
@@ -50,8 +75,11 @@ export function objectPassport(entry: ObjectCatalogEntry) {
 }
 
 export function loadObjectInputs(entry: ObjectCatalogEntry): LaunchInputs {
+  // Набор кейса 4: файлы уже разобраны; копия, чтобы сессии объекта не делили изменяемые массивы
+  if (entry.inputs) return { ...entry.inputs, controlCommands: [...(entry.inputs.controlCommands ?? [])], controlTests: [] };
   const { inputs } = loadScenario(entry.scenarioId);
   const passport = objectPassport(entry);
+  const telemetry = buildTelemetryDataset(passport, entry.telemetry ?? {});
   return {
     ...inputs,
     object: {
@@ -64,6 +92,11 @@ export function loadObjectInputs(entry: ObjectCatalogEntry): LaunchInputs {
     },
     ...(inputs.invoice ? { invoice: { ...inputs.invoice, objectId: entry.id, id: `invoice-${entry.id}-v1` } } : {}),
     passport,
-    telemetry: buildTelemetryDataset(passport, entry.telemetry ?? {}),
+    telemetry,
+    controlCommands: entry.control
+      ? buildControlCommands({ passport, report: telemetry.report, objectCode: entry.code, plan: entry.control, startAt: new Date(Date.parse(entry.seedAt) - 3_600_000).toISOString(), actor: entry.responsible })
+      : [],
+    // Черновик рабочей панели объекта; публикация и приёмка – действиями ролей
+    dashboard: buildDashboardWorkspace({ objectId: entry.id, at: entry.seedAt, engineer: entry.responsible }),
   };
 }
