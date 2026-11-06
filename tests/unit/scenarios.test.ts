@@ -1,46 +1,45 @@
-import { describe, expect, it } from 'vitest';
-import { ACTIVE_RULESET as RULESET_V1 } from '@/config/rules';
-import { loadScenario, SCENARIO_LIST } from '@/data/scenarios';
-import {
-  addConfirmation,
-  addEvidence,
-  completeStage,
-  createFixedContext,
-  createLaunchSession,
-  startStage,
-  validateStage,
-  type MachineResult,
-} from '@/engine';
-import type { LaunchSession } from '@/types';
+import { beforeEach, describe, expect, it } from 'vitest';
+import { noopPersistence, useLaunchStore } from '@/store';
+import { qualityMetrics, runScenario, SCENARIOS } from '@/scenarios';
 
-const cfg = RULESET_V1;
-const ctx = createFixedContext('scenario-runner', '2026-11-05T10:00:00.000Z');
-const unwrap = (r: MachineResult): LaunchSession => {
-  if (!r.ok) throw new Error(r.error.message);
-  return r.session;
-};
+describe('Scenario Engine: 11 сценариев ТЗ', () => {
+  beforeEach(() => {
+    const st = useLaunchStore.getState();
+    st.setPersistence(noopPersistence);
+    st.initPortfolio(true);
+  });
 
-/** Каждый сценарий прогоняется через движок: ожидания из каталога должны выполняться. */
-describe.each(SCENARIO_LIST.map((s) => s.id))('сценарий %s', (id) => {
-  it('соответствует ожиданиям', () => {
-    const scenario = loadScenario(id);
-    let s = createLaunchSession(scenario.inputs.object.id, cfg.version, ctx);
-    for (const exp of scenario.expectations) {
-      s = unwrap(startStage(s, exp.stageId, ctx));
-      s = unwrap(validateStage(s, exp.stageId, scenario.inputs, cfg, ctx));
-      const stage = s.stages[exp.stageId];
-      const failing = stage.validationResults.filter((r) => r.blocking && r.status === 'FAILED').map((r) => r.ruleId).sort();
-      expect({ stage: exp.stageId, status: stage.status, failing }).toEqual({
-        stage: exp.stageId,
-        status: exp.statusAfterValidation,
-        failing: [...exp.failingRuleIds].sort(),
-      });
-      if (stage.status === 'BLOCKED') break;
-      for (const req of cfg.confirmations[exp.stageId]) {
-        s = unwrap(addEvidence(s, { stageId: exp.stageId, type: req.evidenceTypes[0]!, title: req.id }, ctx));
-        s = unwrap(addConfirmation(s, { stageId: exp.stageId, requirementId: req.id, role: req.role, confirmedBy: 'auto', evidenceIds: [s.evidence.at(-1)!.id] }, cfg, ctx));
-      }
-      s = unwrap(completeStage(s, exp.stageId, cfg, ctx));
-    }
+  it('каталог содержит 11 сценариев, 6 оценочных', () => {
+    expect(SCENARIOS.map((s) => s.n)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]);
+    expect(SCENARIOS.filter((s) => s.evaluation)).toHaveLength(6);
+  });
+
+  for (const def of SCENARIOS) {
+    it(`${def.n}. ${def.title}`, () => {
+      const run = runScenario(def);
+      const failed = run.checks.filter((c) => !c.pass).map((c) => `${c.label} → ${c.actual}`);
+      expect(failed).toEqual([]);
+      expect(run.falseCompletions).toBe(0);
+      expect(run.passed).toBe(true);
+    });
+  }
+
+  it('прогон воспроизводим и не меняет состояние пользователя', () => {
+    const before = useLaunchStore.getState();
+    const objId = before.currentObjectId;
+    const a = runScenario(SCENARIOS[1]!);
+    const b = runScenario(SCENARIOS[1]!);
+    expect(a.outcome.statuses).toEqual(b.outcome.statuses);
+    expect(a.outcome.blockers).toEqual(b.outcome.blockers);
+    expect(useLaunchStore.getState().currentObjectId).toBe(objId);
+    expect(useLaunchStore.getState().session).toBe(before.session);
+  });
+
+  it('метрики качества ТЗ 6.1 на оценочных сценариях', () => {
+    const m = qualityMetrics(SCENARIOS.filter((s) => s.evaluation).map(runScenario));
+    expect(m.statusAccuracy.matched).toBe(m.statusAccuracy.total);
+    expect(m.blockerRecall.found).toBe(m.blockerRecall.total);
+    expect(m.falseCompletions).toBe(0);
+    expect(m.evidence.covered).toBe(m.evidence.total);
   });
 });
