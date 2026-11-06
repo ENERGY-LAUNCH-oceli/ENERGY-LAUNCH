@@ -9,10 +9,10 @@ export function NotFoundPage() {
     <EmptyState
       icon={<Compass aria-hidden />}
       title="Страница не найдена"
-      description="Проверьте адрес или вернитесь к карточке запуска."
+      description="Проверьте адрес или вернитесь к обзору."
       action={
         <Button asChild variant="secondary" size="sm">
-          <Link to={ROUTES.launch}>К карточке запуска</Link>
+          <Link to={ROUTES.overview}>К обзору</Link>
         </Button>
       }
     />
