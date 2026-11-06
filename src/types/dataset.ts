@@ -1,6 +1,6 @@
 import type { Id, IsoDateTime } from './common';
 import type { InvoiceReport } from './invoice';
-import type { Measurement } from './measurement';
+import type { TelemetryDatasetV2 } from './telemetry';
 
 export const DATASET_SOURCES = ['CSV_IMPORT', 'DEMO', 'API'] as const;
 export type DatasetSource = (typeof DATASET_SOURCES)[number];
@@ -24,10 +24,5 @@ export interface InvoiceDataset extends DatasetBase {
   report: InvoiceReport;
 }
 
-/** Этап 2 (Real-time Telemetry): поток оперативных измерений. */
-export interface TelemetryDataset extends DatasetBase {
-  kind: 'TELEMETRY';
-  measurements: Measurement[];
-}
-
-export type Dataset = InvoiceDataset | TelemetryDataset;
+/** Набор данных, хранимый в IndexedDB. */
+export type Dataset = InvoiceDataset | TelemetryDatasetV2;

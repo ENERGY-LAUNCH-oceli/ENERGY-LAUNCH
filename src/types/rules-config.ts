@@ -48,19 +48,27 @@ export interface MeterHistoryRules {
 }
 
 export interface TelemetryRules {
-  /** Ожидаемый период поступления данных, секунды (частота данных). */
-  expectedFrequencySec: number;
-  /** Допуск на отклонение медианного периода, %. */
-  frequencyTolerancePct: number;
+  /** Шаг потока, минуты (ТЗ: 15). */
+  intervalMinutes: number;
+  /** Окно проверки полноты, часы (ТЗ: 48). */
+  windowHours: number;
+  /** Минимальная полнота по каждому обязательному сигналу, % (демо: 99). */
   minCompletenessPct: number;
-  /** Максимальная задержка доставки, секунды. */
-  maxLatencySec: number;
-  /** Перцентиль задержки, сравниваемый с maxLatencySec. */
-  latencyPercentile: number;
-  /** Длительность наблюдения, часы (период проверки). */
-  observationPeriodHours: number;
-  /** Обязательные сигналы. */
-  requiredSignals: SignalKind[];
+  /** Максимальный возраст последнего значения относительно точки проверки, минуты (демо: 30). */
+  maxAgeMinutes: number;
+  /** Точка проверки — фиксированный момент оценки актуальности (ТЗ, глоссарий). */
+  checkPoint: string;
+  /** Обязательные сигналы: шаблон `{asset}` заменяется префиксом актива (PV1, Battery2). */
+  requiredGrid: string[];
+  requiredPv: string[];
+  requiredBattery: string[];
+  /** Физически допустимые диапазоны. */
+  maxAbsPowerKw: number;
+  maxEnergyKwhPerInterval: number;
+  /** Скачок SoC за интервал, выше которого значение подозрительно, п. п. */
+  maxSocJumpPct: number;
+  /** Допуск расхождения отправленной и принятой уставки, кВт. */
+  setpointToleranceKw: number;
 }
 
 export interface ControlRules {
