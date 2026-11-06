@@ -1,6 +1,8 @@
-/**
- * Feature-модуль «invoice-validation» (Presentation Layer).
- * Компоненты и хуки этой функциональной области. Бизнес-правила — только в src/engine.
- * Реализация — в следующих фазах (см. README, раздел «Дорожная карта»).
- */
-export {};
+export { UploadPanel } from './UploadPanel';
+export { CheckBlocks } from './CheckBlocks';
+export { CoverageTimeline } from './CoverageTimeline';
+export { CompletenessPanel } from './CompletenessPanel';
+export { FieldQualityTable } from './FieldQualityTable';
+export { EanPanel } from './EanPanel';
+export { IssuesTable } from './IssuesTable';
+export { RunsHistory } from './RunsHistory';
