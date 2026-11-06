@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { env } from '@/config/env';
 import { getRuleset } from '@/config/rules';
 import { DEFAULT_SCENARIO_ID, loadScenario } from '@/data/scenarios';
-import { OBJECT_CATALOG, findObject, loadObjectInputs, replaceObjectCatalog, seedWorkspace } from '@/data/objects';
+import { OBJECT_CATALOG, addUserObject, attachStoredObjects, findObject, loadObjectInputs, removeUserObject, replaceObjectCatalog, seedWorkspace, type ObjectCatalogEntry, type UserObjectDraft } from '@/data/objects';
 import { startCase4Job, type Case4Job, type Case4Manifest, type Case4Progress } from '@/data/case4';
 import { notify } from './notifications-store';
 import {
@@ -69,6 +69,10 @@ interface LaunchState {
   /** Сохранённые состояния других объектов портфеля. */
   workspaces: Record<string, ObjectWorkspace>;
   selectObject(objectId: string): void;
+  /** Новый объект портфеля (паспорт из формы); становится текущим. */
+  createObject(draft: UserObjectDraft): ObjectCatalogEntry;
+  /** Удалить объект, добавленный пользователем. */
+  removeObject(objectId: string): boolean;
   /** Детерминированно заполняет демо-портфель (воспроизводимые состояния шести объектов). */
   initPortfolio(force?: boolean): void;
   /** Источник портфеля: набор кейса 4 (public/case4) или синтетический демо-портфель. */
@@ -343,6 +347,27 @@ export const useLaunchStore = create<LaunchState>()((set, get) => {
       void s.persistence.saveInputs(saved.inputs).then(() => s.persistence.saveSession(saved.session)).catch(reportPersistError);
     },
 
+    createObject: (draft) => {
+      const entry = addUserObject(draft);
+      get().selectObject(entry.id);
+      notify({ tone: 'success', title: `Объект «${entry.name}» добавлен`, description: 'Загрузите историю счётчиков, чтобы начать этап 1' });
+      return entry;
+    },
+
+    removeObject: (objectId) => {
+      const s = get();
+      if (findObject(objectId)?.source !== 'USER' || OBJECT_CATALOG.length <= 1) return false;
+      const name = findObject(objectId)!.name;
+      if (s.currentObjectId === objectId) get().selectObject(OBJECT_CATALOG.find((o) => o.id !== objectId)!.id);
+      if (!removeUserObject(objectId)) return false;
+      set((st) => {
+        const { [objectId]: _drop, ...rest } = st.workspaces;
+        return { workspaces: rest };
+      });
+      notify({ tone: 'info', title: `Объект «${name}» удалён` });
+      return true;
+    },
+
     loadScenario: (id = DEFAULT_SCENARIO_ID) => {
       const loaded = loadScenario(id);
       const { ruleset, persistence, currentObjectId } = get();
@@ -371,6 +396,7 @@ export const useLaunchStore = create<LaunchState>()((set, get) => {
     initPortfolio: (force = false) => {
       const s = get();
       if (!force && s.currentObjectId) return;
+      attachStoredObjects();
       const workspaces: Record<string, ObjectWorkspace> = {};
       for (const entry of OBJECT_CATALOG) workspaces[entry.id] = seedWorkspace(entry, s.ruleset);
       const first = OBJECT_CATALOG[0]!.id;

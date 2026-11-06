@@ -27,7 +27,7 @@ export function seedWorkspace(entry: ObjectCatalogEntry, ruleset: RulesConfig): 
   const ctx = { actor: entry.responsible, now: () => new Date(base + tick++ * 60_000).toISOString(), newId: () => `${entry.id}-${++seq}` };
   const fixed = createFixedContext(entry.responsible, entry.seedAt, `${entry.id}-s`);
   let session = createLaunchSession(entry.id, ruleset.version, { ...fixed, now: ctx.now });
-  const auditLog: AuditEvent[] = [{ id: `${entry.id}-created`, action: 'SESSION_CREATED', actor: entry.responsible, timestamp: entry.seedAt, sessionId: session.id, objectId: entry.id, rulesetVersion: ruleset.version, payload: { scenarioId: entry.scenarioId } }];
+  const auditLog: AuditEvent[] = [{ id: `${entry.id}-created`, action: 'SESSION_CREATED', actor: entry.responsible, timestamp: entry.seedAt, sessionId: session.id, objectId: entry.id, rulesetVersion: ruleset.version, payload: { scenarioId: entry.scenarioId, ...(entry.source === 'USER' ? { source: 'USER', createdBy: entry.responsible } : {}) } }];
 
   const apply = (r: MachineResult): boolean => {
     auditLog.push(...r.events);
@@ -35,8 +35,8 @@ export function seedWorkspace(entry: ObjectCatalogEntry, ruleset: RulesConfig): 
     return r.ok;
   };
 
-  // Песочница сценария: чистая сессия, шаги выполняет сам сценарий
-  if (entry.source === 'SCENARIO') return { scenarioId: entry.scenarioId, inputs, session, auditLog };
+  // Песочница сценария и новый объект пользователя: чистая сессия, этапы проходятся действиями
+  if (entry.source === 'SCENARIO' || entry.source === 'USER') return { scenarioId: entry.scenarioId, inputs, session, auditLog };
   for (const stageId of STAGE_IDS.slice(0, STAGE_IDS.indexOf(entry.seedUntil) + 1)) {
     apply(startStage(session, stageId, ctx));
     const statusBefore = session.stages[stageId].status;

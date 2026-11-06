@@ -449,3 +449,35 @@ test('демо-сценарии: запуск, результат, открыт�
   await page.locator('[data-scenario="1"]').getByRole('button', { name: 'Сбросить сценарий' }).click();
   await expect(page.locator('[data-scenario="1"]')).not.toHaveAttribute('data-pass', /.*/);
 });
+
+test('добавление объекта: проверка формы, создание, сохранение после перезагрузки и удаление', async ({ page }) => {
+  await page.goto('/objects');
+  await page.getByTestId('add-object').click();
+  const dialog = page.getByRole('dialog', { name: 'Новый объект' });
+  await dialog.getByTestId('create-object-submit').click();
+  await expect(dialog.getByText('Укажите название объекта')).toBeVisible();
+  await expect(dialog.getByText('Укажите EAN точки отбора')).toBeVisible();
+
+  await dialog.getByLabel('Название').fill('Кампус «Южный»');
+  await expect(dialog.getByLabel('Код')).toHaveValue('KAMPUS-YUZHNYY');
+  await dialog.getByLabel('Город').fill('Намюр');
+  await dialog.getByLabel('EAN точки отбора').fill('541448800000099010');
+  await dialog.getByLabel('EAN точки отдачи').fill('541448800000099028');
+  await dialog.getByLabel('Батареи').fill('1');
+  await dialog.getByTestId('create-object-submit').click();
+  await expect(dialog.getByText(/контрольная цифра GS1 0, ожидается/)).toBeVisible();
+  await dialog.getByLabel('EAN точки отбора').fill('541448800000099011');
+  await dialog.getByTestId('create-object-submit').click();
+
+  await expect(page).toHaveURL(/\/objects\/usr-[a-z0-9]+\/launch$/);
+  await expect(page.getByRole('button', { name: 'Текущий объект' })).toContainText('Кампус «Южный»');
+  await page.reload();
+  await page.goto('/objects');
+  await expect(page.getByRole('link', { name: 'Кампус «Южный»' })).toBeVisible();
+  await page.getByRole('link', { name: 'Кампус «Южный»' }).click();
+  await expect(page.getByText('PV1').first()).toBeVisible();
+  await page.getByTestId('delete-object').click();
+  await page.getByTestId('delete-object-confirm').click();
+  await expect(page).toHaveURL(/\/objects$/);
+  await expect(page.getByRole('link', { name: 'Кампус «Южный»' })).toHaveCount(0);
+});

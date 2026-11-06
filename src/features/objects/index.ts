@@ -1,6 +1,3 @@
-/**
- * Feature-модуль «objects» (Presentation Layer).
- * Компоненты и хуки этой функциональной области. Бизнес-правила – только в src/engine.
- * Реализация – в следующих фазах (см. README, раздел «Дорожная карта»).
- */
-export {};
+/** Feature-модуль «objects»: добавление и удаление объектов портфеля. Бизнес-правила – в src/data/objects и src/engine. */
+export { CreateObjectDialog } from './CreateObjectDialog';
+export { DeleteObjectButton } from './DeleteObjectButton';

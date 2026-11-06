@@ -3,6 +3,7 @@ import { LaunchProgress } from '@/components/launch';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { STAGE_META } from '@/config/stages';
 import { findObject } from '@/data/objects';
+import { DeleteObjectButton } from '@/features/objects';
 import { isValidEan } from '@/engine/invoice';
 import { objectReadiness } from '@/engine';
 import { useLaunchStore } from '@/store';
@@ -32,7 +33,7 @@ export function ObjectPassportPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <PageHeader eyebrow="Паспорт объекта · object.json" title={p?.name ?? inputs.object.name} description={[p?.address, p?.timezone].filter(Boolean).join(' · ')} />
+      <PageHeader eyebrow="Паспорт объекта · object.json" title={p?.name ?? inputs.object.name} description={[p?.address, p?.timezone].filter(Boolean).join(' · ')} actions={entry && <DeleteObjectButton entry={entry} />} />
       <LaunchProgress currentStageId={session.currentStageId} ready={objectReadiness(session, inputs, ruleset).ready} stages={STAGE_IDS.map((id) => ({ id, title: STAGE_META[id].titleRu, status: session.stages[id].status }))} />
 
       {!p ? (
