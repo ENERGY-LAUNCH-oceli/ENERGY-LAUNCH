@@ -58,7 +58,7 @@ export function EvidencePanel({ items, confirmations, onAdd, onOpen, className }
           ))}
           {stale.length > 0 && (
             <>
-              <span className="mt-2 text-label uppercase text-text-muted">Требуют перепроверки</span>
+              <span className="mt-2 text-label text-text-muted">Требуют перепроверки</span>
               {stale.map((e) => (
                 <EvidenceCard key={e.id} evidence={e} {...(onOpen ? { onOpen: () => onOpen(e.id) } : {})} />
               ))}

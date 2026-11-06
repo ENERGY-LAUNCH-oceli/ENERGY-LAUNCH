@@ -50,11 +50,11 @@ export function EvidenceCard({ evidence: e, onOpen, onDownload, className }: Evi
       <div className="flex min-w-0 flex-1 flex-col gap-1">
         <div className="flex flex-wrap items-center gap-2">
           {onOpen ? (
-            <button type="button" onClick={onOpen} className="truncate text-left text-body-sm font-semibold hover:text-accent-strong">
+            <button type="button" onClick={onOpen} className="truncate text-left text-body-sm font-medium hover:text-accent-strong">
               {e.title}
             </button>
           ) : (
-            <span className="truncate text-body-sm font-semibold">{e.title}</span>
+            <span className="truncate text-body-sm font-medium">{e.title}</span>
           )}
           {e.stale && (
             <Badge tone="warning" size="sm">

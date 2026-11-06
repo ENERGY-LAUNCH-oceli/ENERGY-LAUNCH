@@ -49,7 +49,7 @@ export function DataQualityIndicator(props: DataQualityIndicatorProps) {
 
   if (compact) {
     return (
-      <span className={cn('inline-flex items-center gap-1.5 rounded-pill px-2.5 py-1 text-caption font-semibold', chip, className)}>
+      <span className={cn('inline-flex items-center gap-1.5 rounded-pill px-2.5 py-1 text-caption font-medium', chip, className)}>
         {level === 'UNAVAILABLE' ? <CloudOff className="size-3.5" aria-hidden /> : <Gauge className="size-3.5" aria-hidden />}
         {completenessPct !== undefined && level !== 'UNAVAILABLE' ? <span className="tabular">{completenessPct.toLocaleString('ru-RU')} %</span> : null}
         {label}
@@ -61,10 +61,10 @@ export function DataQualityIndicator(props: DataQualityIndicatorProps) {
     <section aria-label={title} className={cn('flex flex-col gap-4 rounded-lg border border-border bg-surface p-5', className)}>
       <header className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex flex-col gap-0.5">
-          <h3 className="text-body font-semibold">{title}</h3>
+          <h3 className="text-body font-medium">{title}</h3>
           {period && <span className="text-caption text-text-muted">{period}</span>}
         </div>
-        <span className={cn('inline-flex items-center gap-1.5 rounded-pill px-2.5 py-1 text-caption font-semibold', chip)}>
+        <span className={cn('inline-flex items-center gap-1.5 rounded-pill px-2.5 py-1 text-caption font-medium', chip)}>
           {level === 'UNAVAILABLE' && <CloudOff className="size-3.5" aria-hidden />}
           {label}
         </span>
@@ -73,7 +73,7 @@ export function DataQualityIndicator(props: DataQualityIndicatorProps) {
       {level === 'UNAVAILABLE' ? (
         <p className="text-body-sm text-text-secondary">
           Данные не получены. Последняя успешная проверка:{' '}
-          <span className="tabular font-semibold text-text-primary">{lastSuccessAt ? formatDateTime(lastSuccessAt) : 'не выполнялась'}</span>
+          <span className="tabular font-medium text-text-primary">{lastSuccessAt ? formatDateTime(lastSuccessAt) : 'не выполнялась'}</span>
         </p>
       ) : (
         <>
@@ -87,16 +87,16 @@ export function DataQualityIndicator(props: DataQualityIndicatorProps) {
           <dl className="grid grid-cols-3 gap-2 text-caption">
             <div className="flex min-w-0 flex-col gap-0.5">
               <dt className="text-text-muted">Возраст</dt>
-              <dd className={cn('tabular text-numeric-sm', stale ? 'text-status-blocked' : 'text-text-primary')}>{freshnessMinutes !== undefined ? `${freshnessMinutes} мин` : '—'}</dd>
+              <dd className={cn('tabular text-numeric-sm', stale ? 'text-status-blocked' : 'text-text-primary')}>{freshnessMinutes !== undefined ? `${freshnessMinutes} мин` : '–'}</dd>
               {maxAgeMinutes !== undefined && <dd className="tabular text-text-muted">≤ {maxAgeMinutes} мин</dd>}
             </div>
             <div className="flex min-w-0 flex-col gap-0.5">
               <dt className="text-text-muted">Пробелы</dt>
-              <dd className={cn('tabular text-numeric-sm', (gaps ?? 0) > 0 ? 'text-warning' : 'text-text-primary')}>{gaps ?? '—'}</dd>
+              <dd className={cn('tabular text-numeric-sm', (gaps ?? 0) > 0 ? 'text-warning' : 'text-text-primary')}>{gaps ?? '–'}</dd>
             </div>
             <div className="flex min-w-0 flex-col gap-0.5">
               <dt className="text-text-muted">Дубли</dt>
-              <dd className={cn('tabular text-numeric-sm', (duplicates ?? 0) > 0 ? 'text-warning' : 'text-text-primary')}>{duplicates ?? '—'}</dd>
+              <dd className={cn('tabular text-numeric-sm', (duplicates ?? 0) > 0 ? 'text-warning' : 'text-text-primary')}>{duplicates ?? '–'}</dd>
             </div>
           </dl>
         </>
