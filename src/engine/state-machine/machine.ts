@@ -280,7 +280,7 @@ export function addEvidence(
   const inactive = guardActive(ctx, session, evidence.stageId);
   if (inactive) return inactive;
   const stage = session.stages[evidence.stageId];
-  if (stage.status === 'NOT_STARTED' || stage.status === 'COMPLETED') {
+  if (stage.status === 'COMPLETED') {
     return reject(ctx, session, { code: 'INVALID_TRANSITION', stageId: evidence.stageId, from: stage.status, message: `Нельзя добавлять доказательства к этапу в статусе ${stage.status}` });
   }
   const now = ctx.now();

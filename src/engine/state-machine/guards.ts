@@ -1,5 +1,5 @@
 import type { ConfirmationRequirement, LaunchSession, RulesConfig, StageId } from '@/types';
-import { getPreviousStage } from '../dependencies';
+import { getPrerequisites, getPreviousStage } from '../dependencies';
 import { hasBlockingFailures } from '../validators';
 import type { TransitionError } from './errors';
 
@@ -10,11 +10,12 @@ export const openBlockers = (session: LaunchSession, stageId: StageId) =>
 export function guardPreviousCompleted(session: LaunchSession, stageId: StageId): TransitionError | null {
   const prev = getPreviousStage(stageId);
   if (prev && session.stages[prev].status !== 'COMPLETED') {
+    const open = getPrerequisites(stageId).filter((id) => session.stages[id].status !== 'COMPLETED');
     return {
       code: 'PREVIOUS_STAGE_NOT_COMPLETED',
       stageId,
-      message: `Этап ${stageId} недоступен: предыдущий этап ${prev} не завершён`,
-      details: { previousStageId: prev, previousStatus: session.stages[prev].status },
+      message: `Этап ${stageId} недоступен: не завершены этапы ${open.join(', ')}`,
+      details: { previousStageId: prev, previousStatus: session.stages[prev].status, dependencies: open.map((id) => ({ stageId: id, status: session.stages[id].status })) },
     };
   }
   return null;
