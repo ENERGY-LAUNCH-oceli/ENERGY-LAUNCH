@@ -15,7 +15,7 @@ const BLOCKS = [
   { id: 'issues', title: 'Timestamps', rules: ['TM-009'] },
 ];
 
-/** Этап 2 — проверка телеметрии по паспорту object.json. */
+/** Этап 2 – проверка телеметрии по паспорту object.json. */
 export function TelemetryValidationPage() {
   const session = useLaunchStore((s) => s.session);
   const inputs = useLaunchStore((s) => s.inputs);
@@ -33,18 +33,18 @@ export function TelemetryValidationPage() {
   const minPct = req.length ? Math.min(...req.map((s) => s.completenessPct)) : null;
   const maxAge = req.some((s) => s.ageMinutes !== null) ? Math.max(...req.map((s) => s.ageMinutes ?? 0)) : null;
   const metrics = {
-    Signals: r ? `${req.filter((s) => s.inData && s.received > 0).length} / ${req.length}` : '—',
-    Binding: r ? (r.foreignColumns.length ? `${r.foreignColumns.length} чужих` : 'по паспорту') : '—',
-    Freshness: !r ? '—' : req.some((s) => !s.lastTimestamp) ? `нет данных: ${req.filter((s) => !s.lastTimestamp).length}` : `${maxAge} мин`,
-    Completeness: minPct !== null ? `мин. ${minPct.toLocaleString('ru-RU')} %` : '—',
-    Plausibility: r ? `${['OUT_OF_RANGE', 'NEGATIVE_PV', 'SOC_OUT_OF_RANGE', 'SIGN_ERROR', 'UNIT_MISMATCH', 'SOC_JUMP', 'SETPOINT_MISMATCH'].reduce((n, t) => n + (r.issueCounts[t as keyof typeof r.issueCounts] ?? 0), 0)} замечаний` : '—',
-    Timestamps: r ? `${(r.issueCounts.NON_UTC_TIMESTAMP ?? 0) + (r.issueCounts.INVALID_TIMESTAMP ?? 0) + (r.issueCounts.DUPLICATE_TIMESTAMP ?? 0)} ошибок` : '—',
+    Signals: r ? `${req.filter((s) => s.inData && s.received > 0).length} / ${req.length}` : '–',
+    Binding: r ? (r.foreignColumns.length ? `${r.foreignColumns.length} чужих` : 'по паспорту') : '–',
+    Freshness: !r ? '–' : req.some((s) => !s.lastTimestamp) ? `нет данных: ${req.filter((s) => !s.lastTimestamp).length}` : `${maxAge} мин`,
+    Completeness: minPct !== null ? `мин. ${minPct.toLocaleString('ru-RU')} %` : '–',
+    Plausibility: r ? `${['OUT_OF_RANGE', 'NEGATIVE_PV', 'SOC_OUT_OF_RANGE', 'SIGN_ERROR', 'UNIT_MISMATCH', 'SOC_JUMP', 'SETPOINT_MISMATCH'].reduce((n, t) => n + (r.issueCounts[t as keyof typeof r.issueCounts] ?? 0), 0)} замечаний` : '–',
+    Timestamps: r ? `${(r.issueCounts.NON_UTC_TIMESTAMP ?? 0) + (r.issueCounts.INVALID_TIMESTAMP ?? 0) + (r.issueCounts.DUPLICATE_TIMESTAMP ?? 0)} ошибок` : '–',
   };
 
   return (
     <div className="flex flex-col gap-6">
       <header className="flex flex-col gap-2">
-        <span className="text-label uppercase text-accent-strong">Этап 2 из 4 · Real-time Telemetry Validation</span>
+        <span className="text-label text-text-muted">Этап 2 из 4 · Real-time Telemetry Validation</span>
         <h1 className="text-h1">Данные в реальном времени</h1>
         <p className="max-w-3xl text-body-lg text-text-secondary">
           Обязательные сигналы Grid, PV и Battery по паспорту object.json: привязка, актуальность ≤ {rules.maxAgeMinutes} мин, полнота ≥ {rules.minCompletenessPct} % за {rules.windowHours} ч по каждому сигналу, единицы, знаки и диапазоны.
