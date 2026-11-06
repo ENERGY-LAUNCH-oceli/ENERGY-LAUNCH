@@ -1,18 +1,15 @@
+import type * as React from 'react';
 import { createBrowserRouter, Navigate } from 'react-router-dom';
 import { AppLayout } from '@/layouts/AppLayout';
 import { ObjectLayout } from '@/layouts/ObjectLayout';
-import { DesignSystemPage } from '@/pages/DesignSystemPage';
-import { InvoiceValidationPage } from '@/pages/InvoiceValidationPage';
-import { TelemetryValidationPage } from '@/pages/TelemetryValidationPage';
-import { LaunchPage } from '@/pages/LaunchPage';
 import { NotFoundPage } from '@/pages/NotFoundPage';
-import { ObjectAuditPage } from '@/pages/ObjectAuditPage';
-import { ObjectPassportPage } from '@/pages/ObjectPassportPage';
-import { ObjectsPage } from '@/pages/ObjectsPage';
 import { OverviewPage } from '@/pages/OverviewPage';
-import { SettingsPage } from '@/pages/SettingsPage';
-import { StagePage } from '@/pages/StagePage';
 import { ROUTES } from './routes';
+
+/** Страницы грузятся по маршруту: обзор – в основном пакете, остальное – отдельными чанками. */
+const page =
+  <M extends Record<string, unknown>>(load: () => Promise<M>, name: keyof M) =>
+  async () => ({ Component: (await load())[name] as React.ComponentType });
 
 export const router = createBrowserRouter([
   {
@@ -21,22 +18,26 @@ export const router = createBrowserRouter([
     children: [
       { index: true, element: <Navigate to={ROUTES.overview} replace /> },
       { path: 'overview', element: <OverviewPage /> },
-      { path: 'objects', element: <ObjectsPage /> },
+      { path: 'objects', lazy: page(() => import('@/pages/ObjectsPage'), 'ObjectsPage') },
       {
         path: 'objects/:objectId',
         element: <ObjectLayout />,
         children: [
-          { index: true, element: <ObjectPassportPage /> },
-          { path: 'launch', element: <LaunchPage /> },
-          { path: 'history', element: <InvoiceValidationPage /> },
-          { path: 'telemetry', element: <TelemetryValidationPage /> },
-          { path: 'control', element: <StagePage stageId="ASSET_CONTROL" /> },
-          { path: 'dashboards', element: <StagePage stageId="FINAL_DASHBOARDS" /> },
-          { path: 'audit', element: <ObjectAuditPage /> },
+          { index: true, lazy: page(() => import('@/pages/ObjectPassportPage'), 'ObjectPassportPage') },
+          { path: 'launch', lazy: page(() => import('@/pages/LaunchPage'), 'LaunchPage') },
+          { path: 'history', lazy: page(() => import('@/pages/InvoiceValidationPage'), 'InvoiceValidationPage') },
+          { path: 'telemetry', lazy: page(() => import('@/pages/TelemetryValidationPage'), 'TelemetryValidationPage') },
+          { path: 'control', lazy: page(() => import('@/pages/ControlTestingPage'), 'ControlTestingPage') },
+          { path: 'dashboards', lazy: page(() => import('@/pages/DashboardsPage'), 'DashboardsPage') },
+          { path: 'audit', lazy: page(() => import('@/pages/ObjectAuditPage'), 'ObjectAuditPage') },
+          { path: 'protocol', lazy: page(() => import('@/pages/ProtocolPage'), 'ProtocolPage') },
         ],
       },
-      { path: 'settings', element: <SettingsPage /> },
-      { path: 'design-system', element: <DesignSystemPage /> },
+      { path: 'settings', lazy: page(() => import('@/pages/SettingsPage'), 'SettingsPage') },
+      { path: 'blockers', lazy: page(() => import('@/pages/BlockersPage'), 'BlockersPage') },
+      { path: 'evidence', lazy: page(() => import('@/pages/EvidencePage'), 'EvidencePage') },
+      { path: 'audit', lazy: page(() => import('@/pages/AuditTrailPage'), 'AuditTrailPage') },
+      { path: 'scenarios', lazy: page(() => import('@/pages/ScenariosPage'), 'ScenariosPage') },
       { path: 'launch', element: <Navigate to={ROUTES.objectSection('obj-001', 'launch')} replace /> },
       { path: '*', element: <NotFoundPage /> },
     ],
