@@ -22,6 +22,7 @@ declare module '@tanstack/react-table' {
 }
 
 export interface DataTableProps<T> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- значения колонок разных типов
   columns: ColumnDef<T, any>[];
   data: T[];
   loading?: boolean;
@@ -70,7 +71,7 @@ export function DataTable<T>({
     <div className={cn('overflow-x-auto rounded-lg border border-border bg-surface', className)}>
       <table className="w-full border-collapse text-body-sm">
         {caption && <caption className="sr-only">{caption}</caption>}
-        <thead className="bg-surface-secondary">
+        <thead>
           {table.getHeaderGroups().map((hg) => (
             <tr key={hg.id} className="border-b border-border">
               {hg.headers.map((header) => {
@@ -82,7 +83,7 @@ export function DataTable<T>({
                     key={header.id}
                     scope="col"
                     aria-sort={dir === 'asc' ? 'ascending' : dir === 'desc' ? 'descending' : undefined}
-                    className={cn(cellPad, 'whitespace-nowrap text-left text-caption font-bold uppercase tracking-[0.06em] text-text-secondary', meta?.numeric && 'text-right', meta?.className)}
+                    className={cn(cellPad, 'whitespace-nowrap text-left font-mono text-[11px] font-normal uppercase tracking-[0.06em] text-text-muted', meta?.numeric && 'text-right', meta?.className)}
                   >
                     {header.isPlaceholder ? null : sortable ? (
                       <button
@@ -112,7 +113,7 @@ export function DataTable<T>({
                 className={cn(
                   'border-b border-border last:border-b-0 transition-colors duration-fast',
                   onRowClick && 'cursor-pointer hover:bg-surface-secondary',
-                  tone === 'error' && 'bg-error-subtle/60 shadow-[inset_3px_0_0] shadow-status-blocked-solid',
+                  tone === 'error' && 'bg-error-subtle/50',
                   tone === 'warning' && 'bg-warning-subtle/60 shadow-[inset_3px_0_0] shadow-warning',
                 )}
               >
