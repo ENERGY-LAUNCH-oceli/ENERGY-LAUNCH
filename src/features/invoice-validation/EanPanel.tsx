@@ -12,13 +12,13 @@ export function EanPanel({ object, report, results, eanLength }: { object: Energ
   return (
     <section id="ean" aria-label="EAN Matching" className="min-w-0 scroll-mt-24 rounded-lg border border-border bg-surface p-5">
       <div className="mb-4 flex flex-col gap-0.5">
-        <span className="text-label uppercase text-accent-strong">EAN Matching</span>
+        <span className="text-label text-text-muted">EAN Matching</span>
         <h2 className="text-h3">Привязка счётчика к объекту</h2>
       </div>
       <div className="overflow-x-auto">
       <table className="w-full min-w-[560px] text-body-sm">
         <thead>
-          <tr className="border-b border-border text-left text-caption font-bold uppercase tracking-[0.06em] text-text-secondary">
+          <tr className="border-b border-border text-left font-mono text-[11px] font-normal uppercase tracking-[0.06em] text-text-muted">
             <th className="py-2 pr-3">Код</th>
             <th className="px-3">Паспорт (object.json)</th>
             <th className="px-3">В данных</th>
@@ -31,8 +31,8 @@ export function EanPanel({ object, report, results, eanLength }: { object: Energ
             const match = r.file.length === 0 || r.file.every((f) => f === r.passport);
             return (
               <tr key={r.label} className="border-b border-border last:border-0">
-                <td className="py-2.5 pr-3 font-semibold">{r.label}</td>
-                <td className="px-3 font-mono text-caption">{r.passport ?? '—'}</td>
+                <td className="py-2.5 pr-3 font-medium">{r.label}</td>
+                <td className="px-3 font-mono text-caption">{r.passport ?? '–'}</td>
                 <td className="px-3 font-mono text-caption">{r.file.length ? r.file.join(', ') : 'нет колонки EAN'}</td>
                 <td className="pl-3">
                   <CheckStatusLabel status={!valid || !match ? 'FAILED' : 'PASSED'} />
