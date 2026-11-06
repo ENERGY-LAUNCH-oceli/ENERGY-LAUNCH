@@ -3,7 +3,7 @@ import { getPrerequisites, getUnmetConfirmations, openBlockers } from '@/engine'
 import { useLaunchStore } from '@/store';
 import type { StageId } from '@/types';
 
-/** Производные данные этапа для UI. Вычисления — функциями движка, не в компонентах. */
+/** Производные данные этапа для UI. Вычисления – функциями движка, не в компонентах. */
 export function useStage(stageId: StageId) {
   const session = useLaunchStore((s) => s.session);
   const ruleset = useLaunchStore((s) => s.ruleset);
