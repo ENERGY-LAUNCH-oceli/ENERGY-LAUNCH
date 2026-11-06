@@ -2,6 +2,7 @@ import { createBrowserRouter, Navigate } from 'react-router-dom';
 import { AppLayout } from '@/layouts/AppLayout';
 import { ObjectLayout } from '@/layouts/ObjectLayout';
 import { DesignSystemPage } from '@/pages/DesignSystemPage';
+import { InvoiceValidationPage } from '@/pages/InvoiceValidationPage';
 import { LaunchPage } from '@/pages/LaunchPage';
 import { NotFoundPage } from '@/pages/NotFoundPage';
 import { ObjectAuditPage } from '@/pages/ObjectAuditPage';
@@ -26,7 +27,7 @@ export const router = createBrowserRouter([
         children: [
           { index: true, element: <ObjectPassportPage /> },
           { path: 'launch', element: <LaunchPage /> },
-          { path: 'history', element: <StagePage stageId="METER_HISTORY" /> },
+          { path: 'history', element: <InvoiceValidationPage /> },
           { path: 'telemetry', element: <StagePage stageId="REALTIME_TELEMETRY" /> },
           { path: 'control', element: <StagePage stageId="ASSET_CONTROL" /> },
           { path: 'dashboards', element: <StagePage stageId="FINAL_DASHBOARDS" /> },
