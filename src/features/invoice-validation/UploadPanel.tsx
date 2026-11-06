@@ -22,7 +22,7 @@ function Meta({ label, children }: { label: string; children: React.ReactNode })
   return (
     <div className="flex min-w-0 flex-col gap-0.5">
       <dt className="text-caption text-text-muted">{label}</dt>
-      <dd className="truncate text-body-sm font-semibold">{children}</dd>
+      <dd className="truncate text-body-sm font-medium">{children}</dd>
     </div>
   );
 }
@@ -53,13 +53,13 @@ export function UploadPanel({ dataset }: { dataset: InvoiceDataset | undefined }
     <section aria-label="Загрузка invoice.csv" className="grid gap-5 rounded-lg border border-border bg-surface p-5 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)]">
       <div className="flex flex-col gap-3">
         <div className="flex flex-col gap-0.5">
-          <span className="text-label uppercase text-accent-strong">Источник</span>
+          <span className="text-label text-text-muted">Источник</span>
           <h2 className="text-h3">Официальная выгрузка invoice.csv</h2>
-          <p className="text-caption text-text-secondary">CSV, UTF-8 с BOM, разделитель «;», десятичная запятая, время ISO 8601 UTC. Файл читается потоково — строки не хранятся в браузере.</p>
+          <p className="text-caption text-text-secondary">CSV, UTF-8 с BOM, разделитель «;», десятичная запятая, время ISO 8601 UTC. Файл читается потоково – строки не хранятся в браузере.</p>
         </div>
         {progress ? (
           <div className="flex flex-col gap-2 rounded-lg border border-dashed border-accent bg-accent-subtle/50 p-6">
-            <span className="flex items-center gap-2 text-body-sm font-semibold">
+            <span className="flex items-center gap-2 text-body-sm font-medium">
               <Loader2 className="size-4 animate-spin text-accent" aria-hidden />
               Проверка файла… <span className="tabular">{progress.rows.toLocaleString('ru-RU')}</span> строк
             </span>
@@ -89,8 +89,8 @@ export function UploadPanel({ dataset }: { dataset: InvoiceDataset | undefined }
       <div className="flex flex-col gap-3 rounded-md bg-surface-secondary p-4">
         <div className="flex items-center gap-2">
           <FileSpreadsheet className="size-5 text-accent-strong" aria-hidden />
-          <span className="font-mono text-body-sm font-semibold">{r?.meta.fileName ?? 'Файл не загружен'}</span>
-          {dataset && <span className="rounded-pill bg-primary px-2 py-0.5 text-[11px] font-bold text-primary-foreground">v{dataset.version}</span>}
+          <span className="font-mono text-body-sm font-medium">{r?.meta.fileName ?? 'Файл не загружен'}</span>
+          {dataset && <span className="rounded-xs bg-surface-sunken px-1.5 py-0.5 font-mono text-[11px] text-text-secondary">v{dataset.version}</span>}
         </div>
         {r ? (
           <dl className="grid grid-cols-2 gap-x-6 gap-y-3 sm:grid-cols-3">
@@ -108,7 +108,7 @@ export function UploadPanel({ dataset }: { dataset: InvoiceDataset | undefined }
                 {utc(r.period.first).slice(0, 10)} – {utc(r.period.last).slice(0, 10)}
               </span>
             </Meta>
-            <Meta label="Шаг исходных данных">{r.detectedStepMinutes ? `${r.detectedStepMinutes} мин` : '—'}</Meta>
+            <Meta label="Шаг исходных данных">{r.detectedStepMinutes ? `${r.detectedStepMinutes} мин` : '–'}</Meta>
           </dl>
         ) : (
           <p className="text-body-sm text-text-secondary">Загрузите файл, чтобы увидеть период, строки и формат. Отсутствие данных не считается успешной проверкой.</p>

@@ -24,6 +24,6 @@ export const monthLabel = (key: string) => {
 };
 
 export const utc = (iso: string | null | undefined) =>
-  iso ? `${iso.slice(0, 10).split('-').reverse().join('.')} ${iso.slice(11, 16)}` : '—';
+  iso ? `${iso.slice(0, 10).split('-').reverse().join('.')} ${iso.slice(11, 16)}` : '–';
 
 export const bytes = (b: number) => (b < 1024 * 1024 ? `${Math.max(1, Math.round(b / 1024))} КБ` : `${(b / 1024 / 1024).toFixed(1).replace('.', ',')} МБ`);
