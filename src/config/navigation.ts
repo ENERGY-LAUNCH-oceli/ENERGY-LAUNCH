@@ -1,4 +1,4 @@
-import { Activity, Building2, Gauge, History, LayoutDashboard, type LucideIcon, Rocket, Settings, ShieldCheck, SlidersHorizontal, Zap } from 'lucide-react';
+import { Activity, Building2, FileCheck2, FileText, FlaskConical, Gauge, History, LayoutDashboard, type LucideIcon, OctagonAlert, Rocket, ScrollText, Settings, ShieldCheck, SlidersHorizontal, Zap } from 'lucide-react';
 import { ROUTES, type ObjectSection } from '@/app/routes';
 import type { StageId } from '@/types';
 
@@ -13,7 +13,7 @@ export interface NavItem {
   hint: string;
 }
 
-/** Восемь разделов боковой навигации. */
+/** Разделы боковой навигации: портфель, запуск объекта, контроль, система. */
 export const PRIMARY_NAV: NavItem[] = [
   { id: 'overview', label: 'Обзор', icon: Gauge, to: () => ROUTES.overview, hint: 'Launch Control Center: готовность всех объектов' },
   { id: 'objects', label: 'Объекты', icon: Building2, to: () => ROUTES.objects, section: 'object', hint: 'Паспорта, активы, точки подключения' },
@@ -22,6 +22,10 @@ export const PRIMARY_NAV: NavItem[] = [
   { id: 'control', label: 'Управление', icon: SlidersHorizontal, to: (id) => ROUTES.objectSection(id, 'control'), section: 'control', hint: 'Тесты контура управления' },
   { id: 'dashboards', label: 'Дашборды', icon: LayoutDashboard, to: (id) => ROUTES.objectSection(id, 'dashboards'), section: 'dashboards', hint: 'Финальные дашборды и приёмка' },
   { id: 'audit', label: 'Журнал', icon: History, to: (id) => ROUTES.objectSection(id, 'audit'), section: 'audit', hint: 'Переходы и подтверждения' },
+  { id: 'blockers', label: 'Препятствия', icon: OctagonAlert, to: () => ROUTES.blockers, hint: 'Все незакрытые проблемы объектов' },
+  { id: 'evidence', label: 'Подтверждения', icon: FileCheck2, to: () => ROUTES.evidence, hint: 'Результаты проверок, материалы, приёмки' },
+  { id: 'audit-trail', label: 'Аудит', icon: ScrollText, to: () => ROUTES.auditTrail, hint: 'Журнал аудита и воспроизведение статуса' },
+  { id: 'scenarios', label: 'Сценарии', icon: FlaskConical, to: () => ROUTES.scenarios, hint: 'Демо-сценарии ТЗ и метрики качества' },
   { id: 'settings', label: 'Настройки', icon: Settings, to: () => ROUTES.settings, hint: 'Правила проверок и интерфейс' },
 ];
 
@@ -33,6 +37,7 @@ export const OBJECT_TABS: { section: ObjectSection; label: string; icon: LucideI
   { section: 'control', label: 'Управление', icon: Zap, stageId: 'ASSET_CONTROL' },
   { section: 'dashboards', label: 'Дашборды', icon: LayoutDashboard, stageId: 'FINAL_DASHBOARDS' },
   { section: 'audit', label: 'Журнал', icon: History },
+  { section: 'protocol', label: 'Протокол', icon: FileText },
 ];
 
 /** «Проверки» подсвечивается на страницах обоих этапов с данными. */
