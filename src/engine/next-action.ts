@@ -46,14 +46,15 @@ export function getNextAction(session: LaunchSession, stageId: StageId, config: 
 
   const prev = getPreviousStage(stageId);
   if (prev && session.stages[prev].status !== 'COMPLETED') {
-    return { kind: 'COMPLETE_PREVIOUS', stageId, title: 'Завершить предыдущий этап', reason: `Незакрытая зависимость: ${prev}` };
+    return { kind: 'COMPLETE_PREVIOUS', stageId: prev, title: 'Завершить предыдущий этап', reason: `Незакрытая зависимость: ${prev}` };
   }
   if (stage.status === 'NOT_STARTED') return { kind: 'START', stageId, title: 'Начать этап и загрузить данные' };
   if (!stage.lastValidatedAt) return { kind: 'RUN_CHECKS', stageId, title: 'Запустить проверки этапа' };
 
   const [blocker] = openBlockers(session, stageId);
   if (blocker) {
-    const byRule = blocker.ruleId ? NEXT_ACTION_BY_RULE[blocker.ruleId] : undefined;
+    const result = stage.validationResults.find((r) => r.ruleId === blocker.ruleId);
+    const byRule = blocker.ruleId ? (specificAction(blocker.ruleId, result?.details) ?? NEXT_ACTION_BY_RULE[blocker.ruleId]) : undefined;
     return {
       kind: byRule ? 'FIX_DATA' : 'RESOLVE_BLOCKER',
       stageId,
@@ -69,4 +70,32 @@ export function getNextAction(session: LaunchSession, stageId: StageId, config: 
   if (unmet) return { kind: 'CONFIRM', stageId, title: `Получить подтверждение: ${unmet.title}`, reason: `Требование ${unmet.id}` };
 
   return { kind: 'COMPLETE', stageId, title: 'Завершить этап' };
+}
+
+const list = (v: unknown): string[] => (Array.isArray(v) ? v.map(String) : []);
+const day = (iso: unknown) => (typeof iso === 'string' ? iso.slice(0, 10).split('-').reverse().join('.') : '');
+
+/** Конкретизация действия по деталям проверки: какой сигнал, какая команда, какой период. */
+export function specificAction(ruleId: string, details: Record<string, unknown> | undefined): string | undefined {
+  if (!details) return undefined;
+  switch (ruleId) {
+    case 'TM-001': {
+      const tags = list(details.signals);
+      if (list(details.unknownSignalIds).length) return `Проверить привязку сигнала ${tags[0] ?? ''}: поток содержит сигналы другого объекта`.trim();
+      return tags.length ? `Подключить телеметрию: ${tags.join(', ')}` : undefined;
+    }
+    case 'MH-004':
+      return typeof details.missingDays === 'number' ? `Получить полную выгрузку за недостающие ${details.missingDays} сут` : undefined;
+    case 'MH-003': {
+      const i = details.interval as { from?: string; to?: string } | null;
+      return i?.from ? `Получить выгрузку за пропущенный интервал ${day(i.from)} – ${day(i.to)}` : undefined;
+    }
+    case 'CT-006':
+    case 'CT-001': {
+      const c = list(details.commands);
+      return c.length ? `Повторить тест управления: ${c.join(', ')}` : undefined;
+    }
+    default:
+      return undefined;
+  }
 }
