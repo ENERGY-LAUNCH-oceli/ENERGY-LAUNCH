@@ -37,21 +37,3 @@ export const measurementCsvRowSchema = z
     }),
   );
 
-/**
- * Строка CSV счёта.
- * Колонки: metering_point_id, period_start, period_end, energy_kwh, tariff_zone?
- */
-export const invoiceCsvRowSchema = z
-  .object({
-    metering_point_id: idSchema,
-    period_start: isoDateTimeSchema,
-    period_end: isoDateTimeSchema,
-    energy_kwh: z.coerce.number().finite().min(0),
-    tariff_zone: z.preprocess(emptyToUndefined, z.string().optional()),
-  })
-  .refine((r) => Date.parse(r.period_end) > Date.parse(r.period_start), {
-    message: 'period_end должен быть позже period_start',
-    path: ['period_end'],
-  });
-
-export type InvoiceCsvRow = z.infer<typeof invoiceCsvRowSchema>;

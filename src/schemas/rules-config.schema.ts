@@ -25,10 +25,14 @@ export const rulesConfigSchema = z
     provisional: z.boolean(),
     meterHistory: z.object({
       intervalMinutes: positiveNumberSchema,
-      checkPeriodDays: positiveNumberSchema,
+      periodMonths: z.number().int().positive(),
       minCompletenessPct: percentSchema,
-      maxConsecutiveGaps: z.number().int().min(0),
-      invoiceTolerancePct: percentSchema,
+      maxDuplicates: z.number().int().min(0),
+      maxInvalidTimestamps: z.number().int().min(0),
+      validatedTolerancePct: percentSchema,
+      unitRatioThreshold: positiveNumberSchema,
+      eanLength: z.number().int().positive(),
+      fields: z.array(z.object({ field: z.string().min(1), unit: z.string().min(1), sign: z.enum(['NON_NEGATIVE', 'NON_POSITIVE', 'ANY']), required: z.boolean() })).min(1),
     }),
     telemetry: z.object({
       expectedFrequencySec: positiveNumberSchema,
