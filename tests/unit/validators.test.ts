@@ -24,7 +24,7 @@ describe('helpers', () => {
 });
 
 describe('Asset Control', () => {
-  it('слишком частые команды — CT-004 WARNING (не блокирует)', () => {
+  it('слишком частые команды – CT-004 WARNING (не блокирует)', () => {
     const r = validateControl(generateControlTests({ startAt: '2026-11-03T09:00:00.000Z', intervalSec: 10 }), RULESET_V1.control, env);
     const ct4 = r.find((x) => x.ruleId === 'CT-004')!;
     expect(ct4.status).toBe('WARNING');
