@@ -9,3 +9,4 @@ export * from './state-machine';
 export * from './launch-service';
 export * from './next-action';
 export * from './invoice';
+export * from './telemetry';
