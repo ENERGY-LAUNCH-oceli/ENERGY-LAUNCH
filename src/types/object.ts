@@ -86,6 +86,9 @@ export interface GridConnection {
   maxCapacityMw: number;
   /** Точки коммерческого учёта, по которым сверяются счета. */
   meteringPointIds: Id[];
+  /** Коды EAN точки подключения (object.json → grid_connection). */
+  eanOfftake?: string | null;
+  eanInjection?: string | null;
   agreementNumber?: string;
   agreementDate?: IsoDate;
 }
@@ -113,6 +116,10 @@ export interface ObjectPassport {
     longitude?: number;
   };
   plannedLaunchDate?: IsoDate;
+  /** Файлы данных объекта (object.json → data_files); null — файл не предоставлен. */
+  dataFiles?: { invoice: string | null; telemetry: string | null };
+  /** Заявленный период официальной истории. */
+  declaredHistory?: { from: IsoDate; to: IsoDate };
   documents: PassportDocument[];
 }
 
