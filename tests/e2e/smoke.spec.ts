@@ -8,13 +8,15 @@ async function chooseScenario(page: Page, title: string) {
 }
 
 test('карточка запуска показывает четыре этапа и блокирует порядок', async ({ page }) => {
-  await page.goto('/objects/building-1/launch');
+  await page.goto('/objects/obj-001/launch');
+  await chooseScenario(page, 'Пропуски в истории учёта');
+  await chooseScenario(page, 'Успешный запуск');
   for (const id of STAGES) await expect(page.getByTestId(`stage-${id}`)).toBeVisible();
   await expect(page.getByTestId('stage-REALTIME_TELEMETRY').getByRole('button', { name: 'Начать этап' })).toBeDisabled();
 });
 
 test('отрицательный сценарий блокирует этап после проверки', async ({ page }) => {
-  await page.goto('/objects/building-1/launch');
+  await page.goto('/objects/obj-001/launch');
   await chooseScenario(page, 'Расхождение счёта и учёта');
   const stage = page.getByTestId('stage-METER_HISTORY');
   await stage.getByRole('button', { name: 'Начать этап' }).click();
@@ -25,7 +27,9 @@ test('отрицательный сценарий блокирует этап п
 });
 
 test('успешный запуск проходит все этапы через интерфейс', async ({ page }) => {
-  await page.goto('/objects/building-1/launch');
+  await page.goto('/objects/obj-001/launch');
+  await chooseScenario(page, 'Пропуски в истории учёта');
+  await chooseScenario(page, 'Успешный запуск');
   for (const id of STAGES) {
     const stage = page.getByTestId(`stage-${id}`);
     await stage.getByRole('button', { name: 'Начать этап' }).click();
@@ -56,18 +60,18 @@ test('оболочка: меню, хлебные крошки, выбор объ
   await expect(page).toHaveURL(/\/overview$/);
   const nav = page.getByRole('navigation', { name: 'Основная навигация' });
   await nav.getByRole('link', { name: 'Управление' }).click();
-  await expect(page).toHaveURL(/\/objects\/building-1\/control$/);
+  await expect(page).toHaveURL(/\/objects\/obj-001\/control$/);
   await expect(nav.getByRole('link', { name: 'Управление' })).toHaveAttribute('aria-current', 'page');
-  await expect(page.getByRole('navigation', { name: 'Навигационная цепочка' })).toContainText('Building1');
+  await expect(page.getByRole('navigation', { name: 'Навигационная цепочка' })).toContainText('Кампус');
 
   await page.getByRole('button', { name: 'Текущий объект' }).click();
-  await page.getByRole('option', { name: /Building4/ }).click();
-  await expect(page).toHaveURL(/\/objects\/building-4\/control$/);
+  await page.getByRole('option', { name: /Медцентр/ }).click();
+  await expect(page).toHaveURL(/\/objects\/obj-004\/control$/);
 
   await page.keyboard.press('Control+k');
   await page.getByRole('textbox', { name: 'Поиск' }).fill('MH-004');
   await page.keyboard.press('Enter');
-  await expect(page).toHaveURL(/\/objects\/building-4\/history$/);
+  await expect(page).toHaveURL(/\/objects\/obj-004\/history$/);
 
   await page.getByRole('button', { name: 'Свернуть навигацию' }).click();
   await expect(page.getByRole('button', { name: 'Развернуть навигацию' })).toBeVisible();
@@ -76,4 +80,25 @@ test('оболочка: меню, хлебные крошки, выбор объ
 test('неизвестный объект показывает понятное состояние', async ({ page }) => {
   await page.goto('/objects/nope/launch');
   await expect(page.getByText('Объект не найден')).toBeVisible();
+});
+
+test('центр запуска: сводка, фильтры, поиск, внимание и переход с сохранением контекста', async ({ page }) => {
+  await page.goto('/overview');
+  await expect(page.getByRole('heading', { name: 'Запуск энергетических объектов' })).toBeVisible();
+  await expect(page.locator('[data-testid^="object-row-"]')).toHaveCount(6);
+  await expect(page.getByTestId('object-row-obj-001')).toContainText('100 %');
+  await expect(page.getByTestId('object-row-obj-006')).not.toContainText('100 %');
+  await expect(page.locator('[data-testid^="attention-"]')).toHaveCount(5);
+
+  await page.getByRole('tab', { name: /Заблокированные/ }).click();
+  await expect(page.locator('[data-testid^="object-row-"]')).toHaveCount(5);
+  await page.getByRole('textbox', { name: /Поиск объекта/ }).fill('OBJ-004');
+  await expect(page.locator('[data-testid^="object-row-"]')).toHaveCount(1);
+  await page.getByTestId('object-row-obj-004').click();
+  await expect(page).toHaveURL(/\/objects\/obj-004\/launch$/);
+  await expect(page.getByTestId('stage-REALTIME_TELEMETRY')).toHaveAttribute('data-stage-status', 'BLOCKED');
+
+  await page.getByRole('navigation', { name: 'Навигационная цепочка' }).getByRole('link', { name: 'Центр запуска' }).click();
+  await expect(page).toHaveURL(/status=blocked/);
+  await expect(page.locator('[data-testid^="object-row-"]')).toHaveCount(1);
 });
