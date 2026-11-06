@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { env } from '@/config/env';
 import { getRuleset } from '@/config/rules';
 import { DEFAULT_SCENARIO_ID, loadScenario } from '@/data/scenarios';
-import { findObject, loadObjectInputs } from '@/data/objects';
+import { OBJECT_CATALOG, findObject, loadObjectInputs, seedWorkspace } from '@/data/objects';
 import { notify } from './notifications-store';
 import {
   addConfirmation,
@@ -52,6 +52,8 @@ interface LaunchState {
   /** Сохранённые состояния других объектов портфеля. */
   workspaces: Record<string, ObjectWorkspace>;
   selectObject(objectId: string): void;
+  /** Детерминированно заполняет демо-портфель (воспроизводимые состояния шести объектов). */
+  initPortfolio(force?: boolean): void;
   scenarioId: string | null;
   ruleset: RulesConfig;
   inputs: LaunchInputs | null;
@@ -128,26 +130,10 @@ export const useLaunchStore = create<LaunchState>()((set, get) => {
       if (s.currentObjectId && s.session && s.inputs) {
         workspaces[s.currentObjectId] = { scenarioId: s.scenarioId, inputs: s.inputs, session: s.session, auditLog: s.auditLog };
       }
-      const saved = workspaces[objectId];
-      if (saved) {
-        set({ workspaces, currentObjectId: objectId, ...saved, lastError: null });
-        return;
-      }
-      const inputs = loadObjectInputs(entry);
-      const c = ctx();
-      const session = createLaunchSession(objectId, s.ruleset.version, c);
-      const created: AuditEvent = {
-        id: c.newId(),
-        action: 'SESSION_CREATED',
-        actor: c.actor,
-        timestamp: c.now(),
-        sessionId: session.id,
-        objectId,
-        rulesetVersion: session.rulesetVersion,
-        payload: { scenarioId: entry.scenarioId },
-      };
-      set({ workspaces, currentObjectId: objectId, scenarioId: entry.scenarioId, inputs, session, auditLog: [created], lastError: null });
-      void s.persistence.saveInputs(inputs).then(() => s.persistence.saveSession(session)).catch(reportPersistError);
+      const saved = workspaces[objectId] ?? seedWorkspace(entry, s.ruleset);
+      delete workspaces[objectId];
+      set({ workspaces, currentObjectId: objectId, ...saved, lastError: null });
+      void s.persistence.saveInputs(saved.inputs).then(() => s.persistence.saveSession(saved.session)).catch(reportPersistError);
     },
 
     loadScenario: (id = DEFAULT_SCENARIO_ID) => {
@@ -173,6 +159,16 @@ export const useLaunchStore = create<LaunchState>()((set, get) => {
         .then(() => persistence.saveSession(session))
         .then(() => persistence.appendAudit([created]))
         .catch(reportPersistError);
+    },
+
+    initPortfolio: (force = false) => {
+      const s = get();
+      if (!force && s.currentObjectId) return;
+      const workspaces: Record<string, ObjectWorkspace> = {};
+      for (const entry of OBJECT_CATALOG) workspaces[entry.id] = seedWorkspace(entry, s.ruleset);
+      const first = OBJECT_CATALOG[0]!.id;
+      const { [first]: current, ...rest } = workspaces;
+      set({ workspaces: rest, currentObjectId: first, ...current!, lastError: null });
     },
 
     startStage: (stageId) => withSession((s) => startStage(s, stageId, ctx())),

@@ -15,6 +15,9 @@ interface UiState {
   searchOpen: boolean;
   setSearchOpen(open: boolean): void;
   contextPanelOpen: boolean;
+  /** Фильтры главного экрана — чтобы вернуться к тому же списку. */
+  overviewSearch: string;
+  setOverviewSearch(search: string): void;
   setContextPanelOpen(open: boolean): void;
 }
 
@@ -32,6 +35,8 @@ export const useUi = create<UiState>()((set, get) => ({
   },
   searchOpen: false,
   setSearchOpen: (searchOpen) => set({ searchOpen }),
+  overviewSearch: '',
+  setOverviewSearch: (overviewSearch) => set({ overviewSearch }),
   contextPanelOpen: true,
   setContextPanelOpen: (contextPanelOpen) => set({ contextPanelOpen }),
 }));
