@@ -55,7 +55,8 @@ export function validateTelemetry(
   const worstFreq = Math.max(0, ...freq.map((f) => f.medianSec ?? Infinity));
   const freqResult = makeResult(
     'TM-002',
-    slow.length === 0,
+    // Отсутствие данных по обязательным сигналам — не успех (ТЗ 2.2.2)
+    freq.length > 0 && slow.length === 0,
     {
       message: `Худший медианный период: ${worstFreq} с (ожидается ${rules.expectedFrequencySec} с ±${rules.frequencyTolerancePct}%)`,
       actual: Number.isFinite(worstFreq) ? worstFreq : null,
