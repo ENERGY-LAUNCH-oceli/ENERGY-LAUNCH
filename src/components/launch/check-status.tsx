@@ -1,4 +1,4 @@
-import { CircleCheck, CircleDashed, CircleMinus, CircleX, CloudOff, History, Loader2, TriangleAlert } from 'lucide-react';
+import { CircleCheck, CircleDashed, CircleMinus, CircleX, CloudOff, History, TriangleAlert } from 'lucide-react';
 import { CHECK_STATUS_LABEL, type CheckStatus } from '@/config/labels';
 import { cn } from '@/utils/cn';
 
@@ -10,7 +10,7 @@ export const CHECK_STATUS_STYLE: Record<CheckStatus, { icon: typeof CircleCheck;
   NOT_APPLICABLE: { icon: CircleMinus, className: 'text-text-muted', tone: 'neutral' },
   STALE: { icon: History, className: 'text-warning', tone: 'warning' },
   UNAVAILABLE: { icon: CloudOff, className: 'text-error', tone: 'error' },
-  PENDING: { icon: Loader2, className: 'text-info animate-spin', tone: 'info' },
+  PENDING: { icon: CircleDashed, className: 'text-info', tone: 'info' },
 };
 
 /** Иконка + подпись статуса отдельной проверки. */
