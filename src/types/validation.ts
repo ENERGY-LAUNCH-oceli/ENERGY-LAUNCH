@@ -25,7 +25,11 @@ export interface ValidationRule {
   configRef?: string;
 }
 
-export const VALIDATION_STATUSES = ['PASSED', 'FAILED', 'WARNING', 'SKIPPED'] as const;
+export const VALIDATION_STATUSES = ['PASSED', 'FAILED', 'WARNING', 'SKIPPED', 'NOT_APPLICABLE'] as const;
+/**
+ * NOT_APPLICABLE — только для отдельной проверки при подтверждённом паспортом
+ * отсутствии актива или функции (ТЗ 2.1); никогда для этапа целиком.
+ */
 export type ValidationStatus = (typeof VALIDATION_STATUSES)[number];
 
 export type ValidationValue = number | string | boolean | null;
