@@ -27,12 +27,14 @@ export interface StageStats {
   percent: number;
 }
 
-/** Все проверки этапа: выполненные — с результатом, ещё не выполненные — Pending. */
+/** Все проверки этапа: выполненные – с результатом, ещё не выполненные – Pending. */
 export function stageStats(session: LaunchSession, stageId: StageId): StageStats {
   const results = session.stages[stageId].validationResults;
-  const checks: CheckView[] = getRulesForStage(stageId).map((rule) => {
+  const checks: CheckView[] = getRulesForStage(stageId, session.rulesetVersion).map((rule) => {
     const result = results.find((r) => r.ruleId === rule.id);
-    return { rule, status: result ? result.status : 'PENDING', ...(result ? { result } : {}) };
+    // Недоступный источник – отдельный статус, а не «нет данных» и не успех
+    const status: CheckStatus = !result ? 'PENDING' : result.details?.unavailable ? 'UNAVAILABLE' : result.status;
+    return { rule, status, ...(result ? { result } : {}) };
   });
   const count = (...s: CheckStatus[]) => checks.filter((c) => s.includes(c.status)).length;
   const applicable = checks.length - count('NOT_APPLICABLE');
@@ -42,7 +44,7 @@ export function stageStats(session: LaunchSession, stageId: StageId): StageStats
     passed,
     failed: count('FAILED'),
     warnings: count('WARNING'),
-    pending: count('PENDING', 'SKIPPED'),
+    pending: count('PENDING', 'SKIPPED', 'UNAVAILABLE'),
     applicable,
     percent: applicable ? Math.floor((passed / applicable) * 100) : 0,
   };
@@ -72,7 +74,7 @@ export function obstacleView(blocker: Blocker, session: LaunchSession, inputs: L
     ...(months.length ? [{ label: 'Недостающие месяцы', value: months.join(', ') }] : []),
     ...(foreign.length ? [{ label: 'В потоке', value: foreign.slice(0, 3).join(', ') + (foreign.length > 3 ? '…' : '') }] : []),
     ...(interval?.from ? [{ label: 'Интервал (UTC)', value: `${day(interval.from)} – ${day(interval.to)}` }] : []),
-    { label: 'Критичность', value: blocker.severity === 'CRITICAL' ? 'Критично — блокирует этап' : blocker.severity === 'WARNING' ? 'Предупреждение' : 'Информация' },
+    { label: 'Критичность', value: blocker.severity === 'CRITICAL' ? 'Критично – блокирует этап' : blocker.severity === 'WARNING' ? 'Предупреждение' : 'Информация' },
   ];
   const action = blocker.ruleId ? (specificAction(blocker.ruleId, result?.details) ?? NEXT_ACTION_BY_RULE[blocker.ruleId]) : undefined;
   return { blocker, location, ...(action ? { nextAction: action } : {}) };
