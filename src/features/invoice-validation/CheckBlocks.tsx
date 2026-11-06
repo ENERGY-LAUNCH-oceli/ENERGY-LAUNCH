@@ -3,7 +3,13 @@ import type { CheckStatus } from '@/config/labels';
 import type { ValidationResult } from '@/types';
 import { cn } from '@/utils/cn';
 
-const BLOCKS: { id: string; title: string; rules: string[] }[] = [
+export interface CheckBlock {
+  id: string;
+  title: string;
+  rules: string[];
+}
+
+const INVOICE_BLOCKS: CheckBlock[] = [
   { id: 'coverage', title: 'Coverage', rules: ['MH-001', 'MH-002'] },
   { id: 'completeness', title: 'Completeness', rules: ['MH-003', 'MH-004'] },
   { id: 'duplicates', title: 'Duplicates', rules: ['MH-005'] },
@@ -23,21 +29,21 @@ function summarize(results: ValidationResult[], rules: string[], stale: boolean)
 }
 
 /** Шесть блоков результата: одна строка — одно решение. */
-export function CheckBlocks({ results, stale, metrics }: { results: ValidationResult[]; stale: boolean; metrics: Record<string, string> }) {
+export function CheckBlocks({ results, stale, metrics, blocks = INVOICE_BLOCKS }: { results: ValidationResult[]; stale: boolean; metrics: Record<string, string>; blocks?: CheckBlock[] }) {
   return (
     <div className="grid grid-cols-2 gap-3 md:grid-cols-3 2xl:grid-cols-6">
-      {BLOCKS.map((b) => {
+      {blocks.map((b) => {
         const status = summarize(results, b.rules, stale);
         return (
           <a
-            key={b.id}
+            key={b.title}
             href={`#${b.id}`}
-            data-block={b.id}
+            data-block={b.title.toLowerCase()}
             data-block-status={status}
             className={cn('flex flex-col gap-2 rounded-lg border bg-surface p-4 transition-colors hover:border-border-strong', status === 'FAILED' ? 'border-status-blocked-border' : 'border-border')}
           >
             <span className="text-label uppercase text-text-secondary">{b.title}</span>
-            <span className="tabular text-numeric-sm text-body font-bold">{metrics[b.id] ?? '—'}</span>
+            <span className="tabular text-numeric-sm text-body font-bold">{metrics[b.title] ?? metrics[b.id] ?? '—'}</span>
             <CheckStatusLabel status={status} />
           </a>
         );
