@@ -1,6 +1,6 @@
 import type { EnergyObject, InvoiceDataset, InvoiceIssueType, MeterHistoryRules, ValidationResult } from '@/types';
 import { makeResult, type ValidatorEnv } from '../validators/helpers';
-import { isValidEan } from './format';
+import { eanProblem, isValidEan, localMidnightUtc } from './format';
 
 const count = (ds: InvoiceDataset, ...types: InvoiceIssueType[]) => types.reduce((n, t) => n + (ds.report.issueCounts[t] ?? 0), 0);
 const fieldsWith = (ds: InvoiceDataset, ...types: InvoiceIssueType[]) => [...new Set(ds.report.issues.filter((i) => types.includes(i.type)).map((i) => i.field))];
@@ -12,7 +12,7 @@ const firstInterval = (ds: InvoiceDataset, ...types: InvoiceIssueType[]) => {
 /**
  * Этап 1 по ТЗ 2.3: покрытие 24 последовательных месяцев, полнота 15-минутных интервалов,
  * дубли, timestamps, единицы, знаки, пустые значения, связь с объектом по EAN.
- * Наличие, качество и функция оцениваются раздельно; отсутствие данных — не успех.
+ * Наличие, качество и функция оцениваются раздельно; отсутствие данных – не успех.
  */
 export function validateInvoice(ds: InvoiceDataset | undefined, object: EnergyObject, rules: MeterHistoryRules, env: ValidatorEnv): ValidationResult[] {
   const ids = ['MH-002', 'MH-003', 'MH-004', 'MH-005', 'MH-006', 'MH-007', 'MH-008', 'MH-009', 'MH-010', 'MH-012'] as const;
@@ -37,19 +37,33 @@ export function validateInvoice(ds: InvoiceDataset | undefined, object: EnergyOb
     'MH-011',
     eanOk,
     {
-      message: eanOk ? 'Коды EAN потребления и выдачи заданы в паспорте и корректны' : 'Коды EAN в паспорте отсутствуют, некорректны или совпадают',
-      actual: `${pEan.offtake ?? '—'} / ${pEan.injection ?? '—'}`,
+      message: eanOk
+        ? 'Коды EAN потребления и выдачи заданы в паспорте и корректны'
+        : [
+            eanProblem(pEan.offtake, rules.eanLength) && `EAN offtake ${eanProblem(pEan.offtake, rules.eanLength)}`,
+            eanProblem(pEan.injection, rules.eanLength) && `EAN injection ${eanProblem(pEan.injection, rules.eanLength)}`,
+            pEan.offtake && pEan.offtake === pEan.injection && 'EAN offtake и injection совпадают',
+          ]
+            .filter(Boolean)
+            .join('; '),
+      actual: `${pEan.offtake ?? '–'} / ${pEan.injection ?? '–'}`,
       expected: `${rules.eanLength} цифр, контрольная цифра GS1, разные коды`,
       details: { fields: ['grid_connection.ean_offtake', 'grid_connection.ean_injection'] },
     },
     env,
   );
 
-  if (!r || !hasData) return [presence, eanPassport, ...ids.map((id) => makeResult(id, 'SKIPPED', { message: 'Нет данных для проверки — это не успех' }, env))];
+  if (!r || !hasData) return [presence, eanPassport, ...ids.map((id) => makeResult(id, 'SKIPPED', { message: 'Нет данных для проверки – это не успех' }, env))];
 
   const w = r.window!;
   const declared = object.passport.declaredHistory;
-  const declaredOk = !declared || (w.from.slice(0, 10) <= declared.from && w.to.slice(0, 10) > declared.to);
+  // Заявленный период – местные даты (включительно) в часовом поясе окна
+  const tz = w.timezone ?? 'UTC';
+  const day = (iso: string, plus = 0) => {
+    const [y, m, d] = iso.split('-').map(Number) as [number, number, number];
+    return localMidnightUtc(y, m, d + plus, tz);
+  };
+  const declaredOk = !declared || (Date.parse(w.from) <= day(declared.from) && Date.parse(w.to) >= day(declared.to, 1));
   const coverage = makeResult(
     'MH-002',
     r.missingMonths.length === 0 && declaredOk,
@@ -73,7 +87,7 @@ export function validateInvoice(ds: InvoiceDataset | undefined, object: EnergyOb
     {
       message: stepOk
         ? `Шаг данных ${rules.intervalMinutes} мин`
-        : `Шаг исходных данных ${r.detectedStepMinutes ?? '—'} мин вместо ${rules.intervalMinutes}: данные сохранены в исходной детализации, искусственное увеличение частоты не подтверждает полноту`,
+        : `Шаг исходных данных ${r.detectedStepMinutes ?? '–'} мин вместо ${rules.intervalMinutes}: данные сохранены в исходной детализации, искусственное увеличение частоты не подтверждает полноту`,
       actual: r.detectedStepMinutes,
       expected: rules.intervalMinutes,
       details: base,
@@ -96,7 +110,7 @@ export function validateInvoice(ds: InvoiceDataset | undefined, object: EnergyOb
   const dup = makeResult('MH-005', r.duplicates <= rules.maxDuplicates, { message: r.duplicates ? `Дубли временных меток: ${r.duplicates}` : 'Дублей нет', actual: r.duplicates, expected: rules.maxDuplicates, details: { ...base, interval: firstInterval(ds, 'DUPLICATE_TIMESTAMP'), fields: ['timestamp'] } }, env);
 
   const tsIssues = count(ds, 'INVALID_TIMESTAMP', 'NON_UTC_TIMESTAMP', 'MISALIGNED_TIMESTAMP');
-  const timestamps = makeResult('MH-006', tsIssues <= rules.maxInvalidTimestamps, { message: tsIssues ? `Некорректные отметки времени: ${tsIssues}` : 'Все отметки времени — ISO 8601 UTC, выровнены по интервалу', actual: tsIssues, expected: rules.maxInvalidTimestamps, details: { ...base, interval: firstInterval(ds, 'NON_UTC_TIMESTAMP', 'MISALIGNED_TIMESTAMP'), fields: ['timestamp'] } }, env);
+  const timestamps = makeResult('MH-006', tsIssues <= rules.maxInvalidTimestamps, { message: tsIssues ? `Некорректные отметки времени: ${tsIssues}` : 'Все отметки времени – ISO 8601 UTC, выровнены по интервалу', actual: tsIssues, expected: rules.maxInvalidTimestamps, details: { ...base, interval: firstInterval(ds, 'NON_UTC_TIMESTAMP', 'MISALIGNED_TIMESTAMP'), fields: ['timestamp'] } }, env);
 
   const unitIssues = count(ds, 'UNIT_MISMATCH', 'MIXED_UNITS');
   const units = makeResult('MH-007', unitIssues === 0, { message: unitIssues ? `Ошибки единиц: ${unitIssues} (поля: ${fieldsWith(ds, 'UNIT_MISMATCH', 'MIXED_UNITS').join(', ')})` : 'Единицы соответствуют правилам: kWh для энергии, kW для мощности', actual: unitIssues, expected: 0, details: { ...base, fields: fieldsWith(ds, 'UNIT_MISMATCH', 'MIXED_UNITS'), interval: firstInterval(ds, 'MIXED_UNITS') } }, env);

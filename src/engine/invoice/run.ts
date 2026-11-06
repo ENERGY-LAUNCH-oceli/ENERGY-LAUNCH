@@ -15,7 +15,7 @@ export function makeInvoiceRun(
     run: previous.length + 1,
     datasetVersion: ds?.version ?? 0,
     source: ds?.report.meta.source ?? 'UPLOAD',
-    fileName: ds?.report.meta.fileName ?? '—',
+    fileName: ds?.report.meta.fileName ?? '–',
     result: failed.length ? 'FAILED' : 'PASSED',
     failedRules: failed,
     at,
