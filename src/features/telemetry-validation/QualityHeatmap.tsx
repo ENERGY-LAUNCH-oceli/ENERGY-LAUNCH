@@ -13,7 +13,7 @@ interface Selected {
   col: number;
 }
 
-/** Data Quality Heatmap: строки — оборудование и сигналы, столбцы — интервалы окна 48 ч. */
+/** Data Quality Heatmap: строки – оборудование и сигналы, столбцы – интервалы окна 48 ч. */
 export function QualityHeatmap({ report }: { report: TelemetryReport }) {
   const [zoom, setZoom] = React.useState<'1h' | '15m'>('1h');
   const [sel, setSel] = React.useState<Selected | null>(null);
@@ -33,7 +33,7 @@ export function QualityHeatmap({ report }: { report: TelemetryReport }) {
     <section id="heatmap" aria-label="Data Quality Heatmap" className="min-w-0 scroll-mt-24 rounded-lg border border-border bg-surface p-5">
       <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
         <div className="flex flex-col gap-0.5">
-          <span className="text-label uppercase text-accent-strong">Data Quality Heatmap</span>
+          <span className="text-label text-text-muted">Data Quality Heatmap</span>
           <h2 className="text-h3">Качество потока за {Math.round((report.window.slots * report.window.stepMinutes) / 60)} ч до точки проверки</h2>
         </div>
         <Tabs value={zoom} onValueChange={(v) => (setZoom(v as '1h' | '15m'), setSel(null))}>
@@ -98,12 +98,12 @@ export function QualityHeatmap({ report }: { report: TelemetryReport }) {
       {sig && sel ? (
         <div className={cn('mt-4 grid gap-3 rounded-md border p-4 md:grid-cols-[1fr_auto]', sig.diagnosis === 'OK' ? 'border-border' : 'border-status-blocked-border')} data-testid="heatmap-detail">
           <div className="flex flex-col gap-1">
-            <span className="font-mono text-body-sm font-bold">{sig.signal}</span>
+            <span className="font-mono text-body-sm font-medium">{sig.signal}</span>
             <span className="text-caption text-text-secondary">
               {sig.owner} · {utc(new Date(from + sel.col * colMs).toISOString())} – {utc(new Date(from + (sel.col + 1) * colMs).toISOString())} UTC
             </span>
             <span className="text-caption">
-              Диагноз сигнала: <b>{DIAGNOSIS[sig.diagnosis].label}</b> — {DIAGNOSIS[sig.diagnosis].hint}
+              Диагноз сигнала: <b>{DIAGNOSIS[sig.diagnosis].label}</b> – {DIAGNOSIS[sig.diagnosis].hint}
             </span>
             <span className="text-caption text-text-muted">
               Последнее значение: {sig.lastTimestamp ? `${utc(sig.lastTimestamp)} UTC (${sig.ageMinutes} мин до точки проверки)` : 'нет'} · полнота {sig.completenessPct} %
