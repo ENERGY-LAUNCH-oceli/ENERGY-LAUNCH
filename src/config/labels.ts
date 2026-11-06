@@ -9,14 +9,14 @@ import type { AuditAction, CheckDimension, EvidenceType, ValidationStatus } from
 export type CheckStatus = ValidationStatus | 'NOT_APPLICABLE' | 'STALE' | 'UNAVAILABLE' | 'PENDING';
 
 export const CHECK_STATUS_LABEL: Record<CheckStatus, string> = {
-  PASSED: 'Пройдена',
-  FAILED: 'Не пройдена',
-  WARNING: 'Замечание',
-  SKIPPED: 'Нет данных',
-  NOT_APPLICABLE: 'Не применимо',
+  PASSED: 'Passed',
+  FAILED: 'Failed',
+  WARNING: 'Warning',
+  SKIPPED: 'Pending · нет данных',
+  NOT_APPLICABLE: 'Not Applicable',
   STALE: 'Неактуальна',
   UNAVAILABLE: 'Источник недоступен',
-  PENDING: 'Выполняется',
+  PENDING: 'Pending',
 };
 
 export const CHECK_DIMENSION_LABEL: Record<CheckDimension, string> = {
