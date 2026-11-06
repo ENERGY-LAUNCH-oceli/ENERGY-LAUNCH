@@ -22,13 +22,14 @@ function summarize(results: ValidationResult[], rules: string[], stale: boolean)
   const rs = results.filter((r) => rules.includes(r.ruleId));
   if (!rs.length) return 'PENDING';
   if (stale) return 'STALE';
+  if (rs.every((r) => r.status === 'NOT_APPLICABLE')) return 'NOT_APPLICABLE';
   if (rs.some((r) => r.status === 'FAILED')) return 'FAILED';
   if (rs.some((r) => r.status === 'SKIPPED')) return 'SKIPPED';
   if (rs.some((r) => r.status === 'WARNING')) return 'WARNING';
   return 'PASSED';
 }
 
-/** Шесть блоков результата: одна строка — одно решение. */
+/** Шесть блоков результата: одна строка – одно решение. */
 export function CheckBlocks({ results, stale, metrics, blocks = INVOICE_BLOCKS }: { results: ValidationResult[]; stale: boolean; metrics: Record<string, string>; blocks?: CheckBlock[] }) {
   return (
     <div className="grid grid-cols-2 gap-3 md:grid-cols-3 2xl:grid-cols-6">
@@ -42,8 +43,8 @@ export function CheckBlocks({ results, stale, metrics, blocks = INVOICE_BLOCKS }
             data-block-status={status}
             className={cn('flex flex-col gap-2 rounded-lg border bg-surface p-4 transition-colors hover:border-border-strong', status === 'FAILED' ? 'border-status-blocked-border' : 'border-border')}
           >
-            <span className="text-label uppercase text-text-secondary">{b.title}</span>
-            <span className="tabular text-numeric-sm text-body font-bold">{metrics[b.title] ?? metrics[b.id] ?? '—'}</span>
+            <span className="text-label text-text-muted">{b.title}</span>
+            <span className="tabular text-numeric-sm text-body ">{metrics[b.title] ?? metrics[b.id] ?? '–'}</span>
             <CheckStatusLabel status={status} />
           </a>
         );
