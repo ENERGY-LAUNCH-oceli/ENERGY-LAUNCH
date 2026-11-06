@@ -57,7 +57,7 @@ export interface AssetSignal {
   direction: SignalDirection;
   /** Номинальный период опроса, секунды. */
   samplingSec?: number;
-  /** Для сигналов коммерческого учёта — идентификатор точки поставки. */
+  /** Для сигналов коммерческого учёта – идентификатор точки поставки. */
   meteringPointId?: Id;
 }
 
@@ -116,14 +116,14 @@ export interface ObjectPassport {
     longitude?: number;
   };
   plannedLaunchDate?: IsoDate;
-  /** Файлы данных объекта (object.json → data_files); null — файл не предоставлен. */
+  /** Файлы данных объекта (object.json → data_files); null – файл не предоставлен. */
   dataFiles?: { invoice: string | null; telemetry: string | null };
   /** Заявленный период официальной истории. */
   declaredHistory?: { from: IsoDate; to: IsoDate };
   documents: PassportDocument[];
 }
 
-/** Энергетический объект — корневая сущность платформы. */
+/** Энергетический объект – корневая сущность платформы. */
 export interface EnergyObject {
   id: Id;
   code: string;

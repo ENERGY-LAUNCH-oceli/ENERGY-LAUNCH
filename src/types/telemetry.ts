@@ -1,6 +1,6 @@
 import type { Severity } from './common';
 
-/** Паспорт объекта object.json в формате кейса (ТЗ 5.1). Поля — snake_case, как в исходном файле. */
+/** Паспорт объекта object.json в формате кейса (ТЗ 5.1). Поля – snake_case, как в исходном файле. */
 export interface ObjectJson {
   object_id: string;
   name: string;
@@ -11,7 +11,8 @@ export interface ObjectJson {
   assets: { asset_id: string; type: string; signals: string[] }[];
   site_signals: string[];
   data_files: { invoice: string | null; telemetry: string | null };
-  csv_format?: { delimiter?: string; decimal?: string; encoding?: string; timestamp_format?: string; step_minutes?: number } | null;
+  /** Набор кейса использует separator / timestamp / interval_minutes – поддерживаются оба варианта. */
+  csv_format?: { delimiter?: string; separator?: string; decimal?: string; encoding?: string; timestamp_format?: string; timestamp?: string; step_minutes?: number; interval_minutes?: number } | null;
   [extra: string]: unknown;
 }
 
@@ -42,6 +43,8 @@ export interface SitePassport {
   dataFiles: { invoice: string | null; telemetry: string | null };
   csvFormat: { delimiter: string; decimal: string; encoding: string; stepMinutes: number };
   /** Замечания к самому паспорту (неизвестный тип актива, пустая карта и т. п.). */
+  /** Единицы из имён сигналов паспорта («PV1.power_kW (kW)»). */
+  signalUnits?: Record<string, string>;
   warnings: string[];
 }
 
@@ -80,11 +83,15 @@ export interface SignalReport {
   assetType: PassportAssetType | 'GRID';
   scope: SignalScope;
   required: boolean;
+  /** Событийный сигнал управления (setpoint): полнота и актуальность не оцениваются на этапе 2. */
+  event?: boolean;
   inPassport: boolean;
   inData: boolean;
   unit: string | null;
   expectedUnit: string;
   lastTimestamp: string | null;
+  /** Последнее достоверное значение (для рабочей панели). */
+  lastValue: number | null;
   /** Возраст последнего значения относительно точки проверки, минуты. */
   ageMinutes: number | null;
   expected: number;
