@@ -1,9 +1,9 @@
 import { z } from 'zod';
 import {
   CONTROL_COMMAND_TYPES,
+  SIGNAL_KINDS,
   DASHBOARD_BLOCK_TYPES,
   EVIDENCE_TYPES,
-  SIGNAL_KINDS,
   type RulesConfig,
 } from '@/types';
 import { confirmationRoleSchema, percentSchema, positiveNumberSchema } from './primitives';
@@ -35,13 +35,18 @@ export const rulesConfigSchema = z
       fields: z.array(z.object({ field: z.string().min(1), unit: z.string().min(1), sign: z.enum(['NON_NEGATIVE', 'NON_POSITIVE', 'ANY']), required: z.boolean() })).min(1),
     }),
     telemetry: z.object({
-      expectedFrequencySec: positiveNumberSchema,
-      frequencyTolerancePct: percentSchema,
+      intervalMinutes: positiveNumberSchema,
+      windowHours: positiveNumberSchema,
       minCompletenessPct: percentSchema,
-      maxLatencySec: positiveNumberSchema,
-      latencyPercentile: z.number().gt(0).max(100),
-      observationPeriodHours: positiveNumberSchema,
-      requiredSignals: z.array(z.enum(SIGNAL_KINDS)),
+      maxAgeMinutes: positiveNumberSchema,
+      checkPoint: z.iso.datetime({ offset: true }),
+      requiredGrid: z.array(z.string().min(1)),
+      requiredPv: z.array(z.string().min(1)),
+      requiredBattery: z.array(z.string().min(1)),
+      maxAbsPowerKw: positiveNumberSchema,
+      maxEnergyKwhPerInterval: positiveNumberSchema,
+      maxSocJumpPct: percentSchema,
+      setpointToleranceKw: z.number().min(0),
     }),
     control: z
       .object({
