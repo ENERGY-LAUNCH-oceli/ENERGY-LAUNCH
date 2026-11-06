@@ -1,11 +1,16 @@
 
-import { buildInvoiceDataset, buildTelemetryDataset, DEMO_OBJECT, DEMO_OBJECT_ID, demoPassport, generateControlTests, generateDashboards, type TelemetryGenOptions } from '@/data/mock';
+import { buildControlCommands, buildDashboardWorkspace, buildInvoiceDataset, buildTelemetryDataset, DEMO_OBJECT, DEMO_OBJECT_ID, demoPassport, generateControlTests, generateDashboards, type ControlPlanStep, type TelemetryGenOptions } from '@/data/mock';
 import type { LaunchInputs, TestScenario } from '@/types';
 
 
 /** Паспорт демо-объекта: одна PV-установка и одна батарея. */
 export const DEMO_PASSPORT = demoPassport({ objectId: DEMO_OBJECT_ID, name: 'Демо-объект', city: 'Брюссель', ean: { offtake: '541448800000000017', injection: '541448800000000024' }, assets: [{ id: 'pv-1', type: 'pv', prefix: 'PV1' }, { id: 'battery-1', type: 'battery', prefix: 'Battery1' }] });
 const telemetry = (o: TelemetryGenOptions = {}) => buildTelemetryDataset(DEMO_PASSPORT, o);
+const control = (plan: ControlPlanStep[]) => buildControlCommands({ passport: DEMO_PASSPORT, objectCode: DEMO_OBJECT.code, plan, startAt: '2026-11-03T09:00:00.000Z', actor: 'demo-engineer' });
+const NOMINAL: ControlPlanStep[] = [
+  { assetId: 'battery-1', scenario: 'NOMINAL' },
+  { assetId: 'pv-1', scenario: 'NOMINAL' },
+];
 
 const baseInputs = (): LaunchInputs => ({
   object: DEMO_OBJECT,
@@ -13,7 +18,9 @@ const baseInputs = (): LaunchInputs => ({
   passport: DEMO_PASSPORT,
   telemetry: telemetry(),
   controlTests: generateControlTests({ startAt: '2026-11-03T09:00:00.000Z', intervalSec: 120 }),
+  controlCommands: control(NOMINAL),
   dashboards: generateDashboards({ published: true }),
+  dashboard: buildDashboardWorkspace({ objectId: DEMO_OBJECT_ID, at: '2026-11-04T12:00:00.000Z', engineer: 'demo-engineer', publish: true, review: 'ACCEPT' }),
 });
 
 interface ScenarioDescriptor {
@@ -83,7 +90,7 @@ const DESCRIPTORS: ScenarioDescriptor[] = [
   {
     id: 'wrong-binding',
     title: 'Ошибочная привязка',
-    description: 'В telemetry.csv — данные другого объекта: батарея подписана как Battery2, object_id чужой.',
+    description: 'В telemetry.csv – данные другого объекта: батарея подписана как Battery2, object_id чужой.',
     tags: ['negative', 'telemetry'],
     build: () => ({
       inputs: { ...baseInputs(), telemetry: telemetry({ renamePrefix: { from: 'Battery1', to: 'Battery2' }, objectIdInFile: 'OBJ-FOREIGN-07' }) },
@@ -127,30 +134,66 @@ const DESCRIPTORS: ScenarioDescriptor[] = [
   },
   {
     id: 'control-timeout',
-    title: 'Отказ команды управления',
-    description: 'Команда STOP не исполнена (TIMEOUT).',
+    title: 'Отклик позже ожидаемого',
+    description: 'Батарея приняла setpoint, но фактическая мощность изменилась позже интервала ожидания (TIMEOUT).',
     tags: ['negative', 'control'],
     build: () => ({
-      inputs: { ...baseInputs(), controlTests: generateControlTests({ startAt: '2026-11-03T09:00:00.000Z', intervalSec: 120, timeoutType: 'STOP' }) },
+      inputs: {
+        ...baseInputs(),
+        controlTests: generateControlTests({ startAt: '2026-11-03T09:00:00.000Z', intervalSec: 120, timeoutType: 'STOP' }),
+        controlCommands: control([{ assetId: 'battery-1', scenario: 'SLOW_RESPONSE' }, { assetId: 'pv-1', scenario: 'NOMINAL' }]),
+      },
       expectations: [
         { stageId: 'METER_HISTORY', statusAfterValidation: 'IN_PROGRESS', failingRuleIds: [] },
         { stageId: 'REALTIME_TELEMETRY', statusAfterValidation: 'IN_PROGRESS', failingRuleIds: [] },
-        { stageId: 'ASSET_CONTROL', statusAfterValidation: 'BLOCKED', failingRuleIds: ['CT-001', 'CT-003', 'CT-006'] },
+        { stageId: 'ASSET_CONTROL', statusAfterValidation: 'BLOCKED', failingRuleIds: ['CT-013', 'CT-014'] },
+      ],
+    }),
+  },
+  {
+    id: 'control-no-ack',
+    title: 'Команда без подтверждения',
+    description: 'Setpoint батареи отправлен, контроллер не подтвердил приём; ограничение PV принято, но выработка не снизилась.',
+    tags: ['negative', 'control'],
+    build: () => ({
+      inputs: { ...baseInputs(), controlCommands: control([{ assetId: 'battery-1', scenario: 'NO_ACK' }, { assetId: 'pv-1', scenario: 'NO_RESPONSE' }]) },
+      expectations: [
+        { stageId: 'METER_HISTORY', statusAfterValidation: 'IN_PROGRESS', failingRuleIds: [] },
+        { stageId: 'REALTIME_TELEMETRY', statusAfterValidation: 'IN_PROGRESS', failingRuleIds: [] },
+        { stageId: 'ASSET_CONTROL', statusAfterValidation: 'BLOCKED', failingRuleIds: ['CT-012', 'CT-013', 'CT-014', 'CT-015'] },
       ],
     }),
   },
   {
     id: 'dashboard-unpublished',
-    title: 'Панели не готовы',
-    description: 'Нет блока событий (ALERTS), панели не опубликованы.',
+    title: 'Панель не опубликована',
+    description: 'Рабочая панель настроена, но не опубликована – приёмка невозможна.',
     tags: ['negative', 'dashboards'],
     build: () => ({
-      inputs: { ...baseInputs(), dashboards: generateDashboards({ published: false, omitAlerts: true }) },
+      inputs: { ...baseInputs(), dashboards: generateDashboards({ published: false, omitAlerts: true }), dashboard: buildDashboardWorkspace({ objectId: DEMO_OBJECT_ID, at: '2026-11-04T12:00:00.000Z', engineer: 'demo-engineer' }) },
       expectations: [
         { stageId: 'METER_HISTORY', statusAfterValidation: 'IN_PROGRESS', failingRuleIds: [] },
         { stageId: 'REALTIME_TELEMETRY', statusAfterValidation: 'IN_PROGRESS', failingRuleIds: [] },
         { stageId: 'ASSET_CONTROL', statusAfterValidation: 'IN_PROGRESS', failingRuleIds: [] },
-        { stageId: 'FINAL_DASHBOARDS', statusAfterValidation: 'BLOCKED', failingRuleIds: ['DB-001', 'DB-004'] },
+        { stageId: 'FINAL_DASHBOARDS', statusAfterValidation: 'BLOCKED', failingRuleIds: ['DB-015', 'DB-016'] },
+      ],
+    }),
+  },
+  {
+    id: 'dashboard-rejected',
+    title: 'Панель отклонена при приёмке',
+    description: 'В блоке «История учёта» выключены договорные ограничения; ответственный отклонил опубликованную версию.',
+    tags: ['negative', 'dashboards'],
+    build: () => ({
+      inputs: {
+        ...baseInputs(),
+        dashboard: buildDashboardWorkspace({ objectId: DEMO_OBJECT_ID, at: '2026-11-04T12:00:00.000Z', engineer: 'demo-engineer', publish: true, review: 'REJECT', disable: [{ blockId: 'METER_HISTORY', widgetId: 'contract_limits' }] }),
+      },
+      expectations: [
+        { stageId: 'METER_HISTORY', statusAfterValidation: 'IN_PROGRESS', failingRuleIds: [] },
+        { stageId: 'REALTIME_TELEMETRY', statusAfterValidation: 'IN_PROGRESS', failingRuleIds: [] },
+        { stageId: 'ASSET_CONTROL', statusAfterValidation: 'IN_PROGRESS', failingRuleIds: [] },
+        { stageId: 'FINAL_DASHBOARDS', statusAfterValidation: 'BLOCKED', failingRuleIds: ['DB-011', 'DB-016'] },
       ],
     }),
   },
