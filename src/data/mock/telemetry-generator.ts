@@ -3,7 +3,7 @@ import { expectedUnit, parseObjectJson, TelemetryAnalyzer } from '@/engine/telem
 import type { ObjectJson, SitePassport, TelemetryDatasetV2 } from '@/types';
 import { createRng } from '@/utils/random';
 
-/** Описание демо-объекта для object.json. Оборудование задаётся явно — ничего не выдумывается. */
+/** Описание демо-объекта для object.json. Оборудование задаётся явно – ничего не выдумывается. */
 export interface DemoPassportSpec {
   objectId: string;
   name: string;
@@ -68,7 +68,7 @@ export interface TelemetryGenOptions {
   /** Поток прерывается за N минут до точки проверки (все сигналы или указанные префиксы). */
   staleMinutes?: number;
   stalePrefixes?: string[];
-  /** Переименование префикса — телеметрия другого актива (ошибочная привязка). */
+  /** Переименование префикса – телеметрия другого актива (ошибочная привязка). */
   renamePrefix?: { from: string; to: string };
   /** Колонка object_id с этим значением. */
   objectIdInFile?: string;
@@ -166,7 +166,7 @@ export function* telemetryRows(passport: SitePassport, o: TelemetryGenOptions): 
 export function telemetryCsvText(passport: SitePassport, o: TelemetryGenOptions = {}): string {
   const lines: string[] = [];
   for (const r of telemetryRows(passport, o)) lines.push(r.join(';'));
-  return `﻿${lines.join('\r\n')}\r\n`;
+  return `\uFEFF${lines.join('\r\n')}\r\n`;
 }
 
 const cache = new Map<string, TelemetryDatasetV2>();
