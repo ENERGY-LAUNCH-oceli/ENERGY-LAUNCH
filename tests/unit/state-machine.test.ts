@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { ACTIVE_RULESET as RULESET_V1 } from '@/config/rules';
+import { buildTelemetryDataset, demoPassport } from '@/data/mock';
 import { loadScenario } from '@/data/scenarios';
 import {
   addConfirmation,
@@ -167,13 +168,15 @@ describe('требования фазы 05', () => {
   });
 
   it('SoC батареи — Not Applicable без батареи и не блокирует этап', () => {
+    const passport = demoPassport({ objectId: inputs.object.id, name: 'PV only', ean: { offtake: null, injection: null }, assets: [{ id: 'pv-1', type: 'pv', prefix: 'PV1' }] });
+    const pvOnly = { ...inputs, passport, telemetry: buildTelemetryDataset(passport) };
     let s = unwrap(startStage(createLaunchSession(inputs.object.id, cfg.version, ctx), 'METER_HISTORY', ctx));
     s = unwrap(validateStage(s, 'METER_HISTORY', inputs, cfg, ctx));
     s = confirmAll(s, 'METER_HISTORY');
     s = unwrap(completeStage(s, 'METER_HISTORY', cfg, ctx));
     s = unwrap(startStage(s, 'REALTIME_TELEMETRY', ctx));
-    s = unwrap(validateStage(s, 'REALTIME_TELEMETRY', inputs, cfg, ctx));
-    expect(s.stages.REALTIME_TELEMETRY.validationResults.find((r) => r.ruleId === 'TM-006')?.status).toBe('NOT_APPLICABLE');
+    s = unwrap(validateStage(s, 'REALTIME_TELEMETRY', pvOnly, cfg, ctx));
+    expect(s.stages.REALTIME_TELEMETRY.validationResults.find((r) => r.ruleId === 'TM-011')?.status).toBe('NOT_APPLICABLE');
     expect(s.stages.REALTIME_TELEMETRY.status).toBe('IN_PROGRESS');
   });
 });
