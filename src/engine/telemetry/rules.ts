@@ -22,7 +22,7 @@ export function validateTelemetryReport(ds: TelemetryDatasetV2 | undefined, pass
     },
     env,
   );
-  if (!passport) return [tm1, makeResult('TM-002', 'SKIPPED', { message: 'Нет паспорта — карту сигналов проверить нельзя' }, env), ...ids.map((id) => makeResult(id, 'SKIPPED', { message: 'Нет паспорта объекта' }, env))];
+  if (!passport) return [tm1, makeResult('TM-002', 'SKIPPED', { message: 'Нет паспорта – карту сигналов проверить нельзя' }, env), ...ids.map((id) => makeResult(id, 'SKIPPED', { message: 'Нет паспорта объекта' }, env))];
 
   const req = requiredSignals(passport, rules);
   const notInMap = req.filter((r) => !r.inPassport);
@@ -39,8 +39,10 @@ export function validateTelemetryReport(ds: TelemetryDatasetV2 | undefined, pass
   );
 
   const r = ds?.report;
-  if (!r) return [tm1, tm2, ...ids.map((id) => makeResult(id, 'SKIPPED', { message: 'telemetry.csv не загружен — это не успех' }, env))];
+  if (!r) return [tm1, tm2, ...ids.map((id) => makeResult(id, 'SKIPPED', { message: 'telemetry.csv не загружен – это не успех' }, env))];
   const sig = r.signals.filter((s) => s.required);
+  // Полнота и актуальность – только для непрерывных сигналов; событийные сигналы управления проверяются на наличие
+  const stream = sig.filter((s) => !s.event);
   const base = { fileName: r.meta.fileName, rows: r.meta.rows, checkPoint: r.checkPoint };
   const count = (...t: TelemetryIssueType[]) => t.reduce((n, x) => n + (r.issueCounts[x] ?? 0), 0);
   const interval = { from: r.window.from, to: r.window.to };
@@ -52,7 +54,7 @@ export function validateTelemetryReport(ds: TelemetryDatasetV2 | undefined, pass
     absent.length === 0,
     {
       message: absent.length
-        ? `Нет данных по ${absent.length} обязательным сигналам (активы: ${owners(absent).join(', ')})${noComm.length ? `; нет связи: ${owners(noComm).join(', ')} — это не означает неисправность оборудования` : ''}`
+        ? `Нет данных по ${absent.length} обязательным сигналам (активы: ${owners(absent).join(', ')})${noComm.length ? `; нет связи: ${owners(noComm).join(', ')} – это не означает неисправность оборудования` : ''}`
         : 'Все обязательные сигналы присутствуют в данных',
       actual: sig.length - absent.length,
       expected: sig.length,
@@ -76,16 +78,16 @@ export function validateTelemetryReport(ds: TelemetryDatasetV2 | undefined, pass
     env,
   );
 
-  const withData = sig.filter((s) => s.lastTimestamp);
+  const withData = stream.filter((s) => s.lastTimestamp);
   const stale = withData.filter((s) => (s.ageMinutes ?? 0) > rules.maxAgeMinutes);
   const maxAge = withData.length ? Math.max(...withData.map((s) => s.ageMinutes ?? 0)) : null;
   const tm5 = makeResult(
     'TM-005',
-    stale.length === 0 && withData.length === sig.length,
+    stale.length === 0 && withData.length === stream.length,
     {
       message: stale.length
         ? `Устаревшие данные: ${stale.length} сигналов, последнее значение до ${maxAge} мин назад (порог ${rules.maxAgeMinutes} мин)`
-        : withData.length < sig.length
+        : withData.length < stream.length
           ? 'Актуальность не подтверждена: часть сигналов не имеет значений'
           : `Последние значения не старше ${rules.maxAgeMinutes} мин относительно точки проверки`,
       actual: maxAge,
@@ -95,13 +97,13 @@ export function validateTelemetryReport(ds: TelemetryDatasetV2 | undefined, pass
     env,
   );
 
-  const incomplete = sig.filter((s) => s.completenessPct < rules.minCompletenessPct);
-  const minPct = sig.length ? Math.min(...sig.map((s) => s.completenessPct)) : 0;
+  const incomplete = stream.filter((s) => s.completenessPct < rules.minCompletenessPct);
+  const minPct = stream.length ? Math.min(...stream.map((s) => s.completenessPct)) : 0;
   const tm6 = makeResult(
     'TM-006',
-    sig.length > 0 && incomplete.length === 0,
+    stream.length > 0 && incomplete.length === 0,
     {
-      message: `Минимальная полнота за ${rules.windowHours} ч: ${minPct} % (порог ${rules.minCompletenessPct} %); ниже порога: ${incomplete.length} из ${sig.length}`,
+      message: `Минимальная полнота за ${rules.windowHours} ч: ${minPct} % (порог ${rules.minCompletenessPct} %); ниже порога: ${incomplete.length} из ${stream.length}`,
       actual: minPct,
       expected: rules.minCompletenessPct,
       details: { ...base, signals: names(incomplete), interval },
@@ -118,17 +120,17 @@ export function validateTelemetryReport(ds: TelemetryDatasetV2 | undefined, pass
   const tm8 = makeResult('TM-008', phys === 0, { message: phys ? `Нарушения знаков и диапазонов: ${phys} (${physSignals.join(', ')})` : 'Знаки и диапазоны соответствуют правилам (Grid ±, Battery ±, PV ≥ 0, SoC 0–100 %)', actual: phys, expected: 0, details: { ...base, signals: physSignals, interval: firstPhys ? { from: firstPhys.timestamp, to: firstPhys.timestamp } : null } }, env);
 
   const tsIssues = count('INVALID_TIMESTAMP', 'NON_UTC_TIMESTAMP', 'DUPLICATE_TIMESTAMP');
-  const tm9 = makeResult('TM-009', tsIssues === 0, { message: tsIssues ? `Некорректные отметки времени: ${tsIssues} (неоднозначная зона, дубли, формат)` : 'Отметки времени — ISO 8601 UTC без дублей', actual: tsIssues, expected: 0, details: { ...base, fields: ['timestamp'] } }, env);
+  const tm9 = makeResult('TM-009', tsIssues === 0, { message: tsIssues ? `Некорректные отметки времени: ${tsIssues} (неоднозначная зона, дубли, формат)` : 'Отметки времени – ISO 8601 UTC без дублей', actual: tsIssues, expected: 0, details: { ...base, fields: ['timestamp'] } }, env);
 
   const susp = count('SOC_JUMP', 'SETPOINT_MISMATCH');
-  const tm10 = makeResult('TM-010', susp === 0, { message: susp ? `Подозрительные значения: ${susp} — требуют проверки, не доказывают неисправность` : 'Подозрительных значений нет', actual: susp, expected: 0, details: base }, env);
+  const tm10 = makeResult('TM-010', susp === 0, { message: susp ? `Подозрительные значения: ${susp} – требуют проверки, не доказывают неисправность` : 'Подозрительных значений нет', actual: susp, expected: 0, details: base }, env);
 
-  // Not Applicable — только при подтверждённом паспортом отсутствии батареи (ТЗ 2.1)
+  // Not Applicable – только при подтверждённом паспортом отсутствии батареи (ТЗ 2.1)
   const batteries = passport.assets.filter((a) => a.type === 'BATTERY');
   const batSignals = sig.filter((s) => s.assetType === 'BATTERY');
   const batBad = batSignals.filter((s) => s.diagnosis !== 'OK' && s.diagnosis !== 'SUSPICIOUS');
   const tm11 = !batteries.length
-    ? makeResult('TM-011', 'NOT_APPLICABLE', { message: 'В паспорте object.json нет батарей — проверка сигналов батареи не применима' }, env)
+    ? makeResult('TM-011', 'NOT_APPLICABLE', { message: 'В паспорте object.json нет батарей – проверка сигналов батареи не применима' }, env)
     : makeResult('TM-011', batBad.length === 0, { message: batBad.length ? `Проблемы сигналов батарей: ${owners(batBad).join(', ')}` : `Сигналы ${batteries.length} батарей в норме`, details: { ...base, signals: names(batBad), owners: owners(batBad) } }, env);
 
   return [tm1, tm2, tm3, tm4, tm5, tm6, tm7, tm8, tm9, tm10, tm11];

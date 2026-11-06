@@ -36,7 +36,7 @@ export const TM_ISSUE: Record<TelemetryIssueType, { ruleId: string; severity: Se
   SETPOINT_MISMATCH: { ruleId: 'TM-010', severity: 'WARNING', diagnosis: 'SUSPICIOUS' },
 };
 
-/** Значение интервала: 0 — нет, 1 — норма, 2 — некорректно, 3 — подозрительно. */
+/** Значение интервала: 0 – нет, 1 – норма, 2 – некорректно, 3 – подозрительно. */
 const NONE = 0, GOOD = 1, INVALID = 2, SUSP = 3;
 
 interface Tracked {
@@ -50,14 +50,18 @@ interface Tracked {
   unit: string | null;
   slots: Uint8Array;
   last: number | null;
+  /** Значение в последней достоверной точке. */
+  lastValue: number | null;
   invalid: number;
   suspicious: number;
   prevSoc: number | null;
+  /** Событийный сигнал управления: значения только при командах – полнота и актуальность не применяются. */
+  event: boolean;
 }
 
 /**
  * Потоковый анализатор telemetry.csv относительно паспорта object.json и точки проверки.
- * Полнота и тепловая карта — по окну [точка − 48 ч, точка) с шагом 15 мин; отдельно по каждому сигналу.
+ * Полнота и тепловая карта – по окну [точка − 48 ч, точка) с шагом 15 мин; отдельно по каждому сигналу.
  */
 export class TelemetryAnalyzer {
   private tracked: Tracked[] = [];
@@ -107,10 +111,11 @@ export class TelemetryAnalyzer {
       else if (/^object_?id$/i.test(field)) this.objectCol = index;
       else cols.set(field, { index, unit });
     });
+    const eventSuffixes = new Set((this.rules.eventSignals ?? []).map((t) => t.replace('{asset}.', '')));
     const add = (signal: string, owner: string, assetType: SignalReport['assetType'], scope: SignalReport['scope'], required: boolean, inPassport: boolean) => {
       if (this.byName.has(signal)) return;
       const c = cols.get(signal);
-      const t: Tracked = { signal, owner, assetType, scope, required, inPassport, col: c?.index ?? -1, unit: c?.unit ?? null, slots: new Uint8Array(this.slotsN), last: null, invalid: 0, suspicious: 0, prevSoc: null };
+      const t: Tracked = { signal, owner, assetType, scope, required, inPassport, col: c?.index ?? -1, unit: c?.unit ?? null, slots: new Uint8Array(this.slotsN), last: null, lastValue: null, invalid: 0, suspicious: 0, prevSoc: null, event: assetType !== 'GRID' && scope === 'ASSET' && eventSuffixes.has(signal.split('.').slice(1).join('.')) };
       this.tracked.push(t);
       this.byName.set(signal, t);
       if (c && c.unit !== expectedUnit(signal) && expectedUnit(signal) !== 'code') {
@@ -132,9 +137,9 @@ export class TelemetryAnalyzer {
     this.rows++;
     const raw = cells[this.tsIndex];
     const ts = parseTimestamp(raw);
-    if (ts.kind === 'invalid') return void this.issue('INVALID_TIMESTAMP', 'GRID', 'timestamp', { timestamp: null, line, value: ts.raw || '(пусто)', expected: 'ISO 8601 UTC', explanation: 'Отметку времени невозможно разобрать — строка исключена.', action: 'Исправить формат времени в выгрузке' });
+    if (ts.kind === 'invalid') return void this.issue('INVALID_TIMESTAMP', 'GRID', 'timestamp', { timestamp: null, line, value: ts.raw || '(пусто)', expected: 'ISO 8601 UTC', explanation: 'Отметку времени невозможно разобрать – строка исключена.', action: 'Исправить формат времени в выгрузке' });
     const iso = () => new Date(ts.ms).toISOString();
-    if (!ts.utc) this.issue('NON_UTC_TIMESTAMP', 'GRID', 'timestamp', { timestamp: iso(), line, value: raw ?? '', expected: 'Смещение Z или +00:00', explanation: ts.offsetMissing ? 'Часовой пояс не указан — время неоднозначно, интервалы нельзя сопоставить.' : 'Время не в UTC.', action: 'Запросить выгрузку телеметрии с временем в UTC' });
+    if (!ts.utc) this.issue('NON_UTC_TIMESTAMP', 'GRID', 'timestamp', { timestamp: iso(), line, value: raw ?? '', expected: 'Смещение Z или +00:00', explanation: ts.offsetMissing ? 'Часовой пояс не указан – время неоднозначно, интервалы нельзя сопоставить.' : 'Время не в UTC.', action: 'Запросить выгрузку телеметрии с временем в UTC' });
     if (this.seen.has(ts.ms)) return void this.issue('DUPLICATE_TIMESTAMP', 'GRID', 'timestamp', { timestamp: iso(), line, value: raw ?? '', expected: 'Одна запись на интервал', explanation: 'Повторная запись интервала не учитывается.', action: 'Удалить дубли в выгрузке' });
     this.seen.add(ts.ms);
     this.first = this.first === null ? ts.ms : Math.min(this.first, ts.ms);
@@ -175,18 +180,21 @@ export class TelemetryAnalyzer {
         else if (t.prevSoc !== null && Math.abs(v - t.prevSoc) > this.rules.maxSocJumpPct) {
           state = SUSP;
           t.suspicious++;
-          this.issue('SOC_JUMP', t.owner, s, { timestamp: iso(), line, value: `${t.prevSoc} → ${v}`, expected: `Изменение ≤ ${this.rules.maxSocJumpPct} п. п. за ${this.rules.intervalMinutes} мин`, explanation: 'Скачок SoC за интервал физически маловероятен — требуется проверка измерения, это не доказательство неисправности батареи.', action: 'Сверить SoC с журналом BMS' });
+          this.issue('SOC_JUMP', t.owner, s, { timestamp: iso(), line, value: `${t.prevSoc} → ${v}`, expected: `Изменение ≤ ${this.rules.maxSocJumpPct} п. п. за ${this.rules.intervalMinutes} мин`, explanation: 'Скачок SoC за интервал физически маловероятен – требуется проверка измерения, это не доказательство неисправности батареи.', action: 'Сверить SoC с журналом BMS' });
         }
         t.prevSoc = v;
       } else if (/energy_kWh/.test(s)) {
-        if (v < 0) bad('OUT_OF_RANGE', '≥ 0', 'Энергия за интервал — неотрицательная величина.', 'Исправить знак энергии в выгрузке');
-        else if (v > this.rules.maxEnergyKwhPerInterval) bad('OUT_OF_RANGE', `≤ ${this.rules.maxEnergyKwhPerInterval} kWh`, 'Значение превышает физически допустимое за интервал — вероятно, другие единицы.', 'Проверить единицы сигнала');
+        if (v < 0) bad('OUT_OF_RANGE', '≥ 0', 'Энергия за интервал – неотрицательная величина.', 'Исправить знак энергии в выгрузке');
+        else if (v > this.rules.maxEnergyKwhPerInterval) bad('OUT_OF_RANGE', `≤ ${this.rules.maxEnergyKwhPerInterval} kWh`, 'Значение превышает физически допустимое за интервал – вероятно, другие единицы.', 'Проверить единицы сигнала');
       } else if (/power_kW/.test(s)) {
         if (/^PV/.test(s) && !/setpoint/.test(s) && v < -0.5) bad('NEGATIVE_PV', '≥ 0', 'Мощность PV не может быть отрицательной (ТЗ 4.2).', `Проверить знак ${s} в выгрузке`);
         else if (Math.abs(v) > this.rules.maxAbsPowerKw) bad('OUT_OF_RANGE', `|P| ≤ ${this.rules.maxAbsPowerKw} kW`, 'Мощность вне физически допустимого диапазона.', 'Проверить единицы и масштаб сигнала');
       }
       if (slot >= 0) t.slots[slot] = Math.max(t.slots[slot]!, state === GOOD ? GOOD : state);
-      if (state !== INVALID) t.last = t.last === null ? ts.ms : Math.max(t.last, ts.ms);
+      if (state !== INVALID && (t.last === null || ts.ms >= t.last)) {
+        t.last = ts.ms;
+        t.lastValue = v;
+      }
     }
 
     // Знаки по направлению энергии: Grid (+ потребление), Battery (+ заряд)
@@ -213,7 +221,7 @@ export class TelemetryAnalyzer {
         const t = this.byName.get(`${a.prefix}.power_kW.setpoint_received`)!;
         t.suspicious++;
         if (slot >= 0 && t.slots[slot] === GOOD) t.slots[slot] = SUSP;
-        this.issue('SETPOINT_MISMATCH', a.assetId, t.signal, { timestamp: iso(), line, value: `${sent} → ${rec}`, expected: `|Δ| ≤ ${this.rules.setpointToleranceKw} kW`, explanation: 'Принятая уставка отличается от отправленной — проверяется на этапе «Управление».', action: 'Сверить журнал команд контроллера' });
+        this.issue('SETPOINT_MISMATCH', a.assetId, t.signal, { timestamp: iso(), line, value: `${sent} → ${rec}`, expected: `|Δ| ≤ ${this.rules.setpointToleranceKw} kW`, explanation: 'Принятая уставка отличается от отправленной – проверяется на этапе «Управление».', action: 'Сверить журнал команд контроллера' });
       }
     }
   }
@@ -236,6 +244,7 @@ export class TelemetryAnalyzer {
       let diagnosis: SignalDiagnosis = 'OK';
       if (!t.inPassport) diagnosis = 'NOT_IN_MAP';
       else if (!inData) diagnosis = this.foreign.some((f) => f.split('.').slice(1).join('.') === t.signal.split('.').slice(1).join('.')) ? 'WRONG_BINDING' : 'NOT_IN_DATA';
+      else if (t.event) diagnosis = t.invalid > 0 ? 'INVALID_DATA' : 'OK';
       else if (t.last === null && t.invalid === 0) diagnosis = 'NO_COMMUNICATION';
       else if (t.invalid > 0) diagnosis = 'INVALID_DATA';
       else if (ageMinutes !== null && ageMinutes > this.rules.maxAgeMinutes) diagnosis = 'STALE';
@@ -247,11 +256,13 @@ export class TelemetryAnalyzer {
         assetType: t.assetType,
         scope: t.scope,
         required: t.required,
+        ...(t.event ? { event: true } : {}),
         inPassport: t.inPassport,
         inData,
         unit: t.unit,
         expectedUnit: expectedUnit(t.signal),
         lastTimestamp: t.last === null ? null : new Date(t.last).toISOString(),
+        lastValue: t.lastValue,
         ageMinutes,
         expected: this.slotsN,
         received,
@@ -272,7 +283,7 @@ export class TelemetryAnalyzer {
       };
       if (!s.inPassport) add('SIGNAL_NOT_IN_MAP', 'нет в карте', `Сигнал ${s.signal} в assets[].signals`, 'Обязательный сигнал не указан в карте сигналов object.json.', `Добавить ${s.signal} в карту сигналов актива ${s.owner}`);
       if (s.diagnosis === 'NOT_IN_DATA') add('SIGNAL_NOT_IN_DATA', 'нет колонки', `Колонка «${s.signal} (${s.expectedUnit})»`, 'Сигнал отсутствует в выгрузке. Это отсутствие сигнала, а не неисправность оборудования.', `Подключить телеметрию сигнала ${s.signal}`);
-      if (s.diagnosis === 'WRONG_BINDING') add('SIGNAL_NOT_IN_DATA', 'нет колонки', `Колонка «${s.signal}»`, 'Сигнал не найден, но в выгрузке есть похожий сигнал другого актива или объекта — вероятна ошибочная привязка.', `Проверить привязку сигнала ${s.signal}`, 'WRONG_BINDING');
+      if (s.diagnosis === 'WRONG_BINDING') add('SIGNAL_NOT_IN_DATA', 'нет колонки', `Колонка «${s.signal}»`, 'Сигнал не найден, но в выгрузке есть похожий сигнал другого актива или объекта – вероятна ошибочная привязка.', `Проверить привязку сигнала ${s.signal}`, 'WRONG_BINDING');
       if (s.diagnosis === 'NO_COMMUNICATION') add('NO_COMMUNICATION', 'нет значений', 'Значения в окне 48 ч', 'Колонка есть, но значений нет: отсутствует связь с активом. Это не доказательство неисправности оборудования.', `Восстановить связь с ${s.owner} и повторить проверку`);
       if (s.inData && s.lastTimestamp && s.ageMinutes !== null && s.ageMinutes > this.rules.maxAgeMinutes) add('STALE_SIGNAL', `${s.ageMinutes} мин`, `≤ ${this.rules.maxAgeMinutes} мин`, 'Последнее значение старше порога актуальности относительно точки проверки: поток прервался.', `Проверить канал связи ${s.owner}`);
       if (s.inData && s.received > 0 && s.completenessPct < this.rules.minCompletenessPct) add('INCOMPLETE_SIGNAL', `${s.completenessPct} % (${s.received}/${s.expected})`, `≥ ${this.rules.minCompletenessPct} %`, `Полнота за ${this.rules.windowHours} ч ниже порога.`, `Восстановить полноту потока ${s.signal}`);

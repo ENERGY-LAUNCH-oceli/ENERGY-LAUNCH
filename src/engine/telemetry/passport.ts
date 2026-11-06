@@ -16,7 +16,7 @@ export const objectJsonSchema = z
     site_signals: z.array(z.string()).default([]),
     data_files: z.object({ invoice: nullableStr, telemetry: nullableStr }),
     csv_format: z
-      .object({ delimiter: z.string().optional(), decimal: z.string().optional(), encoding: z.string().optional(), timestamp_format: z.string().optional(), step_minutes: z.number().optional() })
+      .object({ delimiter: z.string().optional(), separator: z.string().optional(), decimal: z.string().optional(), encoding: z.string().optional(), timestamp_format: z.string().optional(), timestamp: z.string().optional(), step_minutes: z.number().optional(), interval_minutes: z.number().optional() })
       .nullable()
       .optional(),
   })
@@ -26,6 +26,12 @@ export class PassportFormatError extends Error {}
 
 const TYPE: Record<string, PassportAssetType> = { pv: 'PV', battery: 'BATTERY', bess: 'BATTERY' };
 
+/** «PV1.power_kW (kW)» → имя «PV1.power_kW» и единица «kW» (в наборе кейса имена в паспорте записаны с единицей). */
+export function splitSignal(raw: string): { name: string; unit: string | null } {
+  const m = /^(.*?)\s*\(([^()]*)\)\s*$/.exec(raw.trim());
+  return m ? { name: m[1]!, unit: m[2]! } : { name: raw.trim(), unit: null };
+}
+
 /** Префикс сигналов актива: общий первый сегмент его сигналов; иначе по номеру в asset_id. */
 function assetPrefix(asset: { asset_id: string; type: string; signals: string[] }, type: PassportAssetType): string {
   const heads = new Set(asset.signals.map((s) => s.split('.')[0]!).filter(Boolean));
@@ -34,19 +40,27 @@ function assetPrefix(asset: { asset_id: string; type: string; signals: string[] 
   return `${type === 'PV' ? 'PV' : 'Battery'}${n ?? ''}`;
 }
 
-/** Разбор и нормализация object.json. Тип актива не угадывается: неизвестный тип — замечание, а не актив. */
+/** Разбор и нормализация object.json. Тип актива не угадывается: неизвестный тип – замечание, а не актив. */
 export function parseObjectJson(input: unknown, meta: { version: number; source: 'UPLOAD' | 'DEMO'; fileName: string; loadedAt: string }): SitePassport {
   const parsed = objectJsonSchema.safeParse(input);
   if (!parsed.success) {
-    throw new PassportFormatError(`object.json не соответствует формату: ${parsed.error.issues.slice(0, 3).map((i) => `${i.path.join('.') || 'корень'} — ${i.message}`).join('; ')}`);
+    throw new PassportFormatError(`object.json не соответствует формату: ${parsed.error.issues.slice(0, 3).map((i) => `${i.path.join('.') || 'корень'} – ${i.message}`).join('; ')}`);
   }
   const j = parsed.data as unknown as ObjectJson;
   const warnings: string[] = [];
   const assets: PassportAsset[] = [];
-  for (const a of j.assets) {
+  const signalUnits: Record<string, string> = {};
+  const norm = (list: string[]) =>
+    list.map((raw) => {
+      const { name, unit } = splitSignal(raw);
+      if (unit) signalUnits[name] = unit;
+      return name;
+    });
+  for (const raw of j.assets) {
+    const a = { ...raw, signals: norm(raw.signals) };
     const type = TYPE[a.type.toLowerCase()];
     if (!type) {
-      warnings.push(`Актив ${a.asset_id}: тип «${a.type}» не поддерживается (pv / battery) — актив не учитывается`);
+      warnings.push(`Актив ${a.asset_id}: тип «${a.type}» не поддерживается (pv / battery) – актив не учитывается`);
       continue;
     }
     if (!a.signals.length) warnings.push(`Актив ${a.asset_id}: карта сигналов пуста`);
@@ -65,13 +79,14 @@ export function parseObjectJson(input: unknown, meta: { version: number; source:
     timezone: j.timezone,
     ean: { offtake: j.grid_connection.ean_offtake, injection: j.grid_connection.ean_injection },
     assets,
-    siteSignals: j.site_signals,
+    siteSignals: norm(j.site_signals),
+    signalUnits,
     dataFiles: { invoice: j.data_files.invoice, telemetry: j.data_files.telemetry },
     csvFormat: {
-      delimiter: j.csv_format?.delimiter ?? ';',
+      delimiter: j.csv_format?.delimiter ?? j.csv_format?.separator ?? ';',
       decimal: j.csv_format?.decimal ?? ',',
       encoding: j.csv_format?.encoding ?? 'UTF-8-BOM',
-      stepMinutes: j.csv_format?.step_minutes ?? 15,
+      stepMinutes: j.csv_format?.step_minutes ?? j.csv_format?.interval_minutes ?? 15,
     },
     warnings,
   };
@@ -88,7 +103,7 @@ export function expectedUnit(signal: string): string {
 }
 
 /**
- * Обязательные сигналы из паспорта: Grid — всегда; PV и Battery — по каждому активу
+ * Обязательные сигналы из паспорта: Grid – всегда; PV и Battery – по каждому активу
  * с его префиксом (PV1, Battery2). Агрегаты total не подменяют сигналы оборудования.
  */
 export function requiredSignals(passport: SitePassport, rules: TelemetryRules): RequiredSignal[] {
