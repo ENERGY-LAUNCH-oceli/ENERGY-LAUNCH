@@ -17,13 +17,13 @@ export interface ResultParams {
 /** Сборка ValidationResult по правилу из каталога. */
 export function makeResult(
   ruleId: KnownRuleId,
-  passed: boolean | 'SKIPPED',
+  passed: boolean | 'SKIPPED' | 'NOT_APPLICABLE',
   params: ResultParams,
   env: ValidatorEnv,
 ): ValidationResult {
   const rule = getRule(ruleId);
   let status: ValidationStatus;
-  if (passed === 'SKIPPED') status = 'SKIPPED';
+  if (passed === 'SKIPPED' || passed === 'NOT_APPLICABLE') status = passed;
   else if (passed) status = 'PASSED';
   else status = rule.severity === 'WARNING' || !rule.blocking ? 'WARNING' : 'FAILED';
 
@@ -101,7 +101,7 @@ export function analyzeGrid(
   startMs: number,
   endMs: number,
   stepMs: number,
-): { expected: number; present: number; completenessPct: number; maxConsecutiveGaps: number } {
+): { expected: number; present: number; completenessPct: number; maxConsecutiveGaps: number; longestGap: { from: string; to: string } | null } {
   const expected = Math.max(0, Math.floor((endMs - startMs) / stepMs));
   const filled = new Uint8Array(expected);
   for (const m of measurements) {
@@ -112,19 +112,26 @@ export function analyzeGrid(
   let present = 0;
   let run = 0;
   let maxRun = 0;
-  for (const f of filled) {
+  let maxEnd = -1;
+  filled.forEach((f, i) => {
     if (f) {
       present++;
       run = 0;
     } else {
       run++;
-      if (run > maxRun) maxRun = run;
+      if (run > maxRun) {
+        maxRun = run;
+        maxEnd = i;
+      }
     }
-  }
+  });
+  const longestGap =
+    maxRun > 0 ? { from: new Date(startMs + (maxEnd - maxRun + 1) * stepMs).toISOString(), to: new Date(startMs + (maxEnd + 1) * stepMs).toISOString() } : null;
   return {
     expected,
     present,
     completenessPct: expected === 0 ? 0 : round((present / expected) * 100),
     maxConsecutiveGaps: maxRun,
+    longestGap,
   };
 }

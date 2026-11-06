@@ -23,7 +23,7 @@ export function validateControl(
       message: missingTypes.length ? `Не испытаны команды: ${missingTypes.join(', ')}` : 'Все обязательные типы команд испытаны',
       actual: rules.requiredCommandTypes.length - missingTypes.length,
       expected: rules.requiredCommandTypes.length,
-      details: { missingTypes },
+      details: { missingTypes, commands: missingTypes },
     },
     env,
   );
@@ -126,7 +126,7 @@ export function validateControl(
       message: failed.length ? `Отказы команд: ${failed.length}` : 'Отказов команд нет',
       actual: failed.length,
       expected: 0,
-      details: { commandIds: failed.map((c) => c.id) },
+      details: { commandIds: failed.map((c) => c.id), commands: failed.map((c) => `${c.type} (${c.status})`), interval: failed[0] ? { from: failed[0].issuedAt, to: failed.at(-1)!.issuedAt } : null },
     },
     env,
   );

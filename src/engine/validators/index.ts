@@ -28,7 +28,7 @@ export function runStageValidation(
   return STAGE_VALIDATORS[stageId](inputs, config, { ctx, rulesetVersion: config.version });
 }
 
-/** Этап считается прошедшим проверки, если ни одно блокирующее правило не провалено и не пропущено. */
+/** Этап считается прошедшим проверки, если ни одно блокирующее правило не провалено и не пропущено. NOT_APPLICABLE не блокирует. */
 export function hasBlockingFailures(results: readonly ValidationResult[]): boolean {
   return results.some((r) => r.blocking && (r.status === 'FAILED' || r.status === 'SKIPPED'));
 }
