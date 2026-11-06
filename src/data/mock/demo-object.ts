@@ -61,6 +61,8 @@ export const DEMO_OBJECT: EnergyObject = {
     timezone: 'Europe/Moscow',
     location: { region: 'Демо-регион' },
     plannedLaunchDate: '2026-12-01',
+    dataFiles: { invoice: 'invoice.csv', telemetry: 'telemetry.csv' },
+    declaredHistory: { from: '2024-11-01', to: '2026-10-31' },
     documents: [],
   },
   gridConnection: {
@@ -71,6 +73,8 @@ export const DEMO_OBJECT: EnergyObject = {
     voltageLevelKv: 110,
     maxCapacityMw: 15,
     meteringPointIds: [DEMO_METERING_POINT_ID],
+    eanOfftake: '541448800000000017',
+    eanInjection: '541448800000000024',
   },
   assets,
   createdAt: '2026-10-01T00:00:00.000Z',

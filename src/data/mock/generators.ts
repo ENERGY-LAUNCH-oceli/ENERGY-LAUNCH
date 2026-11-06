@@ -3,71 +3,14 @@ import type {
   ControlCommandType,
   ControlTest,
   Dashboard,
-  InvoiceDataset,
   Measurement,
   TelemetryDataset,
 } from '@/types';
 import { createRng } from '@/utils/random';
-import { DEMO_METERING_POINT_ID, DEMO_OBJECT_ID } from './demo-object';
+import { DEMO_OBJECT_ID } from './demo-object';
 
-const MIN = 60_000;
 const iso = (ms: number) => new Date(ms).toISOString();
 
-/** Условная суточная кривая генерации СЭС, кВт·ч за интервал. */
-function pvEnergy(ms: number, intervalMin: number, rng: () => number): number {
-  const hour = new Date(ms).getUTCHours() + new Date(ms).getUTCMinutes() / 60;
-  const sun = Math.max(0, Math.sin(((hour - 3) / 14) * Math.PI)); // UTC ≈ МСК-3
-  return Math.round(sun * 12_000 * (intervalMin / 60) * (0.85 + rng() * 0.15) * 1000) / 1000;
-}
-
-export interface InvoiceOptions {
-  periodStart: string;
-  days: number;
-  intervalMinutes: number;
-  /** Доля пропущенных интервалов 0..1 (случайно). */
-  gapRatio?: number;
-  /** Сплошной пропуск: [индекс первого интервала, длина]. */
-  gapRun?: [number, number];
-  /** Искажение объёма по счёту, % (сверка). */
-  invoiceBiasPct?: number;
-  seed?: number;
-}
-
-export function generateInvoiceDataset(o: InvoiceOptions): InvoiceDataset {
-  const rng = createRng(o.seed ?? 1);
-  const start = Date.parse(o.periodStart);
-  const count = Math.round((o.days * 24 * 60) / o.intervalMinutes);
-  const measurements: Measurement[] = [];
-  for (let i = 0; i < count; i++) {
-    const ts = start + i * o.intervalMinutes * MIN;
-    const inRun = o.gapRun ? i >= o.gapRun[0] && i < o.gapRun[0] + o.gapRun[1] : false;
-    const missing = inRun || rng() < (o.gapRatio ?? 0);
-    measurements.push({
-      signalId: 'sig-energy-export',
-      timestamp: iso(ts),
-      value: missing ? null : pvEnergy(ts, o.intervalMinutes, rng),
-      unit: 'kWh',
-      quality: missing ? 'MISSING' : 'GOOD',
-    });
-  }
-  const end = start + count * o.intervalMinutes * MIN;
-  const metered = measurements.reduce((s, m) => s + (m.value ?? 0), 0);
-  const invoiced = Math.round(metered * (1 + (o.invoiceBiasPct ?? 0) / 100) * 1000) / 1000;
-
-  return {
-    kind: 'INVOICE',
-    id: `ds-invoice-${o.seed ?? 1}`,
-    objectId: DEMO_OBJECT_ID,
-    source: 'DEMO',
-    importedAt: iso(end),
-    periodStart: iso(start),
-    periodEnd: iso(end),
-    invoiceNumber: 'DEMO-INV-0001',
-    supplier: 'Демо-гарантирующий поставщик',
-    lines: [{ id: 'inv-line-1', meteringPointId: DEMO_METERING_POINT_ID, periodStart: iso(start), periodEnd: iso(end), energyKwh: invoiced }],
-    meterSeries: [{ meteringPointId: DEMO_METERING_POINT_ID, signalId: 'sig-energy-export', measurements }],
-  };
-}
 
 export interface TelemetryOptions {
   periodStart: string;
