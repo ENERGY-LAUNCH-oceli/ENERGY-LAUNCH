@@ -3,3 +3,4 @@ export * from './db';
 export * from './repositories';
 export * from './csv-import';
 export * from './invoice-import';
+export * from './telemetry-import';
