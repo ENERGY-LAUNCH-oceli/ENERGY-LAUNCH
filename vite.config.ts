@@ -8,10 +8,14 @@ export default defineConfig({
   resolve: {
     alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) },
   },
-  server: { port: 5173, strictPort: false },
+  // IPv4-адрес явно: на Windows «localhost» у Vite может слушать только ::1, и браузер не подключается.
+  server: { host: '127.0.0.1', port: 5173, strictPort: false },
+  preview: { host: '127.0.0.1' },
   build: {
     sourcemap: true,
     target: 'es2022',
+    // Основной пакет — движок проверок и хранилище, нужны при старте; страницы — отдельными чанками
+    chunkSizeWarningLimit: 700,
     rollupOptions: {
       output: {
         manualChunks: {
