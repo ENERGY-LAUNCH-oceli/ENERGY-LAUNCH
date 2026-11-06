@@ -1,6 +1,7 @@
 # Архитектура
 
-SPA без сервера: React 19 + TypeScript, Vite 7, Tailwind 3, Zustand, Dexie (IndexedDB), PapaParse, Zod.
+SPA: React 19 + TypeScript, Vite 7, Tailwind 3, Zustand, PapaParse, Zod. Хранилище – PostgreSQL через сервер `server/`
+(Node, `pg`; без `DATABASE_URL` – встроенный PostgreSQL PGlite), без сервера – браузер (localStorage, IndexedDB). См. [storage.md](storage.md).
 Вся логика проверок – чистые функции в `src/engine`; интерфейс только показывает результат и вызывает действия.
 
 ## Слои
@@ -15,7 +16,8 @@ components, store  (без React/сети)    src/simulator
 | Слой | Каталоги | Правило |
 | --- | --- | --- |
 | Интерфейс | `app/`, `pages/`, `layouts/`, `components/`, `features/`, `hooks/` | Без порогов и проверок в компонентах |
-| Хранилище | `store/launch-store.ts` | Тонкий адаптер: вызывает движок, кладёт результат в состояние, пишет в IndexedDB; проверяет права роли |
+| Хранилище | `store/launch-store.ts`, `services/server-storage.ts` | Тонкий адаптер: вызывает движок, кладёт результат в состояние, сохраняет в PostgreSQL (или IndexedDB без сервера); проверяет права роли |
+| Сервер | `server/` | HTTP API хранилища: объекты, состояния запуска, журнал аудита только на добавление; решений о запуске не принимает |
 | Движок | `engine/state-machine`, `engine/validators`, `engine/invoice`, `engine/telemetry`, `engine/control`, `engine/dashboards`, `engine/trail` | Чистые функции; время и ID – через `EngineContext`, поэтому прогоны воспроизводимы |
 | Данные | `data/case4` (набор кейса), `data/mock` (генераторы), `data/objects` (каталог), `services` (Dexie, импорт CSV) | Валидация входа – Zod |
 | Имитатор | `simulator/control` | Модель стенда для тестов управления; без сети и таймеров |
@@ -32,7 +34,7 @@ components, store  (без React/сети)    src/simulator
 3. **Сессия запуска.** У каждого объекта своё рабочее пространство: `LaunchSession` (этапы, блокеры, подтверждения),
    `LaunchInputs` (версии входов, история проверок) и журнал аудита.
 4. **Действие** (начать этап, проверить, подтвердить, завершить, загрузить файл, тест управления, публикация,
-   приёмка) → функция движка → `{ ok, session | error, events }` → состояние + IndexedDB.
+   приёмка) → функция движка → `{ ok, session | error, events }` → состояние → PostgreSQL (документ объекта + новые события журнала).
 5. **Изменение входа** (новая выгрузка, паспорт, тест, публикация) → `invalidate()`: подтверждения затронутых
    этапов помечаются устаревшими, начатые этапы перепроверяются (снимок с `trigger: RECHECK`).
 

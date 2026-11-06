@@ -13,8 +13,12 @@
 
 ```bash
 npm ci
+npm run api        # сервер хранилища PostgreSQL: 127.0.0.1:8787 (без DATABASE_URL – встроенный PostgreSQL в .data/)
 npm run dev        # http://127.0.0.1:5173
 ```
+
+Без `npm run api` приложение тоже работает, но ход запуска хранится только до перезагрузки страницы.
+Хранилище, таблицы и API – [docs/storage.md](docs/storage.md).
 
 Без набора кейса приложение работает на синтетическом портфеле. Как подключить реальный набор (Building1–6) –
 [docs/data-upload.md](docs/data-upload.md).
@@ -25,7 +29,9 @@ npm run dev        # http://127.0.0.1:5173
 docker compose up --build   # http://127.0.0.1:8080
 ```
 
-Образ собирает SPA и раздаёт его через nginx (строгая CSP, без карт исходников). Данные кейса в образ не входят:
+Три контейнера: `energy-launch` (SPA через nginx, строгая CSP, без карт исходников; `/api` проксируется),
+`api` (сервер хранилища) и `db` (PostgreSQL 17, том `pgdata`). Перед запуском задайте `POSTGRES_PASSWORD` в `.env`.
+Данные кейса в образ не входят:
 `public/case4` монтируется томом только для чтения. Без папки – синтетические данные. Переменные – `.env.example`.
 
 ## Команды
@@ -33,10 +39,11 @@ docker compose up --build   # http://127.0.0.1:8080
 | Команда | Назначение |
 | --- | --- |
 | `npm run dev` | Dev-сервер Vite (127.0.0.1:5173) |
+| `npm run api` | Сервер хранилища PostgreSQL (127.0.0.1:8787); `npm run dev:api` – с перезапуском при правках |
 | `npm run build` | Проверка типов и production-сборка в `dist/` |
 | `npm run typecheck` | TypeScript (`tsc -b`) |
 | `npm run lint` | ESLint (typescript-eslint, react-hooks) |
-| `npm test` | Unit- и интеграционные тесты (Vitest), включая 11 сценариев ТЗ |
+| `npm test` | Unit- и интеграционные тесты (Vitest), включая 11 сценариев ТЗ и сервер хранилища на PostgreSQL (PGlite) |
 | `npm run test:e2e` | E2E (Playwright: сборка `--mode e2e` на синтетике и preview на 127.0.0.1:4173) |
 | `node scripts/case4-manifest.mjs` | `manifest.json` набора кейса: SHA-256, строки, период, шаг |
 

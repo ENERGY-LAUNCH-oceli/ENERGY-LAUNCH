@@ -8,6 +8,9 @@
 - Страницы `/design-system` больше нет. Артефакт https://claude.ai/artifact/87HVsmHPQ8R68mJzjkmTsh
   и локальная папка `design/` описывают старый дизайн (Manrope, «пилюли») и устарели.
 - Dev-сервер: `npm run dev` → http://127.0.0.1:5173 (Vite привязан к IPv4: на этой машине `localhost`/::1 не открывается).
+- Хранилище: `npm run api` → сервер `server/` (PostgreSQL по `DATABASE_URL`, иначе встроенный PGlite в `.data/pglite`, git-ignored); Vite проксирует `/api`.
+  Без сервера – браузер. Сервер запускается Node 22 без сборки (`node server/index.ts`, импорты с `.ts`). Подробно – `docs/storage.md`.
+  PostgreSQL на машине не установлен. E2E собирается с `VITE_STORAGE=browser`.
 - Скриншоты для проверки вёрстки: Playwright (Chromium установлен), обе темы.
 - Набор кейса 4 (Building1–6) – `public/case4` (+ `manifest.json` из `node scripts/case4-manifest.mjs`), ТЗ и паспорт – `docs/source/`.
   Обе папки в .gitignore: данные не публикуются (ТЗ 4.3). Приложение грузит набор при старте; без него – синтетика.
