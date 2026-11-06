@@ -134,3 +134,25 @@ test('история счётчиков: файл не того формата �
   await page.locator('input[type="file"]').setInputFiles({ name: 'invoice.csv', mimeType: 'text/csv', buffer: Buffer.from('hello world\n1,2,3\n') });
   await expect(page.getByText('Файл не принят')).toBeVisible();
 });
+
+test('телеметрия: нет связи с батареей, тепловая карта, исправление и повторная проверка', async ({ page }) => {
+  await page.goto('/objects/obj-004/telemetry');
+  await expect(page.getByTestId('stage-status-REALTIME_TELEMETRY')).toHaveAttribute('data-status', 'BLOCKED');
+  await expect(page.locator('[data-signal="Battery1.SOC_%"]')).toHaveAttribute('data-diagnosis', 'NO_COMMUNICATION');
+  await expect(page.locator('[data-signal="PV1.power_kW"]')).toHaveAttribute('data-diagnosis', 'OK');
+  await page.getByTestId('heatmap').locator('rect[data-state="M"]').first().click();
+  await expect(page.getByTestId('heatmap-detail')).toContainText('Нет связи');
+
+  await page.getByRole('button', { name: 'Корректный поток' }).click();
+  await expect(page.getByText('Результат проверки неактуален')).toBeVisible();
+  await page.getByRole('button', { name: 'Повторить проверки' }).click();
+  await expect(page.locator('[data-signal="Battery1.SOC_%"]')).toHaveAttribute('data-diagnosis', 'OK');
+  await expect(page.getByTestId('stage-status-REALTIME_TELEMETRY')).toHaveAttribute('data-status', 'IN_PROGRESS');
+  await expect(page.getByTestId('telemetry-runs').locator('tbody tr')).toHaveCount(2);
+});
+
+test('телеметрия: ошибочная привязка видна пользователю', async ({ page }) => {
+  await page.goto('/objects/obj-005/telemetry');
+  await expect(page.getByTestId('foreign-columns')).toContainText('Battery2.power_kW');
+  await expect(page.locator('[data-signal="Battery1.power_kW"]')).toHaveAttribute('data-diagnosis', 'WRONG_BINDING');
+});
