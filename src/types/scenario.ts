@@ -1,8 +1,9 @@
 import type { Id } from './common';
 import type { ControlTest } from './control';
 import type { Dashboard } from './dashboard';
-import type { InvoiceDataset, TelemetryDataset } from './dataset';
+import type { InvoiceDataset } from './dataset';
 import type { InvoiceValidationRun } from './invoice';
+import type { SitePassport, TelemetryDatasetV2, TelemetryValidationRun } from './telemetry';
 import type { StageId, StageStatus } from './launch';
 import type { EnergyObject } from './object';
 import type { RuleId } from './validation';
@@ -15,7 +16,12 @@ export interface LaunchInputs {
   invoiceHistory?: InvoiceDataset[];
   /** История прогонов проверок этапа 1; старые результаты не удаляются. */
   invoiceRuns?: InvoiceValidationRun[];
-  telemetry?: TelemetryDataset;
+  /** Паспорт объекта object.json (нормализованный). */
+  passport?: SitePassport;
+  passportHistory?: SitePassport[];
+  telemetry?: TelemetryDatasetV2;
+  telemetryHistory?: TelemetryDatasetV2[];
+  telemetryRuns?: TelemetryValidationRun[];
   controlTests: ControlTest[];
   dashboards: Dashboard[];
 }
