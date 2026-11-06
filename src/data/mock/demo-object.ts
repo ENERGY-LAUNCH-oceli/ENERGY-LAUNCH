@@ -62,7 +62,7 @@ export const DEMO_OBJECT: EnergyObject = {
     location: { region: 'Демо-регион' },
     plannedLaunchDate: '2026-12-01',
     dataFiles: { invoice: 'invoice.csv', telemetry: 'telemetry.csv' },
-    declaredHistory: { from: '2024-11-01', to: '2026-10-31' },
+    declaredHistory: { from: '2024-11-05', to: '2026-11-04' },
     documents: [],
   },
   gridConnection: {

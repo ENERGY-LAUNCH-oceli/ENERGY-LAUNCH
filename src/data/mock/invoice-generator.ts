@@ -1,5 +1,5 @@
 import { ACTIVE_RULESET } from '@/config/rules';
-import { addMonths, InvoiceAnalyzer, monthStart } from '@/engine/invoice';
+import { addMonths, anchoredWindow, InvoiceAnalyzer, monthStart } from '@/engine/invoice';
 import type { InvoiceDataset, InvoiceField } from '@/types';
 import { createRng } from '@/utils/random';
 
@@ -44,14 +44,17 @@ const num = (v: number) => {
   return String(r).replace('.', ',');
 };
 
-/** Заголовок и строки выгрузки (ленивая генерация — без хранения всего файла). */
+/** Заголовок и строки выгрузки (ленивая генерация – без хранения всего файла). */
 export function* invoiceRows(o: InvoiceGenOptions): Generator<string[]> {
   const rng = createRng(o.seed ?? 42);
   const months = o.months ?? 24;
   const end = o.endMonth ?? '2026-10';
+  // Окно активных правил (от точки проверки) – синтетика покрывает ровно его; иначе – календарные месяцы
+  const mh = ACTIVE_RULESET.meterHistory;
+  const anchor = !o.endMonth && mh.checkPoint ? anchoredWindow(mh.checkPoint, months, mh.timezone ?? 'UTC') : null;
   const startMonth = addMonths(end, -(months - 1) + (o.missingFirstMonths ?? 0));
-  const from = monthStart(startMonth);
-  const to = monthStart(addMonths(end, 1));
+  const from = anchor ? (anchor.segments[o.missingFirstMonths ?? 0]?.from ?? anchor.from) : monthStart(startMonth);
+  const to = anchor ? anchor.to : monthStart(addMonths(end, 1));
   const step = (o.stepMinutes ?? 15) * 60_000;
   const gapSet = new Set<number>();
   for (const [iso, n] of o.gaps ?? []) for (let i = 0; i < n; i++) gapSet.add(Date.parse(iso) + i * step);
@@ -97,7 +100,8 @@ export function* invoiceRows(o: InvoiceGenOptions): Generator<string[]> {
       num(-200),
       ...(o.ean ? [o.ean.offtake, o.ean.injection] : []),
     ];
-    if (emptyIdx.has(i)) cells[1] = '';
+    // Пробел: пусты и исходное, и валидированное значение потребления
+    if (emptyIdx.has(i)) cells[1] = cells[2] = '';
     yield cells;
     if (dupIdx.has(i)) yield [...cells];
   }
@@ -107,7 +111,7 @@ export function* invoiceRows(o: InvoiceGenOptions): Generator<string[]> {
 export function invoiceCsvText(o: InvoiceGenOptions): string {
   const lines: string[] = [];
   for (const row of invoiceRows(o)) lines.push(row.join(';'));
-  return `﻿${lines.join('\r\n')}\r\n`;
+  return `\uFEFF${lines.join('\r\n')}\r\n`;
 }
 
 const cache = new Map<string, InvoiceDataset>();
