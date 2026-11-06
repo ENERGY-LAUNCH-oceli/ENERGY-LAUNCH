@@ -44,7 +44,7 @@ function passStage(session: LaunchSession, stageId: StageId, inputs: LaunchInput
 }
 
 describe('таблица переходов', () => {
-  it('COMPLETED — терминальный', () => {
+  it('COMPLETED – терминальный', () => {
     expect(canTransition('COMPLETED', 'IN_PROGRESS')).toBe(false);
     expect(canTransition('NOT_STARTED', 'COMPLETED')).toBe(false);
     expect(canTransition('BLOCKED', 'COMPLETED')).toBe(false);
@@ -167,7 +167,7 @@ describe('требования фазы 05', () => {
     expect(s.evidence).toHaveLength(1);
   });
 
-  it('SoC батареи — Not Applicable без батареи и не блокирует этап', () => {
+  it('SoC батареи – Not Applicable без батареи и не блокирует этап', () => {
     const passport = demoPassport({ objectId: inputs.object.id, name: 'PV only', ean: { offtake: null, injection: null }, assets: [{ id: 'pv-1', type: 'pv', prefix: 'PV1' }] });
     const pvOnly = { ...inputs, passport, telemetry: buildTelemetryDataset(passport) };
     let s = unwrap(startStage(createLaunchSession(inputs.object.id, cfg.version, ctx), 'METER_HISTORY', ctx));

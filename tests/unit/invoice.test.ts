@@ -14,11 +14,14 @@ const run = (o: Partial<InvoiceGenOptions>, object: EnergyObject = DEMO_OBJECT) 
   return { ds, results, status, failed: results.filter((r) => r.status === 'FAILED').map((r) => r.ruleId) };
 };
 
-describe('invoice.csv — этап 1', () => {
+describe('invoice.csv – этап 1', () => {
   it('полная корректная история проходит все обязательные проверки', () => {
     const { failed, ds } = run({});
     expect(failed).toEqual([]);
-    expect(ds.report.window!.months).toHaveLength(24);
+    // Окно 24 месяца от точки проверки (05.11): первый и последний календарный месяц – неполные сегменты
+    expect(ds.report.window!.months).toHaveLength(25);
+    expect(ds.report.window!.from).toBe("2024-11-04T23:00:00.000Z");
+    expect(ds.report.window!.to).toBe("2026-11-04T23:00:00.000Z");
     expect(ds.report.completeness.pct).toBe(100);
     expect(ds.report.detectedStepMinutes).toBe(15);
   });
@@ -71,7 +74,7 @@ describe('invoice.csv — этап 1', () => {
     expect(run({}, unregistered).status('MH-012')).toBe('FAILED');
   });
 
-  it('без данных — не успех', () => {
+  it('без данных – не успех', () => {
     const results = validateInvoice(undefined, DEMO_OBJECT, rules, env);
     expect(results.find((r) => r.ruleId === 'MH-001')?.status).toBe('FAILED');
     expect(results.filter((r) => r.ruleId !== 'MH-001' && r.ruleId !== 'MH-011').every((r) => r.status === 'SKIPPED')).toBe(true);
@@ -85,7 +88,7 @@ describe('invoice.csv — этап 1', () => {
     expect({ ...fromCsv, meta: { ...fromCsv.meta, sizeBytes: 0 } }).toEqual({ ...direct, meta: { ...direct.meta, sizeBytes: 0 } });
   });
 
-  it('воспроизводимость: одинаковые входы — одинаковый отчёт', () => {
+  it('воспроизводимость: одинаковые входы – одинаковый отчёт', () => {
     expect(run({ duplicates: 3, seed: 5 }).ds).toEqual(run({ duplicates: 3, seed: 5 }).ds);
   });
 });
