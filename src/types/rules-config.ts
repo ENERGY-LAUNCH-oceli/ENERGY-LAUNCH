@@ -20,17 +20,31 @@ export interface ConfirmationRequirement {
   minEvidence: number;
 }
 
+export type SignRule = 'NON_NEGATIVE' | 'NON_POSITIVE' | 'ANY';
+
+export interface InvoiceFieldRule {
+  field: string;
+  unit: string;
+  sign: SignRule;
+  required: boolean;
+}
+
 export interface MeterHistoryRules {
-  /** Шаг интервального учёта, минуты (частота данных). */
+  /** Заявленная частота официальных данных, минуты (ТЗ: 15). */
   intervalMinutes: number;
-  /** Глубина проверяемой истории, сутки (период проверки). */
-  checkPeriodDays: number;
-  /** Минимальная полнота интервалов, %. */
+  /** Требуемая история, последовательных месяцев (ТЗ: 24). */
+  periodMonths: number;
+  /** Минимальная полнота интервалов в окне, %. */
   minCompletenessPct: number;
-  /** Максимум подряд пропущенных интервалов. */
-  maxConsecutiveGaps: number;
-  /** Допустимое расхождение счёта и учёта, %. */
-  invoiceTolerancePct: number;
+  maxDuplicates: number;
+  maxInvalidTimestamps: number;
+  /** Допуск расхождения исходных и валидированных значений, % (предупреждение). */
+  validatedTolerancePct: number;
+  /** Отношение E / (P·Δt), выше которого значение считается в других единицах (Wh вместо kWh). */
+  unitRatioThreshold: number;
+  fields: InvoiceFieldRule[];
+  /** Длина кода EAN. */
+  eanLength: number;
 }
 
 export interface TelemetryRules {

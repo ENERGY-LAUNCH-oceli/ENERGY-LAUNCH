@@ -2,6 +2,7 @@ import type { Id } from './common';
 import type { ControlTest } from './control';
 import type { Dashboard } from './dashboard';
 import type { InvoiceDataset, TelemetryDataset } from './dataset';
+import type { InvoiceValidationRun } from './invoice';
 import type { StageId, StageStatus } from './launch';
 import type { EnergyObject } from './object';
 import type { RuleId } from './validation';
@@ -10,6 +11,10 @@ import type { RuleId } from './validation';
 export interface LaunchInputs {
   object: EnergyObject;
   invoice?: InvoiceDataset;
+  /** Предыдущие загрузки истории счётчиков (повторная проверка не стирает историю). */
+  invoiceHistory?: InvoiceDataset[];
+  /** История прогонов проверок этапа 1; старые результаты не удаляются. */
+  invoiceRuns?: InvoiceValidationRun[];
   telemetry?: TelemetryDataset;
   controlTests: ControlTest[];
   dashboards: Dashboard[];
