@@ -116,6 +116,15 @@ const RULES = [
     blocking: true,
     configRef: 'telemetry.observationPeriodHours',
   },
+  {
+    id: 'TM-006',
+    stageId: 'REALTIME_TELEMETRY',
+    dimension: 'PRESENCE',
+    title: 'Уровень заряда батареи',
+    description: 'Для объекта с батареей поступает сигнал SoC; без батареи — не применимо.',
+    severity: 'CRITICAL',
+    blocking: true,
+  },
   // ── Этап 3. Asset Control ─────────────────────────────────────────────
   {
     id: 'CT-001',
