@@ -10,12 +10,12 @@ function Row({ s, maxAge, minPct }: { s: SignalReport; maxAge: number; minPct: n
   const d = DIAGNOSIS[s.diagnosis];
   return (
     <tr className={cn('border-b border-border last:border-0', s.diagnosis !== 'OK' && s.required && 'bg-error-subtle/30')} data-signal={s.signal} data-diagnosis={s.diagnosis}>
-      <td className="py-2 pl-4 pr-3 font-mono text-caption font-semibold">{s.signal}</td>
+      <td className="py-2 pl-4 pr-3 font-mono text-caption font-medium">{s.signal}</td>
       <td className="px-3 text-caption">
         {s.inData ? (
-          <span className={cn(s.unit !== s.expectedUnit && s.expectedUnit !== 'code' && 'font-bold text-error')}>{s.unit ?? '—'}</span>
+          <span className={cn(s.unit !== s.expectedUnit && s.expectedUnit !== 'code' && 'font-medium text-error')}>{s.unit ?? '–'}</span>
         ) : (
-          '—'
+          '–'
         )}{' '}
         <span className="text-text-muted">/ {s.expectedUnit}</span>
       </td>
@@ -26,7 +26,7 @@ function Row({ s, maxAge, minPct }: { s: SignalReport; maxAge: number; minPct: n
           {d.label}
         </Badge>
       </td>
-      <td className={cn('px-3 text-right tabular text-caption', s.ageMinutes !== null && s.ageMinutes > maxAge && 'font-bold text-error')}>{s.ageMinutes === null ? '—' : `${s.ageMinutes} мин`}</td>
+      <td className={cn('px-3 text-right tabular text-caption', s.ageMinutes !== null && s.ageMinutes > maxAge && 'font-medium text-error')}>{s.ageMinutes === null ? '–' : `${s.ageMinutes} мин`}</td>
       <td className="px-3">
         <div className="flex items-center gap-2">
           <span className="h-1.5 w-16 overflow-hidden rounded-pill bg-surface-sunken">
@@ -39,7 +39,7 @@ function Row({ s, maxAge, minPct }: { s: SignalReport; maxAge: number; minPct: n
         </span>
       </td>
       <td className="px-3 pr-4 text-right tabular text-caption">
-        {s.invalid ? <span className="font-bold text-error">{s.invalid} некорр.</span> : s.suspicious ? <span className="font-bold text-warning">{s.suspicious} подозр.</span> : <Minus className="ml-auto size-4 text-text-muted" />}
+        {s.invalid ? <span className="font-medium text-error">{s.invalid} некорр.</span> : s.suspicious ? <span className="font-medium text-warning">{s.suspicious} подозр.</span> : <Minus className="ml-auto size-4 text-text-muted" />}
       </td>
     </tr>
   );
@@ -54,15 +54,15 @@ export function SignalMapping({ passport, report, maxAge, minPct }: { passport: 
     <section id="mapping" aria-label="Signal Mapping" className="min-w-0 scroll-mt-24 rounded-lg border border-border bg-surface">
       <div className="flex flex-wrap items-end justify-between gap-3 px-5 pt-5">
         <div className="flex flex-col gap-0.5">
-          <span className="text-label uppercase text-accent-strong">Signal Mapping</span>
+          <span className="text-label text-text-muted">Signal Mapping</span>
           <h2 className="text-h3">Карта сигналов по паспорту</h2>
         </div>
-        <span className="text-caption text-text-muted">Колонки «В карте» — object.json, «В данных» — telemetry.csv</span>
+        <span className="text-caption text-text-muted">Колонки «В карте» – object.json, «В данных» – telemetry.csv</span>
       </div>
       <div className="mt-4 overflow-x-auto">
         <table className="w-full min-w-[900px] text-body-sm" data-testid="signal-mapping">
           <thead>
-            <tr className="border-y border-border bg-surface-secondary text-left text-[11px] font-bold uppercase tracking-[0.06em] text-text-secondary">
+            <tr className="border-y border-border text-left font-mono text-[11px] font-normal uppercase tracking-[0.06em] text-text-muted">
               <th className="py-2 pl-4 pr-3">Сигнал</th>
               <th className="px-3">Ед.</th>
               <th className="px-3">В карте</th>
@@ -92,7 +92,7 @@ export function SignalMapping({ passport, report, maxAge, minPct }: { passport: 
                 ))}
                 {!report && (
                   <tr>
-                    <td colSpan={8} className="px-4 py-3 text-caption text-text-muted">Телеметрия не загружена — сигналы не проверены.</td>
+                    <td colSpan={8} className="px-4 py-3 text-caption text-text-muted">Телеметрия не загружена – сигналы не проверены.</td>
                   </tr>
                 )}
               </tbody>
@@ -102,12 +102,12 @@ export function SignalMapping({ passport, report, maxAge, minPct }: { passport: 
       </div>
       <div className="grid gap-4 border-t border-border px-5 py-4 text-caption md:grid-cols-2">
         <div>
-          <span className="font-semibold text-text-secondary">Агрегаты и сигналы объекта (не подменяют сигналы оборудования):</span>
-          <span className="mt-1 block font-mono text-text-muted">{extra.length ? extra.map((s) => `${s.signal}${s.inData ? '' : ' (нет в данных)'}`).join(' · ') : '—'}</span>
+          <span className="font-medium text-text-secondary">Агрегаты и сигналы объекта (не подменяют сигналы оборудования):</span>
+          <span className="mt-1 block font-mono text-text-muted">{extra.length ? extra.map((s) => `${s.signal}${s.inData ? '' : ' (нет в данных)'}`).join(' · ') : '–'}</span>
         </div>
         <div>
-          <span className="font-semibold text-text-secondary">Сигналы вне паспорта:</span>
-          <span className={cn('mt-1 block font-mono', report?.foreignColumns.length ? 'font-semibold text-error' : 'text-text-muted')} data-testid="foreign-columns">
+          <span className="font-medium text-text-secondary">Сигналы вне паспорта:</span>
+          <span className={cn('mt-1 block font-mono', report?.foreignColumns.length ? 'font-medium text-error' : 'text-text-muted')} data-testid="foreign-columns">
             {report?.foreignColumns.length ? report.foreignColumns.join(' · ') : 'нет'}
           </span>
           {report?.objectIdsInFile.length ? <span className="mt-1 block">object_id в файле: <span className="font-mono">{report.objectIdsInFile.join(', ')}</span></span> : null}
@@ -121,14 +121,17 @@ export function SignalMapping({ passport, report, maxAge, minPct }: { passport: 
 export function DiagnosisLegend() {
   const items = ['NOT_IN_DATA', 'NO_COMMUNICATION', 'WRONG_BINDING', 'SUSPICIOUS'] as const;
   return (
-    <section aria-label="Как читать причины" className="grid h-fit gap-3 rounded-lg border border-border bg-surface-secondary p-5 md:grid-cols-2">
-      {items.map((k) => (
-        <div key={k} className="flex flex-col gap-1">
-          <span className="text-body-sm font-bold">{DIAGNOSIS[k].label}</span>
+    <section aria-label="Как читать причины" className="flex h-fit flex-col gap-3 rounded-lg border border-border bg-surface p-5">
+      <h2 className="text-body-sm font-semibold">Как читать результаты</h2>
+      <div className="grid gap-2 sm:grid-cols-2 2xl:grid-cols-1">
+        {items.map((k) => (
+          <div key={k} className="flex flex-col gap-1 rounded-md bg-surface-secondary px-3 py-2.5">
+          <span className="text-body-sm font-medium">{DIAGNOSIS[k].label}</span>
           <span className="text-caption text-text-secondary">{DIAGNOSIS[k].hint}</span>
-        </div>
-      ))}
-      <p className="text-caption font-semibold text-text-primary md:col-span-2">
+          </div>
+        ))}
+      </div>
+      <p className="rounded-md border border-info-border bg-info-subtle px-3 py-2.5 text-caption text-text-secondary">
         Отсутствие телеметрии не является доказательством неисправности батареи или PV: вывод о неисправности делается только после восстановления связи и проверки на месте.
       </p>
     </section>
