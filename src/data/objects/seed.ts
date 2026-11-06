@@ -1,6 +1,7 @@
 import { addConfirmation, addEvidence, completeStage, createFixedContext, createLaunchSession, startStage, validateStage, type MachineResult } from '@/engine';
 import type { AuditEvent, LaunchInputs, LaunchSession, RulesConfig } from '@/types';
 import { STAGE_IDS } from '@/types';
+import { makeInvoiceRun } from '@/engine/invoice';
 import { loadObjectInputs, type ObjectCatalogEntry } from './catalog';
 
 export interface SeededWorkspace {
@@ -33,6 +34,9 @@ export function seedWorkspace(entry: ObjectCatalogEntry, ruleset: RulesConfig): 
   for (const stageId of STAGE_IDS.slice(0, STAGE_IDS.indexOf(entry.seedUntil) + 1)) {
     apply(startStage(session, stageId, ctx));
     apply(validateStage(session, stageId, inputs, ruleset, ctx));
+    if (stageId === 'METER_HISTORY') {
+      inputs.invoiceRuns = [makeInvoiceRun(inputs.invoice, session.stages.METER_HISTORY.validationResults, ruleset.meterHistory, ruleset.version, session.stages.METER_HISTORY.lastValidatedAt!, [])];
+    }
     if (session.stages[stageId].status !== 'IN_PROGRESS') break;
     for (const req of ruleset.confirmations[stageId]) {
       apply(addEvidence(session, { stageId, type: req.evidenceTypes[0]!, title: `${req.title} — отчёт` }, ctx));
