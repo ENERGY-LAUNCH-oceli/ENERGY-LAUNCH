@@ -21,7 +21,7 @@ export function StageSummaryCard({ session, stageId, responsible, selected, onOp
       {(blocked || selected) && <span aria-hidden className={cn('absolute inset-x-0 top-0 h-[3px]', blocked ? 'bg-status-blocked-solid' : 'bg-accent')} />}
       <header className="flex items-start justify-between gap-2">
         <div className="flex flex-col gap-0.5">
-          <span className="tabular font-mono text-caption font-semibold text-text-muted">0{stage.order}</span>
+          <span className="tabular font-mono text-caption font-medium text-text-muted">0{stage.order}</span>
           <h3 className="text-h3">{STAGE_META[stageId].titleRu}</h3>
         </div>
         <StatusBadge status={stage.status} size="sm" />
@@ -30,20 +30,20 @@ export function StageSummaryCard({ session, stageId, responsible, selected, onOp
       <div className="flex flex-col gap-3">
         <div className="flex items-baseline gap-1">
           <span className="tabular text-numeric">{stage.status === 'NOT_STARTED' ? 0 : s.percent}</span>
-          <span className="text-body-sm font-semibold text-text-secondary">% проверок пройдено</span>
+          <span className="text-body-sm font-medium text-text-secondary">% проверок пройдено</span>
         </div>
         <dl className="grid grid-cols-3 gap-2 rounded-sm bg-surface-secondary px-3 py-2 text-caption">
           <div className="flex flex-col">
             <dt className="text-text-muted">Успешно</dt>
-            <dd className="tabular text-body-sm font-bold text-success">{s.passed}</dd>
+            <dd className="tabular text-body-sm font-medium text-success">{s.passed}</dd>
           </div>
           <div className="flex flex-col">
             <dt className="text-text-muted">Ошибки</dt>
-            <dd className={cn('tabular text-body-sm font-bold', s.failed ? 'text-error' : 'text-text-muted')}>{s.failed}</dd>
+            <dd className={cn('tabular text-body-sm font-medium', s.failed ? 'text-error' : 'text-text-muted')}>{s.failed}</dd>
           </div>
           <div className="flex flex-col">
             <dt className="text-text-muted">Предупр.</dt>
-            <dd className={cn('tabular text-body-sm font-bold', s.warnings ? 'text-warning' : 'text-text-muted')}>{s.warnings}</dd>
+            <dd className={cn('tabular text-body-sm font-medium', s.warnings ? 'text-warning' : 'text-text-muted')}>{s.warnings}</dd>
           </div>
         </dl>
       </div>

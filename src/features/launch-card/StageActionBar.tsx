@@ -27,20 +27,22 @@ export function StageActionBar({ stageId }: { stageId: StageId }) {
 
   return (
     <>
-      <div className="flex flex-wrap items-center justify-between gap-4 rounded-lg border border-border bg-surface px-5 py-4">
-        <div className="flex items-center gap-3">
-          <span className="tabular font-mono text-h3 text-text-muted">0{stage.order}</span>
-          <div className="flex flex-col">
-            <h2 className="text-h2">{STAGE_META[stageId].titleRu}</h2>
-            <span className="text-caption text-text-muted">
+      <div className="flex flex-col gap-4 rounded-lg border border-border bg-surface px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex min-w-0 items-start gap-3">
+          <span className="mt-0.5 shrink-0 font-mono text-caption font-medium tabular text-text-muted">0{stage.order}</span>
+          <div className="flex min-w-0 flex-col gap-1">
+            <div data-testid={`stage-heading-${stageId}`} className="flex flex-wrap items-center gap-x-3 gap-y-1">
+              <h2 className="text-h2">{STAGE_META[stageId].titleRu}</h2>
+              <span data-testid={`stage-status-${stageId}`} data-status={stage.status}>
+                <StatusBadge status={stage.status} />
+              </span>
+            </div>
+            <span className="flex flex-wrap gap-x-1.5 text-caption text-text-muted">
               Проверок: <b className="tabular">{stats.checks.length}</b> · пройдено <b className="tabular">{stats.passed}</b> · ошибок <b className="tabular">{stats.failed}</b> · ожидают <b className="tabular">{stats.pending}</b>
             </span>
           </div>
-          <span data-testid={`stage-status-${stageId}`} data-status={stage.status}>
-            <StatusBadge status={stage.status} />
-          </span>
         </div>
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap gap-2 sm:shrink-0">
           {stage.status === 'NOT_STARTED' && (
             <Button variant="accent" onClick={() => start(stageId)}>
               <Play aria-hidden />
@@ -82,7 +84,7 @@ export function StageActionBar({ stageId }: { stageId: StageId }) {
                 {deps.map((d) => (
                   <li key={d.stageId} className="flex items-center gap-2">
                     <Link2Off className="size-3.5 text-error" aria-hidden />
-                    <b className="text-text-primary">{STAGE_META[d.stageId].titleRu}</b> — {STAGE_STATUS_LABEL[d.status].toLowerCase()}
+                    <b className="text-text-primary">{STAGE_META[d.stageId].titleRu}</b> – {STAGE_STATUS_LABEL[d.status].toLowerCase()}
                   </li>
                 ))}
               </ul>

@@ -37,12 +37,12 @@ export function StageWorkspace({ stageId }: { stageId: StageId }) {
 
       <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_400px]">
         <div className="flex min-w-0 flex-col gap-3">
-          <h3 className="text-label uppercase text-text-muted">Проверки</h3>
+          <h3 className="text-label text-text-muted">Проверки</h3>
           <ChecksList checks={stats.checks} source={STAGE_SOURCE[stageId]} />
         </div>
         <div className="flex flex-col gap-5">
           <div className="flex flex-col gap-3">
-            <h3 className="text-label uppercase text-text-muted">Препятствия</h3>
+            <h3 className="text-label text-text-muted">Препятствия</h3>
             {obstacles.length ? (
               <ObstacleList items={obstacles} />
             ) : (
