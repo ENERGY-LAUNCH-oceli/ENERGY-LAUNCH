@@ -17,7 +17,7 @@ const SOURCE: Record<StageId, string> = {
   FINAL_DASHBOARDS: 'конфигурация дашбордов',
 };
 
-/** Детали этапа: проверки, препятствия, подтверждения. Данные — из стора, решения — из движка. */
+/** Детали этапа: проверки, препятствия, подтверждения. Данные – из стора, решения – из движка. */
 export function StageDetail({ stageId }: { stageId: StageId }) {
   const session = useLaunchStore((s) => s.session);
   const ruleset = useLaunchStore((s) => s.ruleset);
@@ -71,7 +71,7 @@ export function ConfirmDialog({ stageId }: { stageId: StageId }) {
 
   const confirm = () => {
     for (const req of unmet.filter((r) => checked.includes(r.id))) {
-      if (!addEvidence({ stageId, type: req.evidenceTypes[0]!, title: `${req.title} — отчёт` })) return;
+      if (!addEvidence({ stageId, type: req.evidenceTypes[0]!, title: `${req.title} – отчёт` })) return;
       const evidenceId = useLaunchStore.getState().session!.evidence.at(-1)!.id;
       addConfirmation({ stageId, requirementId: req.id, role: req.role, confirmedBy: useLaunchStore.getState().actor, evidenceIds: [evidenceId] });
     }
