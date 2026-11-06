@@ -58,7 +58,7 @@ export function LaunchStageCard({
         <div className="flex min-w-0 items-start gap-3">
           <span
             className={cn(
-              'tabular flex size-9 shrink-0 items-center justify-center rounded-full border text-body-sm font-bold',
+              'tabular flex size-9 shrink-0 items-center justify-center rounded-full border text-body-sm font-medium',
               done ? 'border-transparent bg-status-completed-bg text-status-completed' : blocked ? 'border-transparent bg-status-blocked-bg text-status-blocked' : 'border-border bg-surface-secondary text-text-secondary',
             )}
           >
@@ -88,7 +88,7 @@ export function LaunchStageCard({
               <UserRound className="size-3.5 text-text-muted" aria-hidden />
               <dt className="sr-only">Ответственный</dt>
               <dd>
-                <span className="font-semibold text-text-primary">{responsible.name}</span> · {responsible.role}
+                <span className="font-medium text-text-primary">{responsible.name}</span> · {responsible.role}
               </dd>
             </div>
           )}
@@ -101,7 +101,7 @@ export function LaunchStageCard({
           )}
         </dl>
         {blockersCount > 0 && (
-          <p className="flex items-center gap-1.5 text-body-sm font-semibold text-status-blocked">
+          <p className="flex items-center gap-1.5 text-body-sm font-medium text-status-blocked">
             <OctagonAlert className="size-4" aria-hidden />
             Препятствий: <span className="tabular">{blockersCount}</span>
           </p>
@@ -113,7 +113,7 @@ export function LaunchStageCard({
           </p>
         )}
         {nextAction && !done && (
-          <p className="flex items-start gap-1.5 text-body-sm font-semibold text-accent-strong">
+          <p className="flex items-start gap-1.5 text-body-sm font-medium text-accent-strong">
             <ArrowRight className="mt-0.5 size-4 shrink-0" aria-hidden />
             {nextAction}
           </p>
