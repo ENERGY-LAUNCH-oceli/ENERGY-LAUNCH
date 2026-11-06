@@ -1,13 +1,13 @@
-import { RULESET_V1 } from '@/config/rules';
-import { DEMO_OBJECT, generateControlTests, generateDashboards, generateInvoiceDataset, generateTelemetryDataset } from '@/data/mock';
+import { ACTIVE_RULESET } from '@/config/rules';
+import { buildInvoiceDataset, DEMO_OBJECT, DEMO_OBJECT_ID, generateControlTests, generateDashboards, generateTelemetryDataset } from '@/data/mock';
 import type { LaunchInputs, TestScenario } from '@/types';
 
-const cfg = RULESET_V1;
+const cfg = ACTIVE_RULESET;
 const TELEMETRY_SIGNALS = ['sig-p', 'sig-q', 'sig-u', 'sig-f', 'sig-brk'];
 
 const baseInputs = (): LaunchInputs => ({
   object: DEMO_OBJECT,
-  invoice: generateInvoiceDataset({ periodStart: '2026-10-01T00:00:00.000Z', days: cfg.meterHistory.checkPeriodDays, intervalMinutes: cfg.meterHistory.intervalMinutes, seed: 11 }),
+  invoice: buildInvoiceDataset({ objectId: DEMO_OBJECT_ID }),
   telemetry: generateTelemetryDataset({ periodStart: '2026-11-02T00:00:00.000Z', hours: cfg.telemetry.observationPeriodHours, frequencySec: cfg.telemetry.expectedFrequencySec, signalIds: TELEMETRY_SIGNALS, seed: 21 }),
   controlTests: generateControlTests({ startAt: '2026-11-03T09:00:00.000Z', intervalSec: 120 }),
   dashboards: generateDashboards({ published: true }),
@@ -40,41 +40,41 @@ const DESCRIPTORS: ScenarioDescriptor[] = [
   },
   {
     id: 'meter-gaps',
-    title: 'Пропуски в истории учёта',
-    description: 'Сплошной пропуск 3 суток в интервальной истории: полнота ниже порога.',
+    title: 'Дефекты истории',
+    description: 'Заявлены 24 месяца, но есть пропуск 3 суток, дубли временных меток и блок значений в Wh.',
     tags: ['negative', 'meter-history'],
     build: () => ({
       inputs: {
         ...baseInputs(),
-        invoice: generateInvoiceDataset({ periodStart: '2026-10-01T00:00:00.000Z', days: cfg.meterHistory.checkPeriodDays, intervalMinutes: cfg.meterHistory.intervalMinutes, gapRun: [480, 144], seed: 11 }),
+        invoice: buildInvoiceDataset({ objectId: DEMO_OBJECT_ID, gaps: [['2025-06-10T00:00:00Z', 288]], duplicates: 4, mixedUnitRows: 8, seed: 7 }),
       },
-      expectations: [{ stageId: 'METER_HISTORY', statusAfterValidation: 'BLOCKED', failingRuleIds: ['MH-003'] }],
+      expectations: [{ stageId: 'METER_HISTORY', statusAfterValidation: 'BLOCKED', failingRuleIds: ['MH-004', 'MH-005', 'MH-007'] }],
     }),
   },
   {
     id: 'invoice-mismatch',
-    title: 'Расхождение счёта и учёта',
-    description: 'Объём по счёту завышен на 5% относительно учёта.',
+    title: 'Ошибки знаков и единиц',
+    description: 'Колонка выдачи в Wh, у части интервалов перевёрнут знак мощности.',
     tags: ['negative', 'meter-history'],
     build: () => ({
       inputs: {
         ...baseInputs(),
-        invoice: generateInvoiceDataset({ periodStart: '2026-10-01T00:00:00.000Z', days: cfg.meterHistory.checkPeriodDays, intervalMinutes: cfg.meterHistory.intervalMinutes, invoiceBiasPct: 5, seed: 11 }),
+        invoice: buildInvoiceDataset({ objectId: DEMO_OBJECT_ID, signErrors: 6, wrongUnit: { field: 'Grid.energy_kWh.injection_invoice', unit: 'Wh' }, seed: 9 }),
       },
-      expectations: [{ stageId: 'METER_HISTORY', statusAfterValidation: 'BLOCKED', failingRuleIds: ['MH-005'] }],
+      expectations: [{ stageId: 'METER_HISTORY', statusAfterValidation: 'BLOCKED', failingRuleIds: ['MH-007', 'MH-008'] }],
     }),
   },
   {
     id: 'short-history',
     title: 'Короткая история',
-    description: 'Официальная история покрывает меньше требуемого периода проверки.',
+    description: 'Официальная история покрывает только 19 из 24 месяцев.',
     tags: ['negative', 'meter-history'],
     build: () => ({
       inputs: {
         ...baseInputs(),
-        invoice: generateInvoiceDataset({ periodStart: '2026-10-12T00:00:00.000Z', days: 19, intervalMinutes: cfg.meterHistory.intervalMinutes, seed: 11 }),
+        invoice: buildInvoiceDataset({ objectId: DEMO_OBJECT_ID, missingFirstMonths: 5 }),
       },
-      expectations: [{ stageId: 'METER_HISTORY', statusAfterValidation: 'BLOCKED', failingRuleIds: ['MH-004'] }],
+      expectations: [{ stageId: 'METER_HISTORY', statusAfterValidation: 'BLOCKED', failingRuleIds: ['MH-002', 'MH-004'] }],
     }),
   },
   {
