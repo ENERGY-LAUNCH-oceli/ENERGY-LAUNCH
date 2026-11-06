@@ -7,6 +7,7 @@ import { Acceptance, Builder, DashboardView, ReadinessPanel, useDashboardData } 
 import { CheckBlocks } from '@/features/invoice-validation';
 import { StageActionBar } from '@/features/launch-card';
 import { StagePage } from '@/pages/StagePage';
+import { ANCHORS } from '@/config/blocker-links';
 import { useLaunchStore } from '@/store';
 
 const BLOCKS = [
@@ -84,7 +85,7 @@ export function DashboardsPage() {
 
       <CheckBlocks results={stage.validationResults} stale={false} blocks={BLOCKS} metrics={metrics} />
 
-      <Tabs value={tab} onValueChange={(v) => setParams({ tab: v }, { replace: true })}>
+      <Tabs id={ANCHORS.dbTabs} className="scroll-mt-24" value={tab} onValueChange={(v) => setParams({ tab: v }, { replace: true })}>
         <TabsList variant="pill" aria-label="Режим">
           <TabsTrigger value="panel">
             <LayoutDashboard className="size-4" aria-hidden />

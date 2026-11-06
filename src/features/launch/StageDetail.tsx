@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Modal } from '@/components/ui/dialog';
 import { NEXT_ACTION_BY_RULE, getUnmetConfirmations } from '@/engine';
+import { blockerHref } from '@/config/blocker-links';
 import { useLaunchStore } from '@/store';
 import type { StageId } from '@/types';
 import { toValidationView } from './adapters';
@@ -47,7 +48,7 @@ export function StageDetail({ stageId }: { stageId: StageId }) {
         <BlockerPanel
           items={blockers.map((b) => ({
             blocker: b,
-            ...(b.ruleId && NEXT_ACTION_BY_RULE[b.ruleId] ? { nextAction: NEXT_ACTION_BY_RULE[b.ruleId] } : {}),
+            ...(b.ruleId && NEXT_ACTION_BY_RULE[b.ruleId] ? { nextAction: NEXT_ACTION_BY_RULE[b.ruleId], nextActionHref: blockerHref(session.objectId, b.ruleId, b.stageId) } : {}),
           }))}
         />
         <EvidencePanel

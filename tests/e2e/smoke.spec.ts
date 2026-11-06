@@ -518,3 +518,14 @@ test('контекстное меню: действия объекта, клав
   await page.getByLabel('Название').click({ button: 'right' });
   await expect(menu).toHaveCount(0);
 });
+
+test('препятствие: следующее действие – ссылка на нужный блок страницы этапа', async ({ page }) => {
+  await page.goto('/objects/obj-003/launch');
+  const link = page.getByTestId('blocker-next-action').first();
+  await expect(link).toBeVisible();
+  await link.click();
+  await expect(page).toHaveURL(/\/objects\/obj-003\/history#mh-/);
+  const id = new URL(page.url()).hash.slice(1);
+  await expect(page.locator(`#${id}`)).toBeInViewport();
+  await expect(page.locator(`#${id}`)).toHaveClass(/anchor-flash/);
+});

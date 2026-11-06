@@ -8,7 +8,7 @@ import { useUi } from '@/store';
 
 /** Оболочка рабочего пространства: навигация, шапка, рабочая область и уведомления. */
 export function AppLayout() {
-  const { pathname } = useLocation();
+  const { pathname, hash, key } = useLocation();
   const mainRef = useRef<HTMLElement>(null);
   const firstRender = useRef(true);
   useEffect(() => {
@@ -24,6 +24,33 @@ export function AppLayout() {
     void el.offsetWidth; // перезапуск анимации
     el.classList.add('page-enter');
   }, [pathname]);
+  // Переход к блоку по якорю (#id): ждём, пока страница отрисует блок, прокручиваем и подсвечиваем
+  useEffect(() => {
+    const id = decodeURIComponent(hash.slice(1));
+    if (!id) return;
+    let frame = 0;
+    let timer = 0;
+    const deadline = performance.now() + 4000;
+    const seek = () => {
+      const target = document.getElementById(id);
+      if (!target) {
+        if (performance.now() < deadline) frame = requestAnimationFrame(seek);
+        return;
+      }
+      const smooth = !window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+      target.scrollIntoView({ behavior: smooth ? 'smooth' : 'auto', block: 'start' });
+      target.classList.remove('anchor-flash');
+      void target.offsetWidth;
+      target.classList.add('anchor-flash');
+      timer = window.setTimeout(() => target.classList.remove('anchor-flash'), 1800);
+    };
+    // После прокрутки вверх при смене страницы
+    frame = requestAnimationFrame(seek);
+    return () => {
+      cancelAnimationFrame(frame);
+      clearTimeout(timer);
+    };
+  }, [hash, key]);
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if (!(event.ctrlKey || event.metaKey) || event.altKey || event.shiftKey || event.repeat) return;

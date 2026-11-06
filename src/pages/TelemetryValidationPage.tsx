@@ -4,6 +4,7 @@ import { getNextAction } from '@/engine';
 import { CheckBlocks } from '@/features/invoice-validation';
 import { StageActionBar } from '@/features/launch-card';
 import { DiagnosisLegend, InputsPanel, PassportCard, QualityHeatmap, SignalMapping, TelemetryIssues, TelemetryRuns } from '@/features/telemetry-validation';
+import { ANCHORS } from '@/config/blocker-links';
 import { useLaunchStore } from '@/store';
 
 const BLOCKS = [
@@ -60,19 +61,33 @@ export function TelemetryValidationPage() {
       )}
       {next && stage.status !== 'COMPLETED' && <NextActionCard stageLabel="Данные в реальном времени" title={next.title} {...(next.reason ? { reason: next.reason } : {})} />}
 
-      <InputsPanel passport={passport} dataset={ds} />
+      <div id={ANCHORS.tmInputs} className="scroll-mt-24">
+        <InputsPanel passport={passport} dataset={ds} />
+      </div>
 
       <CheckBlocks results={stage.validationResults} stale={stale} blocks={BLOCKS} metrics={metrics} />
 
       {passport ? (
         <>
           <div className="grid gap-6 2xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
-            <PassportCard passport={passport} />
+            <div id={ANCHORS.tmPassport} className="scroll-mt-24">
+              <PassportCard passport={passport} />
+            </div>
             <DiagnosisLegend />
           </div>
-          <SignalMapping passport={passport} report={r} maxAge={rules.maxAgeMinutes} minPct={rules.minCompletenessPct} />
-          {r && <QualityHeatmap report={r} />}
-          {r && <TelemetryIssues report={r} />}
+          <div id={ANCHORS.tmSignals} className="scroll-mt-24">
+            <SignalMapping passport={passport} report={r} maxAge={rules.maxAgeMinutes} minPct={rules.minCompletenessPct} />
+          </div>
+          {r && (
+            <div id={ANCHORS.tmHeatmap} className="scroll-mt-24">
+              <QualityHeatmap report={r} />
+            </div>
+          )}
+          {r && (
+            <div id={ANCHORS.tmIssues} className="scroll-mt-24">
+              <TelemetryIssues report={r} />
+            </div>
+          )}
         </>
       ) : (
         <Alert tone="error" title="Паспорт объекта не загружен">Без object.json нельзя определить оборудование и обязательные сигналы. Оборудование не добавляется автоматически.</Alert>

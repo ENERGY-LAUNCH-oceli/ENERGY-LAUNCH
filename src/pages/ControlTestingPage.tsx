@@ -7,6 +7,7 @@ import { StageActionBar } from '@/features/launch-card';
 import { AssetsTable, CommandDetail, CommandTimeline, ControlRuns, TestForm } from '@/features/control-testing';
 import { StagePage } from '@/pages/StagePage';
 import { createSimulatorTransport } from '@/simulator/control';
+import { ANCHORS } from '@/config/blocker-links';
 import { useLaunchStore } from '@/store';
 
 const BLOCKS = [
@@ -95,8 +96,11 @@ export function ControlTestingPage() {
 
       <CheckBlocks results={stage.validationResults} stale={stale} blocks={BLOCKS} metrics={metrics} />
 
-      <AssetsTable assets={assets} latest={latest} onSelect={setSelectedId} />
+      <div id={ANCHORS.ctAssets} className="scroll-mt-24">
+        <AssetsTable assets={assets} latest={latest} onSelect={setSelectedId} />
+      </div>
 
+      <div id={ANCHORS.ctTest} className="scroll-mt-24">
       {assets.some((a) => a.supported) ? (
         <div className="grid min-w-0 grid-cols-[minmax(0,1fr)] items-start gap-6 xl:grid-cols-[minmax(300px,380px)_minmax(0,1fr)]">
           <TestForm
@@ -114,8 +118,11 @@ export function ControlTestingPage() {
       ) : (
         <TestForm key={session.objectId} assets={assets} rules={rules} disabledReason={disabledReason} onRun={() => undefined} />
       )}
+      </div>
 
-      <CommandTimeline commands={commands} selectedId={selected?.commandId} onSelect={setSelectedId} observationSec={rules.observationSec} />
+      <div id={ANCHORS.ctCommands} className="scroll-mt-24">
+        <CommandTimeline commands={commands} selectedId={selected?.commandId} onSelect={setSelectedId} observationSec={rules.observationSec} />
+      </div>
 
       <ControlRuns runs={runs} commandsCount={commands.length} />
     </div>

@@ -1,5 +1,6 @@
 import { ArrowRight, CircleCheck, OctagonAlert } from 'lucide-react';
 import type * as React from 'react';
+import { Link } from 'react-router-dom';
 import { Badge } from '@/components/ui/badge';
 import type { Blocker } from '@/types';
 import { cn } from '@/utils/cn';
@@ -10,6 +11,8 @@ export interface BlockerCardProps {
   /** Точное место: интервалы и поля / актив и сигналы / причина (ТЗ 3.1.3). */
   location?: { label: string; value: string }[];
   nextAction?: string;
+  /** Страница и блок, где выполняется следующее действие: тогда действие – ссылка. */
+  nextActionHref?: string;
   actions?: React.ReactNode;
   className?: string;
 }
@@ -18,7 +21,7 @@ export interface BlockerCardProps {
  * Препятствие. Коралловая рамка и иконка, без сплошной заливки,
  * чтобы список блокеров оставался читаемым.
  */
-export function BlockerCard({ blocker: b, location, nextAction, actions, className }: BlockerCardProps) {
+export function BlockerCard({ blocker: b, location, nextAction, nextActionHref, actions, className }: BlockerCardProps) {
   const open = b.status === 'OPEN';
   return (
     <article
@@ -64,12 +67,19 @@ export function BlockerCard({ blocker: b, location, nextAction, actions, classNa
             ))}
           </dl>
         )}
-        {nextAction && open && (
-          <p className="flex items-start gap-1.5 text-body-sm font-medium text-accent-strong">
-            <ArrowRight className="mt-0.5 size-4 shrink-0" aria-hidden />
-            {nextAction}
-          </p>
-        )}
+        {nextAction &&
+          open &&
+          (nextActionHref ? (
+            <Link to={nextActionHref} className="group flex items-start gap-1.5 self-start text-body-sm font-medium text-accent-strong underline decoration-accent-strong/30 underline-offset-[3px] transition-colors hover:decoration-accent-strong" data-testid="blocker-next-action">
+              <ArrowRight className="mt-0.5 size-4 shrink-0 transition-transform duration-fast group-hover:translate-x-0.5" aria-hidden />
+              {nextAction}
+            </Link>
+          ) : (
+            <p className="flex items-start gap-1.5 text-body-sm font-medium text-accent-strong">
+              <ArrowRight className="mt-0.5 size-4 shrink-0" aria-hidden />
+              {nextAction}
+            </p>
+          ))}
         {!open && b.resolution && <p className="text-caption text-text-muted">Решение: {b.resolution}</p>}
         <div className="flex flex-wrap items-center justify-between gap-2">
           <span className="text-caption text-text-muted">

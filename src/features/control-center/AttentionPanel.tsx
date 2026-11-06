@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { ROUTES, type ObjectSection } from '@/app/routes';
 import { STAGE_META } from '@/config/stages';
 import type { PortfolioRow } from '@/hooks/use-portfolio-rows';
+import { blockerHref } from '@/config/blocker-links';
 import type { StageId } from '@/types';
 
 const SECTION: Record<StageId, ObjectSection> = { METER_HISTORY: 'history', REALTIME_TELEMETRY: 'telemetry', ASSET_CONTROL: 'control', FINAL_DASHBOARDS: 'dashboards' };
@@ -34,7 +35,7 @@ export function AttentionPanel({ rows }: { rows: PortfolioRow[] }) {
             return (
               <li key={r.entry.id} className="border-b border-border last:border-b-0">
                 <Link
-                  to={ROUTES.objectSection(r.entry.id, SECTION[b.stageId])}
+                  to={blockerHref(r.entry.id, b.ruleId, b.stageId) ?? ROUTES.objectSection(r.entry.id, SECTION[b.stageId])}
                   data-testid={`attention-${r.entry.id}`}
                   className="group grid gap-x-6 gap-y-1 px-5 py-3 transition-colors duration-fast hover:bg-surface-hover md:grid-cols-[minmax(220px,0.8fr)_minmax(0,1.6fr)_minmax(0,1.2fr)] md:items-center"
                 >

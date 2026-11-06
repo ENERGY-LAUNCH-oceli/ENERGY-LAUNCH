@@ -4,6 +4,7 @@ import { Alert } from '@/components/ui/alert';
 import { getNextAction } from '@/engine';
 import { StageActionBar } from '@/features/launch-card';
 import { CheckBlocks, CompletenessPanel, CoverageTimeline, EanPanel, FieldQualityTable, IssuesTable, RunsHistory, UploadPanel } from '@/features/invoice-validation';
+import { ANCHORS } from '@/config/blocker-links';
 import { useLaunchStore } from '@/store';
 
 /** Этап 1 – проверка официальных данных расчётных счётчиков (invoice.csv). */
@@ -44,7 +45,9 @@ export function InvoiceValidationPage() {
 
       {next && stage.status !== 'COMPLETED' && <NextActionCard stageLabel="История счётчиков" title={next.title} {...(next.reason ? { reason: next.reason } : {})} />}
 
-      <UploadPanel dataset={ds} />
+      <div id={ANCHORS.mhUpload} className="scroll-mt-24">
+        <UploadPanel dataset={ds} />
+      </div>
 
       <CheckBlocks
         results={results}
@@ -59,16 +62,26 @@ export function InvoiceValidationPage() {
         }}
       />
 
-      <CoverageTimeline report={r} periodMonths={rules.periodMonths} />
-
-      <div className="grid gap-6 2xl:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
-        <CompletenessPanel report={r} minPct={rules.minCompletenessPct} stepMinutes={rules.intervalMinutes} />
-        <EanPanel object={inputs.object} report={r} results={results} eanLength={rules.eanLength} />
+      <div id={ANCHORS.mhCoverage} className="scroll-mt-24">
+        <CoverageTimeline report={r} periodMonths={rules.periodMonths} />
       </div>
 
-      <FieldQualityTable report={r} rules={rules.fields} />
+      <div className="grid gap-6 2xl:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
+        <div id={ANCHORS.mhCompleteness} className="scroll-mt-24">
+          <CompletenessPanel report={r} minPct={rules.minCompletenessPct} stepMinutes={rules.intervalMinutes} />
+        </div>
+        <div id={ANCHORS.mhEan} className="scroll-mt-24">
+          <EanPanel object={inputs.object} report={r} results={results} eanLength={rules.eanLength} />
+        </div>
+      </div>
 
-      <IssuesTable report={r} />
+      <div id={ANCHORS.mhFields} className="scroll-mt-24">
+        <FieldQualityTable report={r} rules={rules.fields} />
+      </div>
+
+      <div id={ANCHORS.mhIssues} className="scroll-mt-24">
+        <IssuesTable report={r} />
+      </div>
 
       <RunsHistory runs={runs} current={ds} />
 
