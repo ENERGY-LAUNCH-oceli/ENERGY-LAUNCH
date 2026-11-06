@@ -1,51 +1,54 @@
+import { ArrowRight } from 'lucide-react';
 import * as React from 'react';
-import { EmptyState } from '@/components/common/EmptyState';
-import { PageHeader, SectionHeader } from '@/components/common/PageHeader';
-import { LaunchProgress, NextActionCard } from '@/components/launch';
-import { Alert } from '@/components/ui/alert';
+import { Link, useSearchParams } from 'react-router-dom';
+import { ROUTES } from '@/app/routes';
+import { AuditTimeline, NextActionCard } from '@/components/launch';
 import { Button } from '@/components/ui/button';
 import { Select } from '@/components/ui/select';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { STAGE_META } from '@/config/stages';
 import { SCENARIO_LIST } from '@/data/scenarios';
+import { findObject } from '@/data/objects';
 import { getNextAction } from '@/engine';
-import { StageCardContainer, StageDetail } from '@/features/launch';
+import { LaunchStepper, ObjectHeader, StageSummaryCard, StageWorkspace } from '@/features/launch-card';
+import { sessionStatus } from '@/hooks/use-portfolio';
 import { useLaunchStore } from '@/store';
 import { STAGE_IDS, type StageId } from '@/types';
 
+/** Карточка запуска объекта — центральный экран продукта. */
 export function LaunchPage() {
   const session = useLaunchStore((s) => s.session);
   const inputs = useLaunchStore((s) => s.inputs);
   const ruleset = useLaunchStore((s) => s.ruleset);
+  const audit = useLaunchStore((s) => s.auditLog);
   const scenarioId = useLaunchStore((s) => s.scenarioId);
   const loadScenario = useLaunchStore((s) => s.loadScenario);
-  const lastError = useLaunchStore((s) => s.lastError);
-  const clearError = useLaunchStore((s) => s.clearError);
-  const [tab, setTab] = React.useState<StageId | null>(null);
-  const detailRef = React.useRef<HTMLDivElement>(null);
+  const [params, setParams] = useSearchParams();
+  const workspaceRef = React.useRef<HTMLDivElement>(null);
+  if (!session || !inputs) return null;
+  const entry = findObject(session.objectId)!;
 
-  if (!session || !inputs) return <EmptyState title="Сессия запуска не создана" />;
-
-  const activeTab = tab ?? session.currentStageId;
-  const next = getNextAction(session, session.currentStageId, ruleset);
-  const openStage = (id: StageId) => {
-    setTab(id);
-    detailRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  const param = params.get('stage') as StageId | null;
+  const selected: StageId = param && STAGE_IDS.includes(param) ? param : session.currentStageId;
+  const select = (id: StageId, scroll = false) => {
+    setParams({ stage: id }, { replace: true });
+    if (scroll) requestAnimationFrame(() => workspaceRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
   };
+  const next = getNextAction(session, session.currentStageId, ruleset);
 
   return (
-    <div className="flex flex-col gap-8">
-      <PageHeader
-        eyebrow="Карточка запуска"
-        title={inputs.object.name}
-        description={`${inputs.object.gridConnection.pointOfConnection} · ${inputs.object.passport.installedCapacityMw} МВт`}
+    <div className="flex flex-col gap-6">
+      <ObjectHeader
+        entry={entry}
+        inputs={inputs}
+        status={sessionStatus(session)}
+        startedAt={session.stages.METER_HISTORY.startedAt ?? session.createdAt}
         actions={
-          <div className="w-64">
+          <div className="w-60">
             <Select
               aria-label="Демонстрационный сценарий"
               value={scenarioId ?? undefined}
               onValueChange={(v) => {
-                setTab(null);
+                setParams({}, { replace: true });
                 loadScenario(v);
               }}
               options={SCENARIO_LIST.map((s) => ({ value: s.id, label: s.title }))}
@@ -54,65 +57,45 @@ export function LaunchPage() {
         }
       />
 
-      {lastError && (
-        <Alert
-          tone="warning"
-          title="Переход отклонён"
-          action={
-            <Button size="sm" variant="ghost" onClick={clearError}>
-              Скрыть
-            </Button>
-          }
-        >
-          {lastError.message}
-        </Alert>
-      )}
+      <LaunchStepper session={session} selected={selected} onSelect={(id) => select(id, true)} />
 
-      <LaunchProgress
-        objectCode={inputs.object.code}
-        currentStageId={session.currentStageId}
-        ready={session.status === 'COMPLETED'}
-        stages={STAGE_IDS.map((id) => ({ id, title: STAGE_META[id].titleRu, status: session.stages[id].status }))}
-      />
-
-      {next && (
+      {next ? (
         <NextActionCard
           stageLabel={STAGE_META[next.stageId].titleRu}
           title={next.title}
           {...(next.reason ? { reason: next.reason } : {})}
           action={
-            <Button variant="accent" onClick={() => openStage(next.stageId)}>
-              Перейти к этапу
+            <Button variant="accent" size="lg" onClick={() => select(next.stageId, true)}>
+              Открыть этап
+              <ArrowRight aria-hidden />
             </Button>
           }
         />
+      ) : (
+        <NextActionCard title="Запуск завершён: объект готов к эксплуатации" description="Все четыре этапа завершены, дашборды приняты ответственным." />
       )}
 
-      <section>
-        <SectionHeader eyebrow="Этапы" title="Четыре последовательных этапа" description="Этап завершается только при выполнении всех обязательных условий." />
-        <div className="grid gap-4 md:grid-cols-2">
-          {STAGE_IDS.map((id) => (
-            <StageCardContainer key={id} stageId={id} onOpen={() => openStage(id)} />
-          ))}
-        </div>
-      </section>
+      <div className="grid gap-4 sm:grid-cols-2 2xl:grid-cols-4">
+        {STAGE_IDS.map((id) => (
+          <StageSummaryCard key={id} session={session} stageId={id} responsible={entry.responsible} selected={id === selected} onOpen={() => select(id, true)} />
+        ))}
+      </div>
 
-      <section ref={detailRef} className="scroll-mt-24">
-        <SectionHeader eyebrow="Детали" title="Проверки, препятствия и подтверждения" />
-        <Tabs value={activeTab} onValueChange={(v) => setTab(v as StageId)}>
-          <TabsList>
-            {STAGE_IDS.map((id) => (
-              <TabsTrigger key={id} value={id} count={session.blockers.filter((b) => b.stageId === id && b.status === 'OPEN').length || undefined}>
-                {session.stages[id].order}. {STAGE_META[id].titleRu}
-              </TabsTrigger>
-            ))}
-          </TabsList>
-          {STAGE_IDS.map((id) => (
-            <TabsContent key={id} value={id}>
-              <StageDetail stageId={id} />
-            </TabsContent>
-          ))}
-        </Tabs>
+      <div ref={workspaceRef} className="scroll-mt-24">
+        <StageWorkspace key={selected} stageId={selected} />
+      </div>
+
+      <section aria-label="Журнал" className="rounded-lg border border-border bg-surface p-5">
+        <div className="mb-4 flex items-center justify-between">
+          <div className="flex flex-col">
+            <span className="text-label uppercase text-accent-strong">Журнал</span>
+            <h2 className="text-h3">Последние действия и проверки</h2>
+          </div>
+          <Link to={ROUTES.objectSection(entry.id, 'audit')} className="text-body-sm font-semibold text-accent-strong hover:underline">
+            Весь журнал ({audit.length})
+          </Link>
+        </div>
+        <AuditTimeline events={audit} limit={6} />
       </section>
     </div>
   );
