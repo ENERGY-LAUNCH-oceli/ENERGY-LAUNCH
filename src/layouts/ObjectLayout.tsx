@@ -15,7 +15,7 @@ export function ObjectLayout() {
   const selectObject = useLaunchStore((s) => s.selectObject);
   const current = useLaunchStore((s) => s.currentObjectId);
   const entry = findObject(objectId);
-  // Карточка запуска сама показывает следующее действие и журнал — контекстная панель там не нужна
+  // Карточка запуска сама показывает следующее действие и журнал – контекстная панель там не нужна
   const { pathname } = useLocation();
   const isLaunch = pathname.endsWith('/launch') || pathname.endsWith('/history') || pathname.endsWith('/telemetry');
 
