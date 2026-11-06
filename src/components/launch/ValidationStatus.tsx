@@ -23,7 +23,7 @@ function summarize(items: ValidationStatusProps['results'], unavailable?: boolea
   if (relevant.length === 0) return 'SKIPPED';
   if (relevant.some((r) => r.status === 'FAILED')) return 'FAILED';
   if (relevant.some((r) => r.status === 'UNAVAILABLE')) return 'UNAVAILABLE';
-  // Неактуальность и отсутствие данных — не успех
+  // Неактуальность и отсутствие данных – не успех
   if (relevant.some((r) => r.status === 'STALE')) return 'STALE';
   if (relevant.some((r) => r.status === 'SKIPPED' || r.status === 'PENDING')) return 'SKIPPED';
   if (relevant.some((r) => r.status === 'WARNING')) return 'WARNING';
@@ -41,7 +41,7 @@ export function ValidationStatus({ results, lastCheckedAt, rulesetVersion, unava
     <section aria-label="Результат проверок" className={cn('rounded-lg border border-border bg-surface', className)}>
       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border px-5 py-3">
         <div className="flex items-center gap-3">
-          <span className="text-body-sm font-semibold">Результат проверок</span>
+          <span className="text-body-sm font-medium">Результат проверок</span>
           <CheckStatusLabel status={overall} />
         </div>
         <span className="text-caption text-text-muted">
@@ -57,7 +57,7 @@ export function ValidationStatus({ results, lastCheckedAt, rulesetVersion, unava
           const s = items.length ? summarize(items, unavailable) : null;
           return (
             <div key={d} className="flex flex-col gap-1.5 px-5 py-4">
-              <span className="text-label uppercase text-text-secondary">{CHECK_DIMENSION_LABEL[d]}</span>
+              <span className="text-label text-text-muted">{CHECK_DIMENSION_LABEL[d]}</span>
               {s ? (
                 <>
                   <CheckStatusLabel status={s} />
