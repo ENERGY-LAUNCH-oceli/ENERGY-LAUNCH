@@ -6,6 +6,7 @@ import { DEFAULT_OBJECT_ID } from '@/data/objects';
 import { useLaunchStore, useUi } from '@/store';
 import { cn } from '@/utils/cn';
 import { Logo } from './Logo';
+import { SidebarHelp } from './SidebarHelp';
 import { StorageIndicator } from './StorageIndicator';
 import { ThemeToggle } from './ThemeToggle';
 
@@ -86,7 +87,10 @@ export function Sidebar() {
       <div className="flex-1 overflow-y-auto px-3 py-3 [scrollbar-width:thin]">
         <SidebarNav collapsed={collapsed} />
       </div>
-      <div className={cn('border-t border-border px-3 pt-2', collapsed && 'flex justify-center')}>
+      <div className="border-t border-border px-3 pt-3">
+        <SidebarHelp collapsed={collapsed} />
+      </div>
+      <div className={cn('px-3 pt-2', collapsed && 'flex justify-center')}>
         <StorageIndicator collapsed={collapsed} />
       </div>
       <div className={cn('flex gap-1 p-3 pt-1', collapsed ? 'flex-col items-center' : 'items-center')}>

@@ -601,3 +601,17 @@ test('помощь: вопрос своими словами из контекс
   await list.locator('[data-faq="theme"] button').first().click();
   await expect(list.locator('[data-faq="theme"]')).toContainText('Кнопка с луной');
 });
+
+test('помощь в боковой панели: тур по текущей странице и вопрос помощнику', async ({ page }) => {
+  await page.goto('/blockers');
+  await page.getByTestId('sidebar-help-tour').click();
+  const card = page.getByTestId('tour-card');
+  await expect(card).toContainText('Все препятствия');
+  await page.keyboard.press('Escape');
+  await expect(card).toHaveCount(0);
+  await page.getByTestId('sidebar-help-ask').click();
+  await expect(page.getByRole('dialog', { name: 'Помощь по сайту' })).toBeVisible();
+  await page.getByTestId('help-question').fill('где посмотреть все препятствия');
+  await page.getByTestId('help-submit').click();
+  await expect(page.getByTestId('help-reply')).toHaveAttribute('data-answer', 'blockers-page');
+});

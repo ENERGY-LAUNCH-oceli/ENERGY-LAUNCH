@@ -19,6 +19,7 @@ import { Breadcrumbs } from './Breadcrumbs';
 import { Logo } from './Logo';
 import { ObjectSwitcher } from './ObjectSwitcher';
 import { SidebarNav } from './Sidebar';
+import { SidebarHelp } from './SidebarHelp';
 import { ThemeToggle } from './ThemeToggle';
 
 function LaunchStatus() {
@@ -221,6 +222,9 @@ export function Header() {
           }
         >
           <SidebarNav onNavigate={() => setMenu(false)} />
+          <div className="mt-5 border-t border-border pt-4">
+            <SidebarHelp onAction={() => setMenu(false)} />
+          </div>
         </Drawer>
         <Link to={ROUTES.overview} className="lg:hidden" aria-label="ENERGY LAUNCH – обзор">
           <Logo compact />
