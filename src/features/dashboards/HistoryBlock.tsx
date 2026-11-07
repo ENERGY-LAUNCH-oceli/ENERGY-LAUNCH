@@ -1,5 +1,5 @@
 import { StatusBadge } from '@/components/ui/status-badge';
-import { monthLabel, utc } from '@/features/invoice-validation/labels';
+import { coverageMonths, monthLabel, utc } from '@/features/invoice-validation/labels';
 import type { DashboardBlockConfig, MonthCoverage } from '@/types';
 import { cn } from '@/utils/cn';
 import { Stat, Widget } from './BlockFrame';
@@ -51,7 +51,8 @@ export function HistoryBlock({ block, data }: { block: DashboardBlockConfig; dat
   const r = data.invoice;
   const w = block.widgets;
   if (!r?.window) return <p className="text-body-sm text-text-muted">Нет истории учёта объекта – загрузите invoice.csv на этапе 1.</p>;
-  const all = r.window.months.slice(-(PERIOD_MONTHS[block.period] ?? 24));
+  const counted = coverageMonths(r.window.months);
+  const all = counted.slice(-(PERIOD_MONTHS[block.period] ?? 24));
   const months = block.filter === 'ISSUES' ? all.filter((m) => m.state !== 'FULL' || m.duplicates > 0 || m.issues > 0) : all;
   const showOff = w.offtake_history && block.metrics.includes('offtake');
   const showInj = w.injection_history && block.metrics.includes('injection');
@@ -87,7 +88,7 @@ export function HistoryBlock({ block, data }: { block: DashboardBlockConfig; dat
               <span className="font-mono">{utc(r.window.from).slice(0, 10)}</span> – <span className="font-mono">{utc(r.window.to).slice(0, 10)}</span>
             </p>
             <p className="text-caption text-text-muted">
-              Покрытие {r.window.months.length - r.missingMonths.length} из {r.window.months.length} мес. · шаг {r.detectedStepMinutes ?? '–'} мин
+              Покрытие {counted.length - r.missingMonths.length} из {counted.length} мес. · шаг {r.detectedStepMinutes ?? '–'} мин
             </p>
           </Widget>
         )}

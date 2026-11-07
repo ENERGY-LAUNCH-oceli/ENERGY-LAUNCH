@@ -1,6 +1,7 @@
 import type { LaunchSession, RulesConfig, StageId } from '@/types';
 import { getPreviousStage } from './dependencies';
-import { getUnmetConfirmations, openBlockers } from './state-machine/guards';
+import { getUnmetConfirmations, openBlockers, staleConfirmationStages } from './state-machine/guards';
+import { STAGE_IDS } from '@/types';
 import { hasBlockingFailures } from './validators';
 
 export type NextActionKind = 'COMPLETE_PREVIOUS' | 'START' | 'RUN_CHECKS' | 'RESOLVE_BLOCKER' | 'FIX_DATA' | 'CONFIRM' | 'COMPLETE';
@@ -28,11 +29,18 @@ export const NEXT_ACTION_BY_RULE: Record<string, string> = {
   'MH-010': 'Сверить корректировки validated с поставщиком данных',
   'MH-011': 'Внести корректные коды EAN в паспорт объекта',
   'MH-012': 'Подтвердить привязку счётчика: EAN или data_files паспорта',
-  'TM-001': 'Подключить телеметрию по отсутствующим сигналам',
-  'TM-002': 'Настроить шаг передачи телеметрии',
-  'TM-003': 'Восстановить полноту потока телеметрии',
-  'TM-004': 'Проверить канал связи: данные поступают с задержкой',
-  'TM-005': 'Дождаться окончания периода наблюдения',
+  // Телеметрия – по действующим правилам TM-001…TM-011 (src/engine/rules/catalog.ts)
+  'TM-001': 'Загрузить паспорт объекта object.json',
+  'TM-002': 'Дополнить карту сигналов в паспорте object.json',
+  'TM-003': 'Получить телеметрию с обязательными сигналами',
+  'TM-004': 'Заменить выгрузку на телеметрию этого объекта',
+  'TM-005': 'Восстановить поток и получить свежую телеметрию',
+  'TM-006': 'Восстановить полноту потока за последние 48 ч',
+  'TM-007': 'Запросить телеметрию в kW, kWh и %',
+  'TM-008': 'Исправить знаки и диапазоны в telemetry.csv',
+  'TM-009': 'Запросить телеметрию со временем в UTC (ISO 8601, «Z»)',
+  'TM-010': 'Сверить подозрительные значения с журналом контроллера',
+  'TM-011': 'Проверить связь и сигналы батарей',
   'CT-001': 'Провести тест для неиспытанных типов команд',
   'CT-002': 'Проверить приём команд контроллером актива',
   'CT-003': 'Проверить отклик актива на команду',
@@ -62,7 +70,13 @@ export const NEXT_ACTION_BY_RULE: Record<string, string> = {
 /** Следующее действие для этапа (null – этап завершён). Чистая функция. */
 export function getNextAction(session: LaunchSession, stageId: StageId, config: RulesConfig): NextAction | null {
   const stage = session.stages[stageId];
-  if (stage.status === 'COMPLETED') return null;
+  if (stage.status === 'COMPLETED') {
+    // Данные завершённого этапа (или более раннего) изменились после подтверждения – готовность снята до обновления
+    const [stale] = staleConfirmationStages(session, STAGE_IDS.slice(0, STAGE_IDS.indexOf(stageId) + 1));
+    if (!stale) return null;
+    const c = session.stages[stale].confirmations.find((x) => x.staleSince)!;
+    return { kind: 'CONFIRM', stageId: stale, title: 'Обновить устаревшие подтверждения этапа', reason: `Подтверждение ${c.requirementId} устарело: ${c.staleReason ?? 'данные изменились'}. Проверки этапа будут повторены на текущих данных` };
+  }
 
   const prev = getPreviousStage(stageId);
   if (prev && session.stages[prev].status !== 'COMPLETED') {
@@ -94,15 +108,45 @@ export function getNextAction(session: LaunchSession, stageId: StageId, config: 
 
 const list = (v: unknown): string[] => (Array.isArray(v) ? v.map(String) : []);
 const day = (iso: unknown) => (typeof iso === 'string' ? iso.slice(0, 10).split('-').reverse().join('.') : '');
+/** «2025-05-14T12:30:00Z» → «14.05.2025 12:30 UTC». */
+const utcShort = (iso: string) => `${day(iso)} ${iso.slice(11, 16)} UTC`;
+/** Список сигналов в подсказке: до трёх, дальше – «и ещё N». */
+const short = (xs: string[]) => (xs.length > 3 ? `${xs.slice(0, 3).join(', ')} и ещё ${xs.length - 3}` : xs.join(', '));
 
 /** Конкретизация действия по деталям проверки: какой сигнал, какая команда, какой период. */
 export function specificAction(ruleId: string, details: Record<string, unknown> | undefined): string | undefined {
   if (!details) return undefined;
   switch (ruleId) {
-    case 'TM-001': {
-      const tags = list(details.signals);
-      if (list(details.unknownSignalIds).length) return `Проверить привязку сигнала ${tags[0] ?? ''}: поток содержит сигналы другого объекта`.trim();
-      return tags.length ? `Подключить телеметрию: ${tags.join(', ')}` : undefined;
+    case 'TM-002': {
+      const s = list(details.signals);
+      return s.length ? `Дополнить карту сигналов паспорта object.json: ${short(s)}` : undefined;
+    }
+    case 'TM-003': {
+      const s = list(details.signals);
+      return s.length ? `Получить телеметрию с сигналами: ${short(s)}` : undefined;
+    }
+    case 'TM-005': {
+      const s = list(details.signals);
+      return s.length ? `Восстановить поток и выгрузить свежие данные: ${short(s)}` : undefined;
+    }
+    case 'TM-006': {
+      const s = list(details.signals);
+      return s.length ? `Восстановить полноту за 48 ч: ${short(s)}` : undefined;
+    }
+    case 'TM-007': {
+      const s = list(details.signals);
+      return s.length ? `Запросить в правильных единицах: ${short(s)}` : undefined;
+    }
+    case 'TM-008': {
+      // Знак обратный почти во всех интервалах – это не выбросы, а другая конвенция знака в источнике
+      const sys = list(details.systematic);
+      if (sys.length) return `Исправить знак ${short(sys)} в источнике телеметрии и выгрузить заново`;
+      const s = list(details.signals);
+      return s.length ? `Исправить знаки и диапазоны в telemetry.csv: ${short(s)}` : undefined;
+    }
+    case 'TM-011': {
+      const o = list(details.owners);
+      return o.length ? `Проверить связь и сигналы батарей: ${short(o)}` : undefined;
     }
     case 'MH-002': {
       const m = list(details.missingMonths);
@@ -111,6 +155,35 @@ export function specificAction(ruleId: string, details: Record<string, unknown> 
     case 'MH-004': {
       const i = details.interval as { from?: string; to?: string } | null;
       return i?.from ? `Получить выгрузку за пропущенный интервал ${day(i.from)} – ${day(i.to)}` : undefined;
+    }
+    case 'MH-008': {
+      // Несколько нарушений – перечислить; много – с какого интервала и сколько всего
+      const where = (examples: unknown, count: unknown) => {
+        const ex = (Array.isArray(examples) ? examples : []) as { timestamp?: string; value?: string }[];
+        const when = ex.filter((e) => e.timestamp).map((e) => `${utcShort(e.timestamp!)} (${e.value})`);
+        const total = typeof count === 'number' ? count : when.length;
+        if (!when.length) return '';
+        return total <= 3 ? when.join(', ') : `с ${utcShort(ex[0]!.timestamp!)}, всего ${total.toLocaleString('ru-RU')} интервалов`;
+      };
+      const signs = list(details.fields);
+      const ranges = list(details.rangeFields);
+      const parts = [
+        signs.length ? `знак ${short(signs)}${where(details.examples, details.count) ? ` (${where(details.examples, details.count)})` : ''}` : '',
+        ranges.length ? `выбросы ${short(ranges)}${where(details.rangeExamples, details.rangeCount) ? ` (${where(details.rangeExamples, details.rangeCount)})` : ''}` : '',
+      ].filter(Boolean);
+      if (!parts.length) return undefined;
+      if (signs.length && !ranges.length) return `Исправить знак ${short(signs)} в выгрузке${where(details.examples, details.count) ? `: ${where(details.examples, details.count)}` : ''}`;
+      if (!signs.length) return `Сверить с поставщиком данных выбросы ${short(ranges)}${where(details.rangeExamples, details.rangeCount) ? `: ${where(details.rangeExamples, details.rangeCount)}` : ''}`;
+      return `Исправить в выгрузке ${parts.join('; ')}`;
+    }
+    case 'DB-011':
+    case 'DB-012':
+    case 'DB-013':
+    case 'DB-014': {
+      const data = list(details.dataIssues);
+      const off = list(details.fields);
+      if (data.length) return `Добавить данные для блока: ${short(data)}`;
+      return off.length ? `Включить обязательные виджеты: ${short(off)}` : undefined;
     }
     case 'MH-007': {
       const f = list(details.fields);

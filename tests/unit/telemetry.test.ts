@@ -128,3 +128,23 @@ describe('telemetry.csv – этап 2', () => {
     expect({ ...fromCsv, meta: { ...fromCsv.meta, sizeBytes: 0 } }).toEqual({ ...direct, meta: { ...direct.meta, sizeBytes: 0 } });
   });
 });
+
+describe('учёт замечаний (сверка с набором кейса 4)', () => {
+  it('недопустимый SoC (140 %) – одна ошибка TM-008, а не ещё и «скачок» от него к нормальному значению', () => {
+    const { ds } = run({ socOutOfRange: 3 });
+    // 3 интервала × 2 батареи паспорта
+    expect(ds.report.issueCounts.SOC_OUT_OF_RANGE).toBe(6);
+    expect(ds.report.issueCounts.SOC_JUMP ?? 0).toBe(0);
+  });
+
+  it('редкие ошибки не вытесняются из списка массовыми замечаниями (3 500 расхождений уставок и 1 ошибка знака после трёхтысячной строки)', async () => {
+    const passport = demoPassport({ ...SPEC, assets: [{ id: 'battery-1', type: 'battery', prefix: 'Battery1' }] });
+    const head = 'timestamp (UTC);object_id;Battery1.power_kW (kW);Battery1.energy_kWh.charge (kWh);Battery1.energy_kWh.discharge (kWh);Battery1.power_kW.setpoint_sent (kW);Battery1.power_kW.setpoint_received (kW)';
+    const t0 = Date.parse('2026-11-05T10:00:00Z') - 3500 * 15 * 60_000;
+    const rows = Array.from({ length: 3500 }, (_, i) => `${new Date(t0 + i * 15 * 60_000).toISOString().replace('.000Z', 'Z')};obj-x;${i === 3400 ? '-10' : '10'};2,5;0;10;5`);
+    const report = await importTelemetry([head, ...rows].join('\n'), passport, rules, { fileName: 'telemetry.csv', uploadedAt: '2026-11-05T09:55:00.000Z', source: 'DEMO' });
+    expect(report.issueCounts.SETPOINT_MISMATCH).toBe(3500);
+    expect(report.issueCounts.SIGN_ERROR).toBe(1);
+    expect(report.issues.filter((i) => i.type === 'SIGN_ERROR').map((i) => i.signal)).toEqual(['Battery1.power_kW']);
+  });
+});

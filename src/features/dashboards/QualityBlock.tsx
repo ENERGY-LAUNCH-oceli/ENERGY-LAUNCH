@@ -1,6 +1,7 @@
 import { StatusBadge } from '@/components/ui/status-badge';
 import { AUDIT_ACTION_LABEL } from '@/config/labels';
 import { STAGE_META } from '@/config/stages';
+import { coverageMonths } from '@/features/invoice-validation/labels';
 import { STAGE_IDS, type DashboardBlockConfig } from '@/types';
 import { cn } from '@/utils/cn';
 import { formatDateTime } from '@/utils/format';
@@ -38,7 +39,7 @@ export function QualityBlock({ block, data }: { block: DashboardBlockConfig; dat
           <Widget title="Качество истории">
             <div className="grid grid-cols-2 gap-3">
               <Stat label="Полнота" value={r ? `${num(r.completeness.pct, 2)} %` : '–'} tone={r ? (r.completeness.pct >= 100 ? 'ok' : 'bad') : undefined} />
-              <Stat label="Покрытие" value={r?.window ? `${r.window.months.length - r.missingMonths.length}/${r.window.months.length}` : '–'} tone={r && r.missingMonths.length ? 'bad' : 'ok'} />
+              <Stat label="Покрытие" value={r?.window ? `${coverageMonths(r.window.months).length - r.missingMonths.length}/${coverageMonths(r.window.months).length}` : '–'} tone={r && r.missingMonths.length ? 'bad' : 'ok'} />
             </div>
           </Widget>
         )}

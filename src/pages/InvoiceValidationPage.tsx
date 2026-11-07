@@ -4,6 +4,7 @@ import { Alert } from '@/components/ui/alert';
 import { getNextAction } from '@/engine';
 import { StageActionBar } from '@/features/launch-card';
 import { CheckBlocks, CompletenessPanel, CoverageTimeline, EanPanel, FieldQualityTable, IssuesTable, RunsHistory, UploadPanel } from '@/features/invoice-validation';
+import { coverageMonths } from '@/features/invoice-validation/labels';
 import { ANCHORS } from '@/config/blocker-links';
 import { useLaunchStore } from '@/store';
 
@@ -21,7 +22,7 @@ export function InvoiceValidationPage() {
   const stale = !!ds && !!runs.at(-1) && runs.at(-1)!.datasetVersion !== ds.version;
   const rules = ruleset.meterHistory;
   const next = getNextAction(session, 'METER_HISTORY', ruleset);
-  const present = r?.window ? r.window.months.filter((m) => m.state !== 'MISSING').length : 0;
+  const present = r?.window ? coverageMonths(r.window.months).filter((m) => m.state !== 'MISSING').length : 0;
   const unitIssues = (r?.issueCounts.UNIT_MISMATCH ?? 0) + (r?.issueCounts.MIXED_UNITS ?? 0);
   const qualityIssues = ['INVALID_TIMESTAMP', 'NON_UTC_TIMESTAMP', 'MISALIGNED_TIMESTAMP', 'EMPTY_VALUE', 'INVALID_NUMBER', 'NEGATIVE_VALUE', 'POSITIVE_VALUE', 'SIGN_ERROR'].reduce((n, t) => n + (r?.issueCounts[t as keyof typeof r.issueCounts] ?? 0), 0);
 
@@ -67,10 +68,10 @@ export function InvoiceValidationPage() {
       </div>
 
       <div className="grid gap-6 2xl:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
-        <div id={ANCHORS.mhCompleteness} className="scroll-mt-24">
+        <div id={ANCHORS.mhCompleteness} className="min-w-0 scroll-mt-24">
           <CompletenessPanel report={r} minPct={rules.minCompletenessPct} stepMinutes={rules.intervalMinutes} />
         </div>
-        <div id={ANCHORS.mhEan} className="scroll-mt-24">
+        <div id={ANCHORS.mhEan} className="min-w-0 scroll-mt-24">
           <EanPanel object={inputs.object} report={r} results={results} eanLength={rules.eanLength} />
         </div>
       </div>

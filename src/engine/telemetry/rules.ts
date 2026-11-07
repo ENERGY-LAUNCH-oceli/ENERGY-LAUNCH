@@ -117,7 +117,15 @@ export function validateTelemetryReport(ds: TelemetryDatasetV2 | undefined, pass
   const phys = count('OUT_OF_RANGE', 'NEGATIVE_PV', 'SOC_OUT_OF_RANGE', 'SIGN_ERROR', 'INVALID_NUMBER');
   const physSignals = [...new Set(r.issues.filter((i) => ['OUT_OF_RANGE', 'NEGATIVE_PV', 'SOC_OUT_OF_RANGE', 'SIGN_ERROR', 'INVALID_NUMBER'].includes(i.type)).map((i) => i.signal))];
   const firstPhys = r.issues.find((i) => physSignals.includes(i.signal) && i.timestamp);
-  const tm8 = makeResult('TM-008', phys === 0, { message: phys ? `Нарушения знаков и диапазонов: ${phys} (${physSignals.join(', ')})` : 'Знаки и диапазоны соответствуют правилам (Grid ±, Battery ±, PV ≥ 0, SoC 0–100 %)', actual: phys, expected: 0, details: { ...base, signals: physSignals, interval: firstPhys ? { from: firstPhys.timestamp, to: firstPhys.timestamp } : null } }, env);
+  // Систематическая ошибка: знак мощности обратный в ≥ 80 % строк – другая конвенция знака в источнике, а не выбросы
+  const signSignals = new Set(r.issues.filter((i) => i.type === 'SIGN_ERROR').map((i) => i.signal));
+  const systematic = r.signals.filter((s) => signSignals.has(s.signal) && r.meta.rows > 0 && s.invalid / r.meta.rows >= 0.8).map((s) => s.signal);
+  // Систематическая ошибка – сначала её суть и правило ТЗ, затем число; иначе – число и сигналы
+  const others = physSignals.filter((s) => !systematic.includes(s));
+  const physMessage = systematic.length
+    ? `Знак ${systematic.join(', ')} обратный почти во всех интервалах (${phys.toLocaleString('ru-RU')} нарушений): по ТЗ 4.2 «+» – потребление из сети и заряд, «−» – выдача и разряд${others.length ? `; также: ${others.join(', ')}` : ''}`
+    : `Нарушения знаков и диапазонов: ${phys}${physSignals.length ? ` (${physSignals.join(', ')})` : ''}`;
+  const tm8 = makeResult('TM-008', phys === 0, { message: phys ? physMessage :'Знаки и диапазоны соответствуют правилам (Grid ±, Battery ±, PV ≥ 0, SoC 0–100 %)', actual: phys, expected: 0, details: { ...base, signals: physSignals, systematic, interval: firstPhys ? { from: firstPhys.timestamp, to: firstPhys.timestamp } : null } }, env);
 
   const tsIssues = count('INVALID_TIMESTAMP', 'NON_UTC_TIMESTAMP', 'DUPLICATE_TIMESTAMP');
   const tm9 = makeResult('TM-009', tsIssues === 0, { message: tsIssues ? `Некорректные отметки времени: ${tsIssues} (неоднозначная зона, дубли, формат)` : 'Отметки времени – ISO 8601 UTC без дублей', actual: tsIssues, expected: 0, details: { ...base, fields: ['timestamp'] } }, env);

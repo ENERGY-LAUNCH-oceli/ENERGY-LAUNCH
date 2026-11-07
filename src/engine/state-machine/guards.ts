@@ -21,6 +21,10 @@ export function guardPreviousCompleted(session: LaunchSession, stageId: StageId)
   return null;
 }
 
+/** Завершённые этапы, чьи подтверждения устарели после изменения входов (ТЗ 2.2 п. 4). */
+export const staleConfirmationStages = (session: LaunchSession, stageIds: readonly StageId[]): StageId[] =>
+  stageIds.filter((id) => session.stages[id].confirmations.some((c) => c.staleSince));
+
 /** Неудовлетворённые обязательные подтверждения этапа. */
 export function getUnmetConfirmations(
   session: LaunchSession,
@@ -82,6 +86,17 @@ export function guardCanComplete(session: LaunchSession, stageId: StageId, confi
       stageId,
       message: `Нет обязательных подтверждений: ${unmet.map((r) => r.id).join(', ')}`,
       details: { requirementIds: unmet.map((r) => r.id) },
+    };
+  }
+
+  // Данные предыдущих этапов изменились после их подтверждения – запуск не продолжается на устаревших подтверждениях
+  const stale = staleConfirmationStages(session, getPrerequisites(stageId));
+  if (stale.length > 0) {
+    return {
+      code: 'MISSING_CONFIRMATIONS',
+      stageId,
+      message: `Подтверждения этапов ${stale.join(', ')} устарели после изменения данных – обновите их на странице этапа`,
+      details: { staleStages: stale },
     };
   }
   return null;

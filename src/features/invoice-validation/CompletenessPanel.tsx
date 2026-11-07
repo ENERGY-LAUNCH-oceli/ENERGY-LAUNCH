@@ -1,10 +1,10 @@
 import type { InvoiceReport } from '@/types';
 import { cn } from '@/utils/cn';
-import { monthLabel } from './labels';
+import { coverageMonths, monthLabel } from './labels';
 
 /** Полнота по месяцам: столбик = доля фактических интервалов; линия – порог из правил. */
 export function CompletenessPanel({ report, minPct, stepMinutes }: { report: InvoiceReport | undefined; minPct: number; stepMinutes: number }) {
-  const months = report?.window?.months ?? [];
+  const months = coverageMonths(report?.window?.months ?? []);
   const c = report?.completeness;
   const W = 720;
   const H = 150;

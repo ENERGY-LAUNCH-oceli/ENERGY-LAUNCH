@@ -1,11 +1,11 @@
 import type { InvoiceReport } from '@/types';
 import { cn } from '@/utils/cn';
-import { monthLabel } from './labels';
+import { coverageMonths, isPendingMonth, monthLabel } from './labels';
 
 /** Временная шкала на 24 месяца: полный, частичный, отсутствующий месяц; дубли отмечены. */
 export function CoverageTimeline({ report, periodMonths }: { report: InvoiceReport | undefined; periodMonths: number }) {
   const months = report?.window?.months;
-  const present = months ? months.filter((m) => m.state !== 'MISSING').length : 0;
+  const present = months ? coverageMonths(months).filter((m) => m.state !== 'MISSING').length : 0;
   return (
     <section id="coverage" aria-label="Покрытие 24 месяцев" className="scroll-mt-24 rounded-lg border border-border bg-surface p-5">
       <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
@@ -31,21 +31,24 @@ export function CoverageTimeline({ report, periodMonths }: { report: InvoiceRepo
           <ol className="grid grid-cols-6 gap-1.5 sm:grid-cols-12" data-testid="coverage-timeline">
             {months.map((m) => {
               const pct = m.expected ? (m.present / m.expected) * 100 : 0;
+              const pending = isPendingMonth(m);
               return (
                 <li
                   key={m.month}
                   data-month={m.month}
                   data-month-state={m.state}
-                  title={`${m.month}: ${m.present} из ${m.expected} интервалов${m.duplicates ? `, дублей ${m.duplicates}` : ''}`}
+                  data-pending={pending ? '' : undefined}
+                  title={pending ? `${m.month}: задержка публикации – данные за последние сутки окна ещё не опубликованы, в покрытие не входит` : `${m.month}: ${m.present} из ${m.expected} интервалов${m.duplicates ? `, дублей ${m.duplicates}` : ''}`}
                   className={cn(
                     'relative flex h-16 flex-col justify-between overflow-hidden rounded-sm border px-1.5 py-1',
-                    m.state === 'FULL' && 'border-status-completed-border bg-status-completed-bg',
+                    pending && 'border-dashed border-border-strong bg-surface',
+                    !pending && m.state === 'FULL' && 'border-status-completed-border bg-status-completed-bg',
                     m.state === 'PARTIAL' && 'border-warning-border bg-warning-subtle',
                     m.state === 'MISSING' && 'border-dashed border-status-blocked-border bg-[repeating-linear-gradient(135deg,rgb(var(--el-error-subtle)),rgb(var(--el-error-subtle))_4px,rgb(var(--el-surface))_4px,rgb(var(--el-surface))_8px)]',
                   )}
                 >
                   <span className={cn('text-[11px] font-medium', m.state === 'MISSING' ? 'text-status-blocked' : 'text-text-primary')}>{monthLabel(m.month)}</span>
-                  <span className="tabular text-[10px] text-text-secondary">{m.state === 'MISSING' ? 'нет данных' : `${Math.floor(pct * 10) / 10}%`}</span>
+                  <span className="tabular text-[10px] text-text-secondary">{pending ? 'публикуется' : m.state === 'MISSING' ? 'нет данных' : `${Math.floor(pct * 10) / 10}%`}</span>
                   {m.duplicates > 0 && <span className="absolute right-1 top-1 size-1.5 rounded-full bg-warning" aria-label="Есть дубли" />}
                   <span aria-hidden className={cn('absolute inset-x-0 bottom-0 h-1', m.state === 'FULL' ? 'bg-status-completed-solid' : m.state === 'PARTIAL' ? 'bg-warning' : 'bg-transparent')} style={{ width: `${pct}%` }} />
                 </li>
@@ -78,6 +81,7 @@ export function CoverageTimeline({ report, periodMonths }: { report: InvoiceRepo
             <span className="flex items-center gap-1.5"><span className="size-3 rounded-xs border border-status-completed-border bg-status-completed-bg" />Полный месяц</span>
             <span className="flex items-center gap-1.5"><span className="size-3 rounded-xs border border-warning-border bg-warning-subtle" />Есть пропуски</span>
             <span className="flex items-center gap-1.5"><span className="size-3 rounded-xs border border-dashed border-status-blocked-border" />Нет данных</span>
+            <span className="flex items-center gap-1.5"><span className="size-3 rounded-xs border border-dashed border-border-strong" />Задержка публикации (не входит в покрытие)</span>
             <span className="flex items-center gap-1.5"><span className="size-1.5 rounded-full bg-warning" />Дубли</span>
           </div>
         </>

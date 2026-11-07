@@ -99,7 +99,8 @@ export function validateInvoice(ds: InvoiceDataset | undefined, object: EnergyOb
     'MH-004',
     r.completeness.pct >= rules.minCompletenessPct,
     {
-      message: `Интервалов ${r.completeness.present.toLocaleString('ru-RU')} из ${r.completeness.expected.toLocaleString('ru-RU')} (${r.completeness.pct}%); пропущено ${r.completeness.missing.toLocaleString('ru-RU')}`,
+      // Процент округляется вниз (69,798 → 69,79): полнота не должна выглядеть выше фактической
+      message: `Интервалов ${r.completeness.present.toLocaleString('ru-RU')} из ${r.completeness.expected.toLocaleString('ru-RU')} (${r.completeness.pct}%${r.completeness.expected && (r.completeness.present / r.completeness.expected) * 100 > r.completeness.pct ? ', округлено вниз' : ''}); пропущено ${r.completeness.missing.toLocaleString('ru-RU')}`,
       actual: r.completeness.pct,
       expected: rules.minCompletenessPct,
       details: { ...base, interval: firstInterval(ds, 'MISSING_INTERVAL'), gaps: r.issueCounts.MISSING_INTERVAL ?? 0 },
@@ -116,10 +117,34 @@ export function validateInvoice(ds: InvoiceDataset | undefined, object: EnergyOb
   const units = makeResult('MH-007', unitIssues === 0, { message: unitIssues ? `Ошибки единиц: ${unitIssues} (поля: ${fieldsWith(ds, 'UNIT_MISMATCH', 'MIXED_UNITS').join(', ')})` : 'Единицы соответствуют правилам: kWh для энергии, kW для мощности', actual: unitIssues, expected: 0, details: { ...base, fields: fieldsWith(ds, 'UNIT_MISMATCH', 'MIXED_UNITS'), interval: firstInterval(ds, 'MIXED_UNITS') } }, env);
 
   const signIssues = count(ds, 'NEGATIVE_VALUE', 'POSITIVE_VALUE', 'SIGN_ERROR');
-  const signs = makeResult('MH-008', signIssues === 0, { message: signIssues ? `Нарушения знаков: ${signIssues}` : 'Знаки соответствуют правилам ТЗ 4.2', actual: signIssues, expected: 0, details: { ...base, fields: fieldsWith(ds, 'NEGATIVE_VALUE', 'POSITIVE_VALUE', 'SIGN_ERROR'), interval: firstInterval(ds, 'NEGATIVE_VALUE', 'POSITIVE_VALUE', 'SIGN_ERROR') } }, env);
+  const rangeIssues = count(ds, 'OVER_CAPACITY');
+  // Примеры нарушений (поле, интервал, значение) – чтобы «следующее действие» называло, что именно исправить
+  const signFields = fieldsWith(ds, 'NEGATIVE_VALUE', 'POSITIVE_VALUE', 'SIGN_ERROR');
+  const examples = (...types: InvoiceIssueType[]) => (ds ? ds.report.issues.filter((i) => types.includes(i.type) && i.timestamp).slice(0, 3).map((i) => ({ timestamp: i.timestamp, field: i.field, value: i.value, expected: i.expected })) : []);
+  const signExamples = examples('NEGATIVE_VALUE', 'POSITIVE_VALUE', 'SIGN_ERROR');
+  const rangeFields = fieldsWith(ds, 'OVER_CAPACITY');
+  const rangeExamples = examples('OVER_CAPACITY');
+  const signParts = [
+    signIssues ? `Нарушения знаков: ${signIssues.toLocaleString('ru-RU')} (${signFields.join(', ')})${signExamples[0] ? ` – ожидается ${signExamples[0].expected}` : ''}` : '',
+    rangeIssues ? `Выбросы больше договорной мощности: ${rangeIssues.toLocaleString('ru-RU')} (${rangeFields.join(', ')})` : '',
+  ].filter(Boolean);
+  const signs = makeResult(
+    'MH-008',
+    signIssues + rangeIssues === 0,
+    {
+      message: signParts.length ? signParts.join('; ') : 'Знаки и диапазоны соответствуют правилам ТЗ 4.2',
+      actual: signIssues + rangeIssues,
+      expected: 0,
+      details: { ...base, fields: signFields, examples: signExamples, count: signIssues, rangeFields, rangeExamples, rangeCount: rangeIssues, interval: firstInterval(ds, 'NEGATIVE_VALUE', 'POSITIVE_VALUE', 'SIGN_ERROR', 'OVER_CAPACITY') },
+    },
+    env,
+  );
 
   const valueIssues = count(ds, 'EMPTY_VALUE', 'INVALID_NUMBER');
-  const values = makeResult('MH-009', valueIssues === 0, { message: valueIssues ? `Пустые или некорректные значения: ${valueIssues}` : 'Пустых и некорректных значений нет', actual: valueIssues, expected: 0, details: { ...base, fields: fieldsWith(ds, 'EMPTY_VALUE', 'INVALID_NUMBER'), interval: firstInterval(ds, 'EMPTY_VALUE', 'INVALID_NUMBER') } }, env);
+  // В интервалах, а не в ячейках: пустые исходное и валидированное значение – один пропущенный интервал, а не два
+  const badIntervals = r.badValueIntervals ?? valueIssues;
+  const valueFields = fieldsWith(ds, 'EMPTY_VALUE', 'INVALID_NUMBER');
+  const values = makeResult('MH-009', valueIssues === 0, { message: valueIssues ? `Пустые или некорректные значения в ${badIntervals.toLocaleString('ru-RU')} ${badIntervals % 10 === 1 && badIntervals % 100 !== 11 ? 'интервале' : 'интервалах'} (${valueIssues.toLocaleString('ru-RU')} значений; поля: ${valueFields.join(', ')})` : 'Пустых и некорректных значений нет', actual: valueIssues, expected: 0, details: { ...base, fields: fieldsWith(ds, 'EMPTY_VALUE', 'INVALID_NUMBER'), interval: firstInterval(ds, 'EMPTY_VALUE', 'INVALID_NUMBER') } }, env);
 
   const dev = count(ds, 'VALIDATED_DEVIATION');
   const validated = makeResult('MH-010', dev === 0, { message: dev ? `Валидированные значения отличаются от исходных в ${dev} интервалах` : 'Валидированные значения совпадают с исходными', actual: dev, expected: 0, details: base }, env);

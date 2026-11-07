@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { env } from '@/config/env';
 import { getRuleset } from '@/config/rules';
+import { STAGE_META } from '@/config/stages';
 import { DEFAULT_SCENARIO_ID, loadScenario } from '@/data/scenarios';
 import { OBJECT_CATALOG, addUserObject, attachStoredObjects, findObject, findStoredObject, loadObjectInputs, removeUserObject, replaceObjectCatalog, seedWorkspace, type ObjectCatalogEntry, type StoredUserObject, type UserObjectDraft } from '@/data/objects';
 import { startCase4Job, type Case4Job, type Case4Manifest, type Case4Progress } from '@/data/case4';
@@ -12,13 +13,15 @@ import {
   createEngineContext,
   markConfirmationsStale,
   createLaunchSession,
+  renewConfirmation,
   resolveBlocker,
+  runStageValidation,
   startStage,
   validateStage,
   type MachineResult,
   type TransitionError,
 } from '@/engine';
-import { auditRepository, createWorkspaceWriter, detectServer, loadServerState, saveLaunchInputs, saveServerObject, serverApi, sessionRepository, useStorageStatus, type SavedWorkspace, type ServerState, type WorkspaceDoc } from '@/services';
+import { auditRepository, broadcastStorage, createWorkspaceWriter, detectServer, loadServerState, onStorageSignal, saveLaunchInputs, saveServerObject, serverApi, sessionRepository, useStorageStatus, type SavedWorkspace, type ServerState, type WorkspaceDoc } from '@/services';
 import { makeInvoiceRun } from '@/engine/invoice';
 import type { InvoiceReport, SitePassport, TelemetryReport } from '@/types';
 import { makeTelemetryRun } from '@/engine/telemetry';
@@ -66,6 +69,8 @@ export const serverPersistence: LaunchPersistence = {
   resetWorkspaces: async () => {
     await workspaceWriter.cancel();
     await serverApi.resetWorkspaces();
+    workspaceWriter.clearRevisions();
+    broadcastStorage({ type: 'reset' });
   },
   flush: () => workspaceWriter.flushAll(),
 };
@@ -133,6 +138,8 @@ interface LaunchState {
   resolveBlocker(blockerId: string, resolution: string, status?: 'RESOLVED' | 'WAIVED'): boolean;
   addEvidence(evidence: Omit<Evidence, 'id' | 'sessionId' | 'createdAt' | 'createdBy'>): boolean;
   addConfirmation(input: Omit<StageConfirmation, 'id' | 'confirmedAt'>): boolean;
+  /** Обновить устаревшие подтверждения завершённого этапа: проверки этапа повторяются на текущих данных. */
+  renewConfirmations(stageId: StageId): boolean;
   clearError(): void;
   /** Новая загрузка invoice.csv: новая версия набора, предыдущая уходит в историю. */
   importInvoiceReport(report: InvoiceReport): void;
@@ -145,8 +152,23 @@ interface LaunchState {
   setSourceStatus(kind: 'invoice' | 'telemetry', status: SourceStatus): void;
 }
 
+/** Демо-роль запоминается в браузере: перезагрузка страницы во время приёмки не сбрасывает её на инженера. */
+const ROLE_KEY = 'el.role';
+const INITIAL_ROLE: DemoRole = (() => {
+  try {
+    const v = localStorage.getItem(ROLE_KEY);
+    return v && v in ROLE_TITLE ? (v as DemoRole) : 'LAUNCH_ENGINEER';
+  } catch {
+    return 'LAUNCH_ENGINEER';
+  }
+})();
+
 /** Фоновая загрузка набора кейса 4 (одна на сессию приложения). */
 let bootJob: Case4Job | null = null;
+/** Применяется состояние с сервера (из другой вкладки или от другого пользователя) – его не нужно сохранять обратно. */
+let applyingRemote = false;
+/** Опрос ревизий: изменения из других вкладок и от других пользователей видны без перезагрузки. */
+const SYNC_INTERVAL_MS = 15_000;
 /** Подключение к серверу хранилища и загрузка сохранённого (параллельно с набором кейса). */
 let storageJob: Promise<ServerState | null> | null = null;
 /** Применение портфеля (тяжёлая часть старта) – в паузе анимации заставки. */
@@ -175,7 +197,7 @@ export const useLaunchStore = create<LaunchState>()((set, get) => {
     const { persistence } = get();
     if (!result.ok) notify({ tone: 'warning', title: 'Переход отклонён', description: result.error.message });
     for (const e of result.events) {
-      if (e.action === 'STAGE_COMPLETED') notify({ tone: 'success', title: 'Этап завершён', description: e.stageId ?? '' });
+      if (e.action === 'STAGE_COMPLETED') notify({ tone: 'success', title: 'Этап завершён', description: e.stageId ? STAGE_META[e.stageId].titleRu : '' });
       if (e.action === 'STAGE_BLOCKED') notify({ tone: 'error', title: 'Этап заблокирован', description: 'Найдены препятствия – см. панель этапа' });
       if (e.action === 'SESSION_COMPLETED') notify({ tone: 'success', title: 'Объект готов к эксплуатации' });
     }
@@ -314,6 +336,7 @@ export const useLaunchStore = create<LaunchState>()((set, get) => {
     const workspaces = { ...s.workspaces };
     let current: ObjectWorkspace | null = null;
     for (const w of saved) {
+      workspaceWriter.setRevision(w.objectId, w.revision);
       const entry = findObject(w.objectId);
       if (!entry || entry.source === 'SCENARIO') continue;
       if (w.session?.objectId !== w.objectId || w.session.rulesetVersion !== s.ruleset.version) continue;
@@ -329,13 +352,84 @@ export const useLaunchStore = create<LaunchState>()((set, get) => {
     get().initPortfolio(true);
     if (saved) applySaved(saved.workspaces);
     set({ storageReady: saved !== null });
+    if (saved) watchRemote();
+  };
+
+  /** Заменить состояние объекта сохранённым на сервере (null – на сервере его нет: исходное состояние). */
+  const applyRemote = (objectId: string, saved: SavedWorkspace | null): boolean => {
+    const s = get();
+    const entry = findObject(objectId);
+    if (!entry || entry.source === 'SCENARIO') return false;
+    workspaceWriter.setRevision(objectId, saved?.revision ?? 0);
+    const usable = saved && saved.session?.objectId === objectId && saved.session.rulesetVersion === s.ruleset.version;
+    const ws: ObjectWorkspace = usable ? { scenarioId: saved.scenarioId, inputs: saved.inputs, session: saved.session, auditLog: saved.auditLog } : seedWorkspace(entry, s.ruleset);
+    applyingRemote = true;
+    try {
+      if (objectId === s.currentObjectId) set({ ...ws, lastError: null });
+      else set({ workspaces: { ...s.workspaces, [objectId]: ws } });
+    } finally {
+      applyingRemote = false;
+    }
+    return true;
+  };
+
+  let syncing: Promise<void> | null = null;
+  /**
+   * Подтянуть изменения, сделанные в другой вкладке или другим пользователем: сравниваются ревизии,
+   * загружаются только изменённые объекты. Объект с неотправленными изменениями этой вкладки не трогается –
+   * если они построены на устаревшем состоянии, сервер их отклонит (409) и объект обновится через конфликт.
+   */
+  const syncFromServer = (force: readonly string[] = []): Promise<void> => {
+    if (syncing) return syncing.then(() => (force.length ? syncFromServer(force) : undefined));
+    syncing = (async () => {
+      const revs = await serverApi.revisions();
+      const ids = new Set([...Object.keys(revs), ...OBJECT_CATALOG.map((e) => e.id), ...force]);
+      let currentChanged = false;
+      for (const id of ids) {
+        const forced = force.includes(id);
+        const known = workspaceWriter.revision(id);
+        if (workspaceWriter.busyFor(id) || (!forced && (revs[id] ?? 0) === known)) continue;
+        const saved = revs[id] ? await serverApi.workspace(id) : null;
+        // Пока загружалось, вкладка могла изменить объект или сохранить его сама – её состояние новее
+        if (workspaceWriter.busyFor(id) || workspaceWriter.revision(id) !== known) continue;
+        if (applyRemote(id, saved) && id === get().currentObjectId && !forced) currentChanged = true;
+      }
+      if (currentChanged) notify({ tone: 'info', title: 'Состояние объекта обновлено', description: 'Объект изменили в другой вкладке или другим пользователем – показано актуальное состояние' });
+    })()
+      .catch((e: unknown) => console.error('[storage] синхронизация не выполнена', e))
+      .finally(() => {
+        syncing = null;
+      });
+    return syncing;
+  };
+
+  let watching = false;
+  const watchRemote = () => {
+    if (watching || typeof window === 'undefined') return;
+    watching = true;
+    const visible = () => typeof document === 'undefined' || document.visibilityState === 'visible';
+    onStorageSignal(() => void syncFromServer());
+    document.addEventListener('visibilitychange', () => visible() && void syncFromServer());
+    window.addEventListener('focus', () => void syncFromServer());
+    setInterval(() => visible() && void syncFromServer(), SYNC_INTERVAL_MS);
+    workspaceWriter.onConflict((objectId) => {
+      const name = findObject(objectId)?.name ?? objectId;
+      notify({ tone: 'warning', title: 'Изменение не сохранено', description: `Объект «${name}» уже изменили в другой вкладке или другим пользователем. Показано актуальное состояние – повторите действие, если оно ещё нужно.` });
+      // После того как отклонённая запись снимется с очереди
+      setTimeout(() => void syncFromServer([objectId]), 0);
+    });
   };
 
   return {
-    actor: ROLE_TITLE.LAUNCH_ENGINEER,
-    role: 'LAUNCH_ENGINEER',
+    actor: ROLE_TITLE[INITIAL_ROLE],
+    role: INITIAL_ROLE,
     setRole: (role) => {
       set({ role, actor: ROLE_TITLE[role] });
+      try {
+        localStorage.setItem(ROLE_KEY, role);
+      } catch {
+        /* без хранилища роль живёт до перезагрузки */
+      }
       notify({ tone: 'info', title: `Роль: ${ROLE_TITLE[role]}`, description: 'Демонстрационная роль – права действуют на всех экранах' });
     },
 
@@ -518,7 +612,20 @@ export const useLaunchStore = create<LaunchState>()((set, get) => {
 
     validateStage: (stageId) => {
       if (denied('launch.manage')) return false;
-      return runValidation(stageId, 'MANUAL');
+      const ok = runValidation(stageId, 'MANUAL');
+      // Итог проверки виден сразу – даже если результат не изменился (данные те же), понятно, что проверка прошла
+      const stage = get().session?.stages[stageId];
+      if (ok && stage) {
+        const blocking = stage.validationResults.filter((r) => r.blocking && r.status !== 'NOT_APPLICABLE');
+        const passed = blocking.filter((r) => r.status === 'PASSED').length;
+        const failed = blocking.filter((r) => r.status === 'FAILED' || r.status === 'SKIPPED').map((r) => r.ruleId);
+        notify({
+          tone: failed.length ? 'warning' : 'success',
+          title: failed.length ? `Проверки выполнены: не пройдено ${failed.length}` : 'Проверки выполнены: всё пройдено',
+          description: `Пройдено ${passed} из ${blocking.length}${failed.length ? ` · не пройдены: ${failed.slice(0, 4).join(', ')}${failed.length > 4 ? '…' : ''}` : ''}`,
+        });
+      }
+      return ok;
     },
 
     importTelemetryReport: (report) => {
@@ -683,6 +790,25 @@ export const useLaunchStore = create<LaunchState>()((set, get) => {
 
     addConfirmation: (input) => !denied('launch.manage') && withSession((s) => addConfirmation(s, input, get().ruleset, ctx())),
 
+    renewConfirmations: (stageId) => {
+      if (denied('launch.manage')) return false;
+      const { inputs, session, ruleset } = get();
+      if (!inputs || !session) return false;
+      const stale = session.stages[stageId].confirmations.filter((c) => c.staleSince);
+      if (!stale.length) return false;
+      const c = ctx();
+      // Подтверждение засчитывается снова только по проверке текущих данных – тот же прогон, что и «Повторить проверки»
+      const results = runStageValidation(stageId, inputs, ruleset, c);
+      for (const conf of stale) {
+        if (!withSession((s) => renewConfirmation(s, { stageId, requirementId: conf.requirementId, role: conf.role, confirmedBy: c.actor }, results, ruleset, c))) return false;
+      }
+      const after = get().session!;
+      const snapshot = makeSnapshot({ id: c.newId(), session: after, stageId, inputs, results, statusBefore: 'COMPLETED', at: c.now(), actor: c.actor, trigger: 'RECHECK', reason: 'обновление устаревших подтверждений', sha });
+      set({ inputs: { ...inputs, validationHistory: [...(inputs.validationHistory ?? []), snapshot] } });
+      notify({ tone: 'success', title: 'Подтверждения обновлены', description: `${STAGE_META[stageId].titleRu}: проверки на текущих данных пройдены` });
+      return true;
+    },
+
     clearError: () => set({ lastError: null }),
   };
 });
@@ -694,8 +820,10 @@ export const useLaunchStore = create<LaunchState>()((set, get) => {
 useLaunchStore.subscribe((s, prev) => {
   const save = s.persistence.saveWorkspace;
   const id = s.currentObjectId;
-  if (!save || !s.storageReady || !id || !s.session || !s.inputs) return;
-  if (s.session === prev.session && s.inputs === prev.inputs && s.auditLog === prev.auditLog && s.scenarioId === prev.scenarioId && id === prev.currentObjectId) return;
+  if (!save || !s.storageReady || !id || !s.session || !s.inputs || applyingRemote) return;
+  // Переключение объекта ничего в нём не меняет – сохранять нечего (иначе открытая давно вкладка затёрла бы свежее состояние)
+  if (id !== prev.currentObjectId) return;
+  if (s.session === prev.session && s.inputs === prev.inputs && s.auditLog === prev.auditLog && s.scenarioId === prev.scenarioId) return;
   if (s.session.objectId !== id || s.inputs.object.id !== id || findObject(id)?.source === 'SCENARIO') return;
   save(id, { scenarioId: s.scenarioId, inputs: s.inputs, session: s.session, auditLog: s.auditLog });
 });

@@ -13,9 +13,23 @@ export type StageValidator = (inputs: LaunchInputs, config: RulesConfig, env: Va
 
 const allSignals = (inputs: LaunchInputs) => inputs.object.assets.flatMap((a) => a.signals);
 
+/**
+ * Объект для проверок истории: EAN и data_files – из последней версии паспорта object.json (ТЗ: «коды EAN из паспорта»).
+ * Без этого исправленный паспорт (например, верная контрольная цифра EAN) не снимал бы препятствие MH-011.
+ */
+function objectWithPassport(i: LaunchInputs): LaunchInputs['object'] {
+  const p = i.passport;
+  if (!p) return i.object;
+  return {
+    ...i.object,
+    gridConnection: { ...i.object.gridConnection, eanOfftake: p.ean.offtake ?? i.object.gridConnection.eanOfftake, eanInjection: p.ean.injection ?? i.object.gridConnection.eanInjection },
+    passport: { ...i.object.passport, dataFiles: { invoice: p.dataFiles.invoice ?? i.object.passport.dataFiles?.invoice ?? null, telemetry: p.dataFiles.telemetry ?? i.object.passport.dataFiles?.telemetry ?? null } },
+  };
+}
+
 /** Реестр валидаторов этапов. */
 export const STAGE_VALIDATORS: Record<StageId, StageValidator> = {
-  METER_HISTORY: (i, c, e) => validateInvoice(i.invoice, i.object, c.meterHistory, e),
+  METER_HISTORY: (i, c, e) => validateInvoice(i.invoice, objectWithPassport(i), c.meterHistory, e),
   REALTIME_TELEMETRY: (i, c, e) => validateTelemetryReport(i.telemetry, i.passport, c.telemetry, e),
   // v1.3+: тесты через имитатор; v1.0–1.2: программа испытаний (сессии остаются на своей версии)
   ASSET_CONTROL: (i, c, e) => (c.controlTesting ? validateControlTesting(i.passport, i.controlCommands ?? [], c.controlTesting, e) : validateControl(i.controlTests, c.control, e)),

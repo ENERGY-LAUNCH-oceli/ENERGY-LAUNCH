@@ -42,6 +42,8 @@ export interface MeterHistoryRules {
   validatedTolerancePct: number;
   /** Отношение E / (P·Δt), выше которого значение считается в других единицах (Wh вместо kWh). */
   unitRatioThreshold: number;
+  /** Энергия за интервал не больше |CA| · Δt · этот множитель (выбросы: физически невозможное значение). Нет – проверка выключена. */
+  maxCapacityFactor?: number;
   fields: InvoiceFieldRule[];
   /** Длина кода EAN. */
   eanLength: number;

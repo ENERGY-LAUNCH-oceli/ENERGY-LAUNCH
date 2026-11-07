@@ -27,6 +27,7 @@ export const INVOICE_ISSUE_TYPES = [
   'MIXED_UNITS',
   'MISSING_FIELD',
   'VALIDATED_DEVIATION',
+  'OVER_CAPACITY',
 ] as const;
 export type InvoiceIssueType = (typeof INVOICE_ISSUE_TYPES)[number];
 
@@ -58,6 +59,11 @@ export interface MonthCoverage {
   duplicates: number;
   issues: number;
   state: MonthCoverageState;
+  /**
+   * Месяц целиком в зоне задержки публикации (последние N суток окна): интервалов ещё не ожидается,
+   * в покрытие 24 месяцев он не входит. Окно от точки проверки задевает 25 календарных месяцев – крайний и есть этот.
+   */
+  pending?: boolean;
   /** Потребление и выдача за месяц по исходным значениям, kWh. */
   offtakeKwh?: number;
   injectionKwh?: number;
@@ -102,6 +108,8 @@ export interface InvoiceReport {
   missingMonths: string[];
   completeness: { expected: number; present: number; missing: number; pct: number };
   duplicates: number;
+  /** Интервалов (строк) хотя бы с одним пустым или некорректным обязательным значением. */
+  badValueIntervals?: number;
   invalidTimestamps: number;
   fields: FieldReport[];
   /** Коды EAN, найденные в колонках файла (если есть). Сверяются с паспортом при проверке. */

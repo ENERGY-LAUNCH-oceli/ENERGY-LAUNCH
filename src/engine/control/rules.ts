@@ -41,6 +41,14 @@ export function validateControlTesting(passport: SitePassport | undefined, comma
     return [ct10, ...skip, makeResult('CT-016', true, { message: 'Нет команд для анализа' }, env)];
   }
 
+  // Нет ни PV, ни батарей (ТЗ: «Не применимо» – при подтверждённом отсутствии актива): проверки управления не применимы,
+  // отсутствие подтверждено паспортом и подтверждением инженера в требованиях этапа. Активы есть, но не поддерживаются – это не сюда
+  if (!passport.assets.some((a) => a.type === 'PV' || a.type === 'BATTERY')) {
+    const na = (id: 'CT-011' | 'CT-012' | 'CT-013' | 'CT-014' | 'CT-015') =>
+      makeResult(id, 'NOT_APPLICABLE', { message: 'В паспорте object.json нет управляемых активов (PV, батарей) – тест управления не применим; отсутствие подтверждает инженер ПНР в требованиях этапа' }, env);
+    return [ct10, na('CT-011'), na('CT-012'), na('CT-013'), na('CT-014'), na('CT-015'), makeResult('CT-016', true, { message: 'Нет команд для анализа' }, env)];
+  }
+
   const targets = requiredTargets(passport, rules);
   const latest = latestByAsset(commands);
   const tested = targets.map((t) => ({ target: t, cmd: latest.get(t.assetId) }));

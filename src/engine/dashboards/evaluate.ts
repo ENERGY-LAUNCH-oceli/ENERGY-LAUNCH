@@ -52,11 +52,17 @@ export function evaluateBlocks(config: DashboardConfig, inputs: LaunchInputs, ru
     }
     const dataIssues: string[] = [];
     if (block.id === 'METER_HISTORY' && !(inputs.invoice?.objectId === objectId && inputs.invoice.report?.window)) dataIssues.push('Нет истории учёта объекта (invoice.csv)');
+    // Объект без PV и батарей (паспорт): блоки активов и управления показывают отсутствие активов – это данные объекта, а не ошибка
+    const controllable = types.has('PV') || types.has('BATTERY');
     if (block.id === 'ASSETS') {
-      if (!inputs.passport?.assets.length) dataIssues.push('В паспорте объекта нет активов');
+      if (!inputs.passport) dataIssues.push('Нет паспорта объекта (object.json)');
+      else if (!controllable) notApplicable.push('Установки PV и батареи – в паспорте их нет');
       if (!inputs.telemetry?.report) dataIssues.push('Нет телеметрии объекта (telemetry.csv)');
     }
-    if (block.id === 'CONTROL' && !(inputs.controlCommands ?? []).some((c) => c.objectId === objectId)) dataIssues.push('Нет тестов управления объекта (этап 3)');
+    if (block.id === 'CONTROL') {
+      if (inputs.passport && !controllable) notApplicable.push('Тесты управления – нет управляемых активов');
+      else if (!(inputs.controlCommands ?? []).some((c) => c.objectId === objectId)) dataIssues.push('Нет тестов управления объекта (этап 3)');
+    }
     result[block.id] = { blockId: block.id, ok: !missingWidgets.length && !dataIssues.length, missingWidgets, notApplicable, dataIssues };
   }
   return result;

@@ -13,6 +13,8 @@ import { parseDecimal, parseHeaderCell, parseTimestamp } from '../invoice/format
 import { expectedUnit, isTotalSignal, requiredSignals } from './passport';
 
 const MAX_ISSUES = 3000;
+/** Квота на тип: массовые замечания (тысячи расхождений уставок) не вытесняют редкие (две ошибки знака). */
+const MAX_PER_TYPE = 400;
 const MIN = 60_000;
 
 export const TM_ISSUE: Record<TelemetryIssueType, { ruleId: string; severity: Severity; diagnosis: SignalDiagnosis }> = {
@@ -95,7 +97,7 @@ export class TelemetryAnalyzer {
 
   private issue(type: TelemetryIssueType, owner: string, signal: string, i: Omit<TelemetryIssue, 'type' | 'ruleId' | 'severity' | 'diagnosis' | 'owner' | 'signal'>, diagnosis?: SignalDiagnosis) {
     this.counts[type] = (this.counts[type] ?? 0) + 1;
-    if (this.issues.length >= MAX_ISSUES) return void this.truncated++;
+    if (this.issues.length >= MAX_ISSUES || this.counts[type]! > MAX_PER_TYPE) return void this.truncated++;
     this.issues.push({ type, ...TM_ISSUE[type], ...(diagnosis ? { diagnosis } : {}), owner, signal, ...i });
   }
 
@@ -182,7 +184,8 @@ export class TelemetryAnalyzer {
           t.suspicious++;
           this.issue('SOC_JUMP', t.owner, s, { timestamp: iso(), line, value: `${t.prevSoc} → ${v}`, expected: `Изменение ≤ ${this.rules.maxSocJumpPct} п. п. за ${this.rules.intervalMinutes} мин`, explanation: 'Скачок SoC за интервал физически маловероятен – требуется проверка измерения, это не доказательство неисправности батареи.', action: 'Сверить SoC с журналом BMS' });
         }
-        t.prevSoc = v;
+        // Точка отсчёта скачка – последнее допустимое значение: недопустимое (180 %) уже ошибка TM-008, второй раз как «скачок» не считается
+        if (v >= 0 && v <= 100) t.prevSoc = v;
       } else if (/energy_kWh/.test(s)) {
         if (v < 0) bad('OUT_OF_RANGE', '≥ 0', 'Энергия за интервал – неотрицательная величина.', 'Исправить знак энергии в выгрузке');
         else if (v > this.rules.maxEnergyKwhPerInterval) bad('OUT_OF_RANGE', `≤ ${this.rules.maxEnergyKwhPerInterval} kWh`, 'Значение превышает физически допустимое за интервал – вероятно, другие единицы.', 'Проверить единицы сигнала');

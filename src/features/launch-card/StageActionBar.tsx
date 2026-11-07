@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { STAGE_META, STAGE_STATUS_LABEL } from '@/config/stages';
 import { getUnmetConfirmations } from '@/engine';
-import { ConfirmDialog } from '@/features/launch';
+import { ConfirmDialog, RenewDialog } from '@/features/launch';
 import { useLaunchStore } from '@/store';
 import type { StageId, StageStatus } from '@/types';
 import { stageStats } from './model';
@@ -24,6 +24,7 @@ export function StageActionBar({ stageId }: { stageId: StageId }) {
   const evidence = session.evidence.filter((e) => e.stageId === stageId);
   const error = lastError && lastError.stageId === stageId ? lastError : null;
   const deps = (error?.details?.dependencies as { stageId: StageId; status: StageStatus }[] | undefined) ?? [];
+  const stale = stage.status === 'COMPLETED' ? stage.confirmations.filter((c) => c.staleSince) : [];
 
   return (
     <>
@@ -38,7 +39,21 @@ export function StageActionBar({ stageId }: { stageId: StageId }) {
               </span>
             </div>
             <span className="flex flex-wrap gap-x-1.5 text-caption text-text-muted">
-              Проверок: <b className="tabular">{stats.checks.length}</b> · пройдено <b className="tabular">{stats.passed}</b> · ошибок <b className="tabular">{stats.failed}</b> · ожидают <b className="tabular">{stats.pending}</b>
+              {/* Сумма сходится: предупреждения и неприменимые проверки показываются, когда они есть */}
+              Проверок: <b className="tabular">{stats.checks.length}</b> · пройдено <b className="tabular">{stats.passed}</b> · ошибок <b className="tabular">{stats.failed}</b>
+              {stats.warnings > 0 && (
+                <>
+                  {' '}
+                  · предупреждений <b className="tabular">{stats.warnings}</b>
+                </>
+              )}{' '}
+              · ожидают <b className="tabular">{stats.pending}</b>
+              {stats.checks.length - stats.passed - stats.failed - stats.warnings - stats.pending > 0 && (
+                <>
+                  {' '}
+                  · не применимо <b className="tabular">{stats.checks.length - stats.passed - stats.failed - stats.warnings - stats.pending}</b>
+                </>
+              )}
             </span>
           </div>
         </div>
@@ -66,6 +81,12 @@ export function StageActionBar({ stageId }: { stageId: StageId }) {
           )}
         </div>
       </div>
+
+      {stale.length > 0 && (
+        <Alert tone="warning" title="Подтверждения этапа устарели" action={<RenewDialog stageId={stageId} />}>
+          Данные изменились после подтверждения ({stale[0]!.staleReason ?? 'входы изменились'}). Этап остаётся завершённым, но готовность объекта не присваивается, пока подтверждения не обновлены.
+        </Alert>
+      )}
 
       {error && (
         <Alert

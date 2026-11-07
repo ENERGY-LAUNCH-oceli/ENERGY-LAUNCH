@@ -158,6 +158,9 @@ export function applyValidationResults(
       events.push(audit(ctx, session, 'BLOCKER_RESOLVED', stageId, { blockerId: b.id, ruleId: b.ruleId, auto: true }));
       return { ...b, status: 'RESOLVED', resolvedAt: now, resolvedBy: ctx.actor, resolution: 'Правило пройдено при повторной проверке' };
     }
+    // Препятствие всё ещё открыто – описание по последней проверке (после новой выгрузки число нарушений могло измениться)
+    const latest = b.stageId === stageId && b.status === 'OPEN' && b.source === 'VALIDATION' && b.ruleId ? failedBlocking.get(b.ruleId) : undefined;
+    if (latest && (latest.message !== b.description || latest.severity !== b.severity)) return { ...b, description: latest.message, severity: latest.severity };
     return b;
   });
 
@@ -341,6 +344,55 @@ export function completeStage(session: LaunchSession, stageId: StageId, config: 
     events.push(audit(ctx, next, 'SESSION_COMPLETED'));
   }
   return { ok: true, session: next, events };
+}
+
+/**
+ * Обновление устаревшего подтверждения завершённого этапа (ТЗ 2.2 п. 4). Этап не переоткрывается, но подтверждение
+ * снова засчитывается только после проверки этапа на текущих входах без блокирующих ошибок – обойти проверки нельзя.
+ * Доступно и после завершения запуска: изменение входов снимает готовность, обновлённое подтверждение её возвращает.
+ */
+export function renewConfirmation(
+  session: LaunchSession,
+  input: { stageId: StageId; requirementId: string; role: StageConfirmation['role']; confirmedBy: string },
+  results: readonly ValidationResult[],
+  config: RulesConfig,
+  ctx: EngineContext,
+): MachineResult {
+  const bad = guardRuleset(ctx, session, config);
+  if (bad) return bad;
+  const { stageId } = input;
+  const stage = session.stages[stageId];
+  const old = stage.confirmations.find((c) => c.requirementId === input.requirementId && c.role === input.role);
+  if (stage.status !== 'COMPLETED' || !old?.staleSince) {
+    return reject(ctx, session, { code: 'INVALID_TRANSITION', stageId, from: stage.status, message: 'Обновить можно только устаревшее подтверждение завершённого этапа' });
+  }
+  const requirement = config.confirmations[stageId].find((r) => r.id === input.requirementId && r.role === input.role);
+  if (!requirement) {
+    return reject(ctx, session, { code: 'MISSING_CONFIRMATIONS', stageId, message: `Требование ${input.requirementId} для роли ${input.role} не найдено` });
+  }
+  const failed = results.filter((r) => r.blocking && (r.status === 'FAILED' || r.status === 'SKIPPED')).map((r) => r.ruleId);
+  if (!results.length || failed.length) {
+    return reject(ctx, session, {
+      code: 'VALIDATION_FAILED',
+      stageId,
+      message: results.length ? `Проверки этапа на текущих данных не пройдены: ${failed.join(', ')}. Подтверждение не обновлено` : 'Проверки этапа не выполнены',
+      details: { ruleIds: failed },
+    });
+  }
+  const now = ctx.now();
+  const evidence: Evidence = { id: ctx.newId(), sessionId: session.id, stageId, type: requirement.evidenceTypes[0]!, title: `${requirement.title} – повторная проверка`, createdAt: now, createdBy: ctx.actor };
+  const confirmation: StageConfirmation = { stageId, requirementId: input.requirementId, role: input.role, confirmedBy: input.confirmedBy, evidenceIds: [evidence.id], id: ctx.newId(), confirmedAt: now };
+  const confirmations = [...stage.confirmations.filter((c) => c.requirementId !== input.requirementId), confirmation];
+  const next: LaunchSession = { ...patchStage(session, stageId, { confirmations, validationResults: [...results], lastValidatedAt: now }, now), evidence: [...session.evidence, evidence] };
+  return {
+    ok: true,
+    session: next,
+    events: [
+      audit(ctx, next, 'VALIDATION_RUN', stageId, { total: results.length, failed: [], warnings: results.filter((r) => r.status === 'WARNING').map((r) => r.ruleId), trigger: 'RENEWAL' }),
+      audit(ctx, next, 'EVIDENCE_ADDED', stageId, { evidenceId: evidence.id, type: evidence.type }),
+      audit(ctx, next, 'CONFIRMATION_ADDED', stageId, { requirementId: input.requirementId, role: input.role, renewed: true, staleSince: old.staleSince }),
+    ],
+  };
 }
 
 /**

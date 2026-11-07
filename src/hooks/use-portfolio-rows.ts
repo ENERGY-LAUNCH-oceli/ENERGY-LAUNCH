@@ -34,7 +34,8 @@ export function usePortfolioRows(): PortfolioRow[] {
         const progress = ready ? 100 : Math.min(75, completed * 25);
         const blockers = session ? STAGE_IDS.flatMap((id) => openBlockers(session, id)) : [];
         const nextAction = session ? getNextAction(session, session.currentStageId, ruleset) : null;
-        const status = sessionStatus(session);
+        // Запуск завершён, но готовность снята (устарели подтверждения после изменения данных) – объект снова в работе
+        const status = session?.status === 'COMPLETED' && !ready ? 'IN_PROGRESS' : sessionStatus(session);
         return {
           entry,
           session,

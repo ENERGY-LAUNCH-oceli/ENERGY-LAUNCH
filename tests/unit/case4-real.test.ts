@@ -3,6 +3,7 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { ACTIVE_RULESET } from '@/config/rules';
 import { createFixedContext, validateInvoice, validateTelemetryReport } from '@/engine';
+import { coverageMonths } from '@/features/invoice-validation/labels';
 import { importInvoice } from '@/services/invoice-import';
 import { importPassport, importTelemetry } from '@/services/telemetry-import';
 import type { EnergyObject } from '@/types';
@@ -35,6 +36,15 @@ describe.skipIf(!has)('набор кейса 4: разбор реальных ф
           `\n  TM:\n    ${fmt(tm)}`,
       );
       expect(passport.objectId).toBe(`building_${b}`);
+      // Building2: знак Grid.power_kW обратный во всех интервалах с потоком – систематическая ошибка конвенции, а не выбросы
+      const tm8 = tm.find((r) => r.ruleId === 'TM-008')?.details as { systematic?: string[] } | undefined;
+      expect(tm8?.systematic ?? []).toEqual(b === 2 ? ['Grid.power_kW'] : []);
+      // Окно 24 месяцев от точки проверки задевает 25 календарных месяцев; последний целиком в задержке публикации –
+      // в покрытие не входит (иначе на экране «25 из 24»)
+      const months = invoice.window!.months;
+      expect(months).toHaveLength(25);
+      expect(months.filter((m) => m.pending).map((m) => m.month)).toEqual(['2026-11']);
+      expect(coverageMonths(months)).toHaveLength(24);
     });
   }
 });

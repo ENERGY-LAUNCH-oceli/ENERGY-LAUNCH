@@ -2,6 +2,7 @@ import { RotateCcw, Search } from 'lucide-react';
 import { useLocation, useSearchParams } from 'react-router-dom';
 import { EmptyState } from '@/components/common/EmptyState';
 import { Button } from '@/components/ui/button';
+import { UploadFilesButton } from '@/features/drop/DropHost';
 import { Input } from '@/components/ui/input';
 import { AttentionPanel, ObjectRow, ObjectRowHeader } from '@/features/control-center';
 import { usePortfolioRows, type PortfolioRow } from '@/hooks/use-portfolio-rows';
@@ -71,15 +72,18 @@ export function OverviewPage() {
           <h1 className="text-h1 text-balance">Запуск энергетических объектов</h1>
           <p className="text-body text-text-muted">Контроль данных, проверок и готовности объектов к эксплуатации</p>
         </div>
+        <div className="flex flex-wrap items-center gap-2">
+        <UploadFilesButton size="sm" />
         <Button variant="ghost" size="sm" onClick={() => void resetPortfolio()} title={dataSource === 'CASE4' ? 'Вернуть объекты набора в исходное состояние (проверки этапа 1 по файлам набора)' : 'Вернуть демо-портфель в исходное состояние'}>
           <RotateCcw aria-hidden />
           {dataSource === 'CASE4' ? 'Сбросить состояние' : 'Сбросить демо'}
         </Button>
+        </div>
       </header>
 
       <div data-tour="overview-stats" className="grid grid-cols-2 gap-px overflow-hidden rounded-lg border border-border bg-border md:grid-cols-5 [&>*:last-child]:col-span-2 md:[&>*:last-child]:col-span-1">
         <Stat label="Объектов" value={rows.length} />
-        <Stat label="Полностью готовы" value={count('COMPLETED')} tone="COMPLETED" />
+        <Stat label="Полностью готовы" value={rows.filter((r) => r.ready).length} tone="COMPLETED" />
         <Stat label="В работе" value={count('IN_PROGRESS')} tone="IN_PROGRESS" />
         <Stat label="Заблокированы" value={count('BLOCKED')} tone="BLOCKED" />
         <Stat label="Ожидают проверки" value={rows.filter((r) => r.awaitingCheck).length} tone="awaiting" />

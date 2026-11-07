@@ -11,6 +11,8 @@ import type {
 import { addMonths, anchoredWindow, monthKey, monthStart, parseDecimal, parseHeaderCell, parseTimestamp, type AnchoredWindow } from './format';
 
 const MAX_ISSUES = 5000;
+/** Квота на тип: массовые замечания не вытесняют из списка редкие. */
+const MAX_PER_TYPE = 1000;
 const MIN = 60_000;
 
 export const ISSUE_RULE: Record<InvoiceIssueType, { ruleId: string; severity: Severity }> = {
@@ -28,6 +30,7 @@ export const ISSUE_RULE: Record<InvoiceIssueType, { ruleId: string; severity: Se
   EMPTY_VALUE: { ruleId: 'MH-009', severity: 'CRITICAL' },
   INVALID_NUMBER: { ruleId: 'MH-009', severity: 'CRITICAL' },
   VALIDATED_DEVIATION: { ruleId: 'MH-010', severity: 'WARNING' },
+  OVER_CAPACITY: { ruleId: 'MH-008', severity: 'CRITICAL' },
 };
 
 
@@ -62,6 +65,22 @@ export class InvoiceAnalyzer {
   private eanValues = { offtake: new Set<string>(), injection: new Set<string>() };
   private rows = 0;
   private duplicates = 0;
+  private badValueIntervals = 0;
+  private lastCa: { off?: number; inj?: number } = {};
+  private firstCa: { off?: number; inj?: number } = {};
+  /** Значения из строк до первой известной договорной мощности (CA пустая с начала файла). */
+  private pendingCap: { iso: string; line: number; field: string; value: number; dir: 'off' | 'inj' }[] = [];
+
+  /** Выброс: энергия за интервал больше |CA| · Δt · множитель. */
+  private checkCapacity(field: string, e: number, ca: number, iso: string, line: number) {
+    const factor = this.rules.maxCapacityFactor;
+    if (!factor || ca === 0) return;
+    const limit = Math.abs(ca) * (this.rules.intervalMinutes / 60) * factor;
+    if (Math.abs(e) <= limit) return;
+    const stats = this.fieldStats.get(field);
+    if (stats) stats.signViolations++;
+    this.issue('OVER_CAPACITY', { timestamp: iso, line, field, value: String(e), expected: `≤ ${limit.toLocaleString('ru-RU', { maximumFractionDigits: 1 })} kWh (CA ${Math.abs(ca)} kW × ${this.rules.intervalMinutes} мин × ${factor})`, explanation: 'Энергия за интервал больше, чем позволяет договорная мощность подключения: выброс или другие единицы.', action: `Сверить ${field} за этот интервал с поставщиком данных` });
+  }
   private invalidTs = 0;
   private headerSeen = false;
   private plan: { rule: MeterHistoryRules['fields'][number]; col: Column; stats: FieldReport }[] = [];
@@ -126,7 +145,7 @@ export class InvoiceAnalyzer {
       const k = this.monthOf(Date.parse(i.timestamp));
       this.monthIssues.set(k, (this.monthIssues.get(k) ?? 0) + 1);
     }
-    if (this.issues.length >= MAX_ISSUES) {
+    if (this.issues.length >= MAX_ISSUES || this.counts[type]! > MAX_PER_TYPE) {
       this.truncated++;
       return;
     }
@@ -195,6 +214,7 @@ export class InvoiceAnalyzer {
     this.monthPresent.set(month, (this.monthPresent.get(month) ?? 0) + 1);
 
     const values: Record<string, number> = {};
+    const valueIssuesBefore = (this.counts.EMPTY_VALUE ?? 0) + (this.counts.INVALID_NUMBER ?? 0);
     for (const { rule, col, stats } of this.plan) {
       const parsed = parseDecimal(cells[col.index]);
       if (parsed.kind === 'empty') {
@@ -223,10 +243,36 @@ export class InvoiceAnalyzer {
       }
     }
 
+    // Интервалы с пустыми или некорректными значениями: одна строка – один интервал, сколько бы полей ни было пусто
+    if ((this.counts.EMPTY_VALUE ?? 0) + (this.counts.INVALID_NUMBER ?? 0) > valueIssuesBefore) this.badValueIntervals++;
+
     const me = this.monthEnergy.get(month) ?? { off: 0, inj: 0 };
     if (values[OFF] !== undefined) me.off += values[OFF];
     if (values[INJ] !== undefined) me.inj += values[INJ];
     this.monthEnergy.set(month, me);
+
+    // Выбросы: энергия за интервал больше договорной мощности × Δt (с запасом) физически невозможна
+    if (this.rules.maxCapacityFactor) {
+      // Договорная мощность меняется редко: в строке без CA (разрешено правилом пустых значений) – последняя известная
+      if (values['Grid.power_kW.CA_offtake'] !== undefined) this.firstCa.off ??= this.lastCa.off = values['Grid.power_kW.CA_offtake'];
+      if (values['Grid.power_kW.CA_injection'] !== undefined) this.firstCa.inj ??= this.lastCa.inj = values['Grid.power_kW.CA_injection'];
+      for (const [field, dir] of [
+        [OFF, 'off'],
+        [`${OFF}_validated`, 'off'],
+        [INJ, 'inj'],
+        [`${INJ}_validated`, 'inj'],
+      ] as const) {
+        const e = values[field];
+        if (e === undefined) continue;
+        const ca = this.lastCa[dir];
+        // CA ещё не встречалась (пустая с начала файла) – значение сверится с первой известной CA в конце разбора
+        if (ca === undefined) {
+          if (Math.abs(e) > 0) this.pendingCap.push({ iso: isoOf(), line, field, value: e, dir });
+          continue;
+        }
+        this.checkCapacity(field, e, ca, isoOf(), line);
+      }
+    }
 
     // Знак мощности: положительна при потреблении, отрицательна при выдаче (ТЗ 4.2)
     const p = values[PWR];
@@ -260,6 +306,12 @@ export class InvoiceAnalyzer {
   }
 
   finish(meta: InvoiceFileMeta): InvoiceReport {
+    // Строки до первой известной CA – по первому значению CA в файле (договорная мощность меняется редко)
+    for (const p of this.pendingCap) {
+      const ca = this.firstCa[p.dir];
+      if (ca !== undefined) this.checkCapacity(p.field, p.value, ca, p.iso, p.line);
+    }
+    this.pendingCap = [];
     const step = this.rules.intervalMinutes * MIN;
     const sorted = [...this.times].sort((a, b) => a - b);
     const deltas: number[] = [];
@@ -287,9 +339,10 @@ export class InvoiceAnalyzer {
         const expected = Math.max(0, (Math.min(seg.to, lagStart) - seg.from) / step);
         const present = this.monthPresent.get(key) ?? 0;
         const state = expected === 0 ? 'FULL' : present === 0 ? 'MISSING' : present >= expected ? 'FULL' : 'PARTIAL';
+        const pending = expected === 0 && seg.from >= lagStart;
         if (state === 'MISSING') missingMonths.push(key);
         const e = this.monthEnergy.get(key);
-        months.push({ month: key, expected, present: Math.min(present, expected), duplicates: this.monthDup.get(key) ?? 0, issues: this.monthIssues.get(key) ?? 0, state, offtakeKwh: e ? Math.round(e.off * 10) / 10 : 0, injectionKwh: e ? Math.round(e.inj * 10) / 10 : 0 });
+        months.push({ month: key, expected, present: Math.min(present, expected), duplicates: this.monthDup.get(key) ?? 0, issues: this.monthIssues.get(key) ?? 0, state, ...(pending ? { pending: true } : {}), offtakeKwh: e ? Math.round(e.off * 10) / 10 : 0, injectionKwh: e ? Math.round(e.inj * 10) / 10 : 0 });
       }
       window = { from: new Date(from).toISOString(), to: new Date(to).toISOString(), months, ...(this.rules.checkPoint ? { checkPoint: this.rules.checkPoint, timezone: this.rules.timezone ?? 'UTC' } : {}) };
 
@@ -338,6 +391,7 @@ export class InvoiceAnalyzer {
       missingMonths,
       completeness,
       duplicates: this.duplicates,
+      badValueIntervals: this.badValueIntervals,
       invalidTimestamps: this.invalidTs,
       fields: [...this.fieldStats.values()],
       fileEan: { offtake: [...this.eanValues.offtake], injection: [...this.eanValues.injection] },

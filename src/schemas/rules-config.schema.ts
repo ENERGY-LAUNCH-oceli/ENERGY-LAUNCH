@@ -31,6 +31,7 @@ export const rulesConfigSchema = z
       maxInvalidTimestamps: z.number().int().min(0),
       validatedTolerancePct: percentSchema,
       unitRatioThreshold: positiveNumberSchema,
+      maxCapacityFactor: positiveNumberSchema.optional(),
       eanLength: z.number().int().positive(),
       fields: z.array(z.object({ field: z.string().min(1), unit: z.string().min(1), sign: z.enum(['NON_NEGATIVE', 'NON_POSITIVE', 'ANY']), required: z.boolean() })).min(1),
       checkPoint: z.iso.datetime({ offset: true }).optional(),

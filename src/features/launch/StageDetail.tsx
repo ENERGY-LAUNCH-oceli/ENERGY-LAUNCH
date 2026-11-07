@@ -1,4 +1,4 @@
-import { ClipboardCheck } from 'lucide-react';
+import { ClipboardCheck, RefreshCw } from 'lucide-react';
 import * as React from 'react';
 import { BlockerPanel, EvidencePanel, ValidationResult, ValidationStatus } from '@/components/launch';
 import { EmptyState } from '@/components/common/EmptyState';
@@ -58,6 +58,60 @@ export function StageDetail({ stageId }: { stageId: StageId }) {
         {(stage.status === 'IN_PROGRESS' || stage.status === 'BLOCKED') && unmet.length > 0 && <ConfirmDialog stageId={stageId} />}
       </div>
     </div>
+  );
+}
+
+/**
+ * Устаревшие подтверждения завершённого этапа (данные изменились после подтверждения): обновление
+ * повторяет проверки этапа на текущих данных и засчитывается только без блокирующих ошибок.
+ */
+export function RenewDialog({ stageId }: { stageId: StageId }) {
+  const session = useLaunchStore((s) => s.session)!;
+  const renew = useLaunchStore((s) => s.renewConfirmations);
+  const stale = session.stages[stageId].confirmations.filter((c) => c.staleSince);
+  const [open, setOpen] = React.useState(false);
+  if (!stale.length) return null;
+  return (
+    <Modal
+      open={open}
+      onOpenChange={setOpen}
+      title="Обновить подтверждения этапа"
+      description="Проверки этапа будут выполнены заново на текущих данных. Подтверждение обновится, только если блокирующих ошибок нет; результат и подтверждение фиксируются в журнале."
+      trigger={
+        <Button variant="accent" data-testid="renew-confirmations">
+          <RefreshCw aria-hidden />
+          Обновить подтверждения
+        </Button>
+      }
+      footer={
+        <>
+          <Button variant="ghost" onClick={() => setOpen(false)}>
+            Отмена
+          </Button>
+          <Button
+            variant="accent"
+            data-testid="renew-confirmations-submit"
+            onClick={() => {
+              renew(stageId);
+              setOpen(false);
+            }}
+          >
+            Проверить и подтвердить ({stale.length})
+          </Button>
+        </>
+      }
+    >
+      <ul className="flex flex-col gap-3">
+        {stale.map((c) => (
+          <li key={c.id} className="flex flex-col gap-0.5 text-body-sm">
+            <span className="font-medium">
+              {c.requirementId} · роль {c.role}
+            </span>
+            <span className="text-caption text-text-secondary">Устарело: {c.staleReason ?? 'данные изменились после подтверждения'}</span>
+          </li>
+        ))}
+      </ul>
+    </Modal>
   );
 }
 

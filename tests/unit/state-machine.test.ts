@@ -10,7 +10,12 @@ import {
   completeStage,
   createFixedContext,
   createLaunchSession,
+  getNextAction,
+  markConfirmationsStale,
+  objectReadiness,
+  renewConfirmation,
   resolveBlocker,
+  runStageValidation,
   startStage,
   validateStage,
   type MachineResult,
@@ -109,6 +114,50 @@ describe('конечный автомат запуска', () => {
     expect(startStage(s, 'METER_HISTORY', ctx).ok).toBe(false);
   });
 
+  it('устаревшие подтверждения завершённого этапа: дальше не пройти, обновить можно только по проверке текущих данных', () => {
+    let s = passStage(fresh(), 'METER_HISTORY', inputs);
+    s = unwrap(startStage(s, 'REALTIME_TELEMETRY', ctx));
+    // Паспорт изменили после подтверждения этапа 1 (ТЗ 2.2 п. 4)
+    s = unwrap(markConfirmationsStale(s, ['METER_HISTORY'], 'изменён паспорт object.json v2', ctx));
+    expect(s.stages.METER_HISTORY.status).toBe('COMPLETED');
+    s = unwrap(validateStage(s, 'REALTIME_TELEMETRY', inputs, cfg, ctx));
+    s = confirmAll(s, 'REALTIME_TELEMETRY');
+    const refused = completeStage(s, 'REALTIME_TELEMETRY', cfg, ctx);
+    expect(refused.ok).toBe(false);
+    if (!refused.ok) expect(refused.error).toMatchObject({ code: 'MISSING_CONFIRMATIONS', details: { staleStages: ['METER_HISTORY'] } });
+    // Следующее действие ведёт к обновлению
+    expect(getNextAction(s, 'METER_HISTORY', cfg)).toMatchObject({ kind: 'CONFIRM', stageId: 'METER_HISTORY', title: 'Обновить устаревшие подтверждения этапа' });
+
+    const req = cfg.confirmations.METER_HISTORY[0]!;
+    const input = { stageId: 'METER_HISTORY' as const, requirementId: req.id, role: req.role, confirmedBy: 'Иванов' };
+    // Проверки на текущих данных не пройдены – подтверждение не обновляется (обойти проверки нельзя)
+    const failing = runStageValidation('METER_HISTORY', { ...inputs, invoice: undefined } as LaunchInputs, cfg, ctx);
+    const bad = renewConfirmation(s, input, failing, cfg, ctx);
+    expect(bad.ok).toBe(false);
+    if (!bad.ok) expect(bad.error.code).toBe('VALIDATION_FAILED');
+    // Пройдены – подтверждение снова действует, этап остаётся завершённым, запуск продолжается
+    s = unwrap(renewConfirmation(s, input, runStageValidation('METER_HISTORY', inputs, cfg, ctx), cfg, ctx));
+    expect(s.stages.METER_HISTORY.confirmations.every((c) => !c.staleSince)).toBe(true);
+    expect(s.stages.METER_HISTORY.status).toBe('COMPLETED');
+    expect(completeStage(s, 'REALTIME_TELEMETRY', cfg, ctx).ok).toBe(true);
+    // Актуальное подтверждение «обновлять» нечего
+    expect(renewConfirmation(s, input, runStageValidation('METER_HISTORY', inputs, cfg, ctx), cfg, ctx).ok).toBe(false);
+  });
+
+  it('данные изменились после завершения запуска: готовность снята, обновлённое подтверждение её возвращает', () => {
+    let s = fresh();
+    for (const id of ['METER_HISTORY', 'REALTIME_TELEMETRY', 'ASSET_CONTROL', 'FINAL_DASHBOARDS'] as const) s = passStage(s, id, inputs);
+    const legacy = { dashboardConfig: undefined };
+    expect(objectReadiness(s, inputs, legacy).ready).toBe(true);
+    s = unwrap(markConfirmationsStale(s, ['METER_HISTORY'], 'изменён паспорт', ctx));
+    expect(objectReadiness(s, inputs, legacy).ready).toBe(false);
+    expect(getNextAction(s, 'FINAL_DASHBOARDS', cfg)).toMatchObject({ kind: 'CONFIRM', stageId: 'METER_HISTORY' });
+    const req = cfg.confirmations.METER_HISTORY[0]!;
+    s = unwrap(renewConfirmation(s, { stageId: 'METER_HISTORY', requirementId: req.id, role: req.role, confirmedBy: 'Иванов' }, runStageValidation('METER_HISTORY', inputs, cfg, ctx), cfg, ctx));
+    expect(objectReadiness(s, inputs, legacy).ready).toBe(true);
+    expect(getNextAction(s, 'FINAL_DASHBOARDS', cfg)).toBeNull();
+  });
+
   it('не мутирует исходную сессию', () => {
     const s = fresh();
     const snapshot = structuredClone(s);
@@ -178,5 +227,22 @@ describe('требования фазы 05', () => {
     s = unwrap(validateStage(s, 'REALTIME_TELEMETRY', pvOnly, cfg, ctx));
     expect(s.stages.REALTIME_TELEMETRY.validationResults.find((r) => r.ruleId === 'TM-011')?.status).toBe('NOT_APPLICABLE');
     expect(s.stages.REALTIME_TELEMETRY.status).toBe('IN_PROGRESS');
+  });
+});
+
+describe('описание открытого препятствия', () => {
+  it('обновляется по последней проверке: после новой выгрузки видно актуальное число, а не прежнее', async () => {
+    const { buildInvoiceDataset } = await import('@/data/mock');
+    const { inputs } = loadScenario('happy-path');
+    const objectId = inputs.object.id;
+    let s = unwrap(startStage(createLaunchSession(objectId, cfg.version, ctx), 'METER_HISTORY', ctx));
+    s = unwrap(validateStage(s, 'METER_HISTORY', { ...inputs, invoice: buildInvoiceDataset({ objectId, missingFirstMonths: 7 }) }, cfg, ctx));
+    const first = s.blockers.find((b) => b.ruleId === 'MH-002' && b.status === 'OPEN')!;
+    expect(first.description).toContain('17 из 24');
+    s = unwrap(validateStage(s, 'METER_HISTORY', { ...inputs, invoice: buildInvoiceDataset({ objectId, missingFirstMonths: 2 }, 2) }, cfg, ctx));
+    const open = s.blockers.filter((b) => b.ruleId === 'MH-002' && b.status === 'OPEN');
+    // То же препятствие (не дубль), но с описанием по последней проверке
+    expect(open.map((b) => b.id)).toEqual([first.id]);
+    expect(open[0]!.description).toContain('22 из 24');
   });
 });

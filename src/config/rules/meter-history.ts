@@ -9,6 +9,8 @@ export const METER_HISTORY_TZ: MeterHistoryRules = {
   maxInvalidTimestamps: 0,
   validatedTolerancePct: 5,
   unitRatioThreshold: 100,
+  // Энергия за 15 мин не может превышать договорную мощность × 15 мин; запас 1,5 – на кратковременное превышение и округление
+  maxCapacityFactor: 1.5,
   eanLength: 18,
   fields: [
     { field: 'Grid.energy_kWh.offtake_invoice', unit: 'kWh', sign: 'NON_NEGATIVE', required: true },

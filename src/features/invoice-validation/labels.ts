@@ -1,4 +1,9 @@
-import type { InvoiceIssueType } from '@/types';
+import type { InvoiceIssueType, MonthCoverage } from '@/types';
+
+/** Месяц целиком в задержке публикации (интервалов не ожидается и нет) – и в отчётах, сохранённых до появления флага. */
+export const isPendingMonth = (m: MonthCoverage) => !!m.pending || (m.expected === 0 && m.present === 0);
+/** Месяцы, входящие в покрытие: без месяца, целиком попавшего в задержку публикации. */
+export const coverageMonths = (months: readonly MonthCoverage[]) => months.filter((m) => !isPendingMonth(m));
 
 export const ISSUE_LABEL: Record<InvoiceIssueType, string> = {
   MISSING_INTERVAL: 'Пропуск интервалов',
@@ -15,6 +20,7 @@ export const ISSUE_LABEL: Record<InvoiceIssueType, string> = {
   MIXED_UNITS: 'Смешанные единицы',
   MISSING_FIELD: 'Нет колонки',
   VALIDATED_DEVIATION: 'Расхождение с validated',
+  OVER_CAPACITY: 'Больше договорной мощности',
 };
 
 const MONTHS = ['янв', 'фев', 'мар', 'апр', 'май', 'июн', 'июл', 'авг', 'сен', 'окт', 'ноя', 'дек'];

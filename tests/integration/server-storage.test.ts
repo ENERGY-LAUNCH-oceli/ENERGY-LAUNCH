@@ -107,6 +107,49 @@ describe('хранение в PostgreSQL', () => {
     expect(app.catalog.some((o) => o.id === entry.id)).toBe(false);
   }, 60_000);
 
+  it('две вкладки: устаревшая не затирает новое состояние, изменения другой вкладки видны без перезагрузки', async () => {
+    localStorage.clear();
+    const old = await boot(); // вкладка, открытая давно
+    const tab = await boot(); // вкладка, где идёт работа
+    // Объект с начатым этапом 1 (в обеих вкладках одинаковый исходный портфель)
+    const id = tab.catalog.find((o) => {
+      tab.useLaunchStore.getState().selectObject(o.id);
+      return ['IN_PROGRESS', 'BLOCKED'].includes(tab.useLaunchStore.getState().session!.stages.METER_HISTORY.status);
+    })!.id;
+    const other = tab.catalog.find((o) => o.id !== id)!.id;
+    old.useLaunchStore.getState().selectObject(id);
+    const runs = (app: typeof tab) => app.useLaunchStore.getState().auditLog.filter((e) => e.action === 'VALIDATION_RUN').length;
+    const initialRuns = runs(old);
+    const revision = async () => (await api<{ revisions: Record<string, number> }>('/revisions')).revisions[id] ?? 0;
+
+    // Работа во второй вкладке доходит до сервера
+    expect(tab.useLaunchStore.getState().validateStage('METER_HISTORY')).toBe(true);
+    await settle(tab);
+    const done = await revision();
+    expect(done).toBeGreaterThan(0);
+    expect(runs(tab)).toBe(initialRuns + 1);
+
+    // Старая вкладка: переключение объектов ничего не меняет – и ничего не пишет
+    old.useLaunchStore.getState().selectObject(other);
+    old.useLaunchStore.getState().selectObject(id);
+    await settle(old);
+    expect(await revision()).toBe(done);
+
+    // Действие в старой вкладке построено на устаревшем состоянии: сервер отклоняет, вкладка показывает актуальное
+    old.useLaunchStore.getState().validateStage('METER_HISTORY');
+    await settle(old);
+    expect(await revision()).toBe(done);
+    await vi.waitFor(() => expect(old.useLaunchStore.getState().auditLog.map((e) => e.id)).toEqual(tab.useLaunchStore.getState().auditLog.map((e) => e.id)));
+    expect(old.useLaunchStore.getState().session).toEqual(tab.useLaunchStore.getState().session);
+
+    // После обновления старая вкладка снова пишет нормально, а вторая получает её изменение сама (без перезагрузки)
+    expect(old.useLaunchStore.getState().validateStage('METER_HISTORY')).toBe(true);
+    await settle(old);
+    expect(await revision()).toBe(done + 1);
+    await vi.waitFor(() => expect(runs(tab)).toBe(initialRuns + 2), { timeout: 5000 });
+    expect(tab.useLaunchStore.getState().session).toEqual(old.useLaunchStore.getState().session);
+  }, 60_000);
+
   it('объекты, созданные раньше только в браузере, переносятся на сервер при первом подключении', async () => {
     localStorage.clear();
     const stored = { ...DRAFT, id: 'usr-legacy1', createdAt: '2026-11-06T15:00:00.000Z', name: 'Старый объект', code: 'OLD-1' };
