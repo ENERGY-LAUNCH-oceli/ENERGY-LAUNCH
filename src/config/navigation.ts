@@ -1,4 +1,4 @@
-import { Activity, Building2, FileCheck2, FileText, FlaskConical, Gauge, History, LayoutDashboard, type LucideIcon, OctagonAlert, Rocket, ScrollText, Settings, ShieldCheck, SlidersHorizontal, Zap } from 'lucide-react';
+import { Activity, Building2, FileCheck2, FileText, FlaskConical, Gauge, GraduationCap, History, LayoutDashboard, type LucideIcon, OctagonAlert, Rocket, ScrollText, Settings, ShieldCheck, SlidersHorizontal, Zap } from 'lucide-react';
 import { ROUTES, type ObjectSection } from '@/app/routes';
 import type { StageId } from '@/types';
 
@@ -26,6 +26,7 @@ export const PRIMARY_NAV: NavItem[] = [
   { id: 'evidence', label: 'Подтверждения', icon: FileCheck2, to: () => ROUTES.evidence, hint: 'Результаты проверок, материалы, приёмки' },
   { id: 'audit-trail', label: 'Аудит', icon: ScrollText, to: () => ROUTES.auditTrail, hint: 'Журнал аудита и воспроизведение статуса' },
   { id: 'scenarios', label: 'Сценарии', icon: FlaskConical, to: () => ROUTES.scenarios, hint: 'Демо-сценарии ТЗ и метрики качества' },
+  { id: 'help', label: 'Обучение', icon: GraduationCap, to: () => ROUTES.help, hint: 'Уроки по каждому блоку и ответы на вопросы' },
   { id: 'settings', label: 'Настройки', icon: Settings, to: () => ROUTES.settings, hint: 'Правила проверок и интерфейс' },
 ];
 

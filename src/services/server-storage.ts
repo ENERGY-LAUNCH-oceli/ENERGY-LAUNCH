@@ -46,7 +46,8 @@ export const setApiBase = (url: string) => {
   apiBase = url.replace(/\/+$/, '');
 };
 
-async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
+/** Запрос к API сервера (JSON); ошибка – Error с текстом ответа сервера. */
+export async function apiRequest<T>(path: string, init: RequestInit = {}): Promise<T> {
   const r = await fetch(apiBase + path, { ...init, headers: { ...(init.body ? { 'Content-Type': 'application/json' } : {}), ...init.headers } });
   if (!r.ok) {
     let message = `HTTP ${r.status}`;
@@ -83,7 +84,7 @@ const MIGRATED_KEY = 'el.objects.server-synced';
  * переносятся на сервер; дальше источник истины – сервер, а localStorage – его копия для синхронного старта.
  */
 export async function loadServerState(): Promise<ServerState> {
-  const state = await request<ServerState>('/state');
+  const state = await apiRequest<ServerState>('/state');
   let objects = state.objects;
   let migrated = false;
   try {
@@ -105,7 +106,7 @@ export async function loadServerState(): Promise<ServerState> {
   return { ...state, objects };
 }
 
-export const saveServerObject = (o: StoredUserObject) => request<void>(`/objects/${encodeURIComponent(o.id)}`, { method: 'PUT', body: JSON.stringify(o) });
+export const saveServerObject = (o: StoredUserObject) => apiRequest<void>(`/objects/${encodeURIComponent(o.id)}`, { method: 'PUT', body: JSON.stringify(o) });
 
 /**
  * Очередь записи состояний: изменения объекта собираются за короткую паузу и уходят одним запросом;
@@ -127,7 +128,7 @@ export function createWorkspaceWriter(delayMs = 350) {
     if (!doc) return;
     pending.delete(objectId);
     let savedAt: string | null = null;
-    const job = request<{ revision: number; updatedAt: string }>(`/workspaces/${encodeURIComponent(objectId)}`, { method: 'PUT', body: JSON.stringify(doc) })
+    const job = apiRequest<{ revision: number; updatedAt: string }>(`/workspaces/${encodeURIComponent(objectId)}`, { method: 'PUT', body: JSON.stringify(doc) })
       .then((r) => {
         failedNotified = false;
         savedAt = r.updatedAt;
@@ -179,10 +180,10 @@ export function createWorkspaceWriter(delayMs = 350) {
 }
 
 export const serverApi = {
-  deleteObject: (id: string) => request<void>(`/objects/${encodeURIComponent(id)}`, { method: 'DELETE' }),
-  resetWorkspaces: () => request<void>('/workspaces', { method: 'DELETE' }),
+  deleteObject: (id: string) => apiRequest<void>(`/objects/${encodeURIComponent(id)}`, { method: 'DELETE' }),
+  resetWorkspaces: () => apiRequest<void>('/workspaces', { method: 'DELETE' }),
   audit: (q: { objectId?: string; sessionId?: string; limit?: number } = {}) => {
     const p = new URLSearchParams(Object.entries(q).filter(([, v]) => v !== undefined).map(([k, v]) => [k, String(v)]));
-    return request<{ events: AuditEvent[] }>(`/audit${p.size ? `?${p}` : ''}`);
+    return apiRequest<{ events: AuditEvent[] }>(`/audit${p.size ? `?${p}` : ''}`);
   },
 };

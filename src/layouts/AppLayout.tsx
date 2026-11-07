@@ -4,6 +4,8 @@ import { AppContextMenu } from '@/components/layout/AppContextMenu';
 import { Header } from '@/components/layout/Header';
 import { Sidebar } from '@/components/layout/Sidebar';
 import { Toaster } from '@/components/layout/Toaster';
+import { HelpAskDialog } from '@/features/help/HelpAskDialog';
+import { TourHost } from '@/features/tour/TourHost';
 import { useUi } from '@/store';
 
 /** Оболочка рабочего пространства: навигация, шапка, рабочая область и уведомления. */
@@ -80,6 +82,8 @@ export function AppLayout() {
       </div>
       <Toaster />
       <AppContextMenu />
+      <HelpAskDialog />
+      <TourHost />
     </div>
   );
 }

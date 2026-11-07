@@ -10,7 +10,7 @@ interface Crumb {
   to?: string;
 }
 
-const STATIC: Record<string, string> = { overview: 'Центр запуска', objects: 'Объекты', settings: 'Настройки' };
+const STATIC: Record<string, string> = { overview: 'Центр запуска', objects: 'Объекты', settings: 'Настройки', help: 'Обучение' };
 
 export function useBreadcrumbs(): Crumb[] {
   const { pathname } = useLocation();
