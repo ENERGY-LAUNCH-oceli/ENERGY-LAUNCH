@@ -1,8 +1,12 @@
 /// <reference types="vitest/config" />
+import { createHash } from 'node:crypto';
 import { connect } from 'node:net';
 import { fileURLToPath, pathToFileURL, URL } from 'node:url';
 import react from '@vitejs/plugin-react';
-import { defineConfig, loadEnv, type Plugin } from 'vite';
+import { build as viteBuild, defineConfig, loadEnv, type Plugin } from 'vite';
+import { STATUS_CODES, statusInfo } from './src/errors/codes.ts';
+import { serviceWorkerSource } from './src/errors/service-worker.ts';
+import { renderOfflinePage, renderStatusPage, statusCss } from './src/errors/static-page.ts';
 
 const apiProxy = { target: process.env.API_PROXY_TARGET || 'http://127.0.0.1:8787', changeOrigin: false };
 
@@ -60,8 +64,85 @@ function storageApi(env: Record<string, string>): Plugin {
   };
 }
 
+/** Скрипт статических страниц состояния – отдельная сборка в один файл (IIFE), без общих чанков с приложением. */
+async function bundleStatusScript(): Promise<string> {
+  const out = await viteBuild({
+    configFile: false,
+    logLevel: 'silent',
+    publicDir: false,
+    build: {
+      write: false,
+      minify: true,
+      target: 'es2020',
+      sourcemap: false,
+      emptyOutDir: false,
+      lib: { entry: fileURLToPath(new URL('./src/errors/static-entry.ts', import.meta.url)), formats: ['iife'], name: 'ElStatus', fileName: () => 'status.js' },
+    },
+  });
+  for (const o of Array.isArray(out) ? out : [out]) {
+    if (!('output' in o)) continue;
+    const chunk = o.output.find((c) => c.type === 'chunk');
+    if (chunk?.type === 'chunk') return chunk.code;
+  }
+  throw new Error('status.js не собран');
+}
+
+/** Файлы статических страниц: /status/<код>.html для всех кодов, /offline.html, стили и скрипт. */
+const statusFiles = (script: string): Record<string, string> => ({
+  'status/status.js': script,
+  'status/status.css': statusCss(),
+  'offline.html': renderOfflinePage(),
+  ...Object.fromEntries(STATUS_CODES.map((c) => [`status/${c.code}.html`, renderStatusPage(c)])),
+});
+
+/**
+ * Страницы состояния без приложения: error_page nginx (502, 504 – когда приложение не отвечает) и офлайн-страница
+ * service worker'а (/sw.js, версия – по содержимому). В dev-сервере те же адреса отдаются на лету.
+ */
+function statusPages(): Plugin {
+  return {
+    name: 'energy-launch-status-pages',
+    configureServer(server) {
+      let script: Promise<string> | null = null;
+      server.watcher.on('change', (f) => {
+        if (/src[\\/](errors|design)[\\/]/.test(f)) script = null;
+      });
+      server.middlewares.use((req, res, next) => {
+        const path = req.url?.split('?')[0] ?? '';
+        const m = /^\/status\/(\d{3})\.html$/.exec(path);
+        const known = m ? STATUS_CODES.some((c) => c.code === Number(m[1])) : false;
+        const html = path === '/offline.html' ? renderOfflinePage() : m && known ? renderStatusPage(statusInfo(Number(m[1]))!) : null;
+        const send = (type: string, body: string) => {
+          res.setHeader('Content-Type', `${type}; charset=utf-8`);
+          res.setHeader('Cache-Control', 'no-store');
+          res.end(body);
+        };
+        if (html) return send('text/html', html);
+        if (path === '/status/status.css') return send('text/css', statusCss());
+        if (path === '/status/status.js') {
+          script ??= bundleStatusScript();
+          return void script.then(
+            (code) => send('application/javascript', code),
+            (e: unknown) => {
+              script = null;
+              next(e);
+            },
+          );
+        }
+        next();
+      });
+    },
+    async generateBundle() {
+      const files = statusFiles(await bundleStatusScript());
+      for (const [fileName, source] of Object.entries(files)) this.emitFile({ type: 'asset', fileName, source });
+      const version = createHash('sha256').update(files['status/status.js']!).update(files['status/status.css']!).update(files['offline.html']!).digest('hex').slice(0, 12);
+      this.emitFile({ type: 'asset', fileName: 'sw.js', source: serviceWorkerSource(version) });
+    },
+  };
+}
+
 export default defineConfig(({ mode }) => ({
-  plugins: [react(), storageApi(loadEnv(mode, process.cwd(), ''))],
+  plugins: [react(), storageApi(loadEnv(mode, process.cwd(), '')), statusPages()],
   resolve: {
     alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) },
   },

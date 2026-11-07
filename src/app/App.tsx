@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { RouterProvider } from 'react-router-dom';
+import { OfflineOverlay } from '@/components/errors/OfflineOverlay';
 import { Preloader } from '@/components/layout/Preloader';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { env } from '@/config/env';
@@ -35,6 +36,7 @@ export function App() {
         </TooltipProvider>
       )}
       {preloader && <Preloader ready={prepared} canExit={ready} {...(status ? { status } : {})} onHold={hold} onDone={hide} />}
+      <OfflineOverlay />
     </>
   );
 }

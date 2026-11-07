@@ -39,6 +39,8 @@ export const router = createBrowserRouter([
       { path: 'audit', lazy: page(() => import('@/pages/AuditTrailPage'), 'AuditTrailPage') },
       { path: 'scenarios', lazy: page(() => import('@/pages/ScenariosPage'), 'ScenariosPage') },
       { path: 'help', lazy: page(() => import('@/pages/HelpPage'), 'HelpPage') },
+      { path: 'errors', lazy: page(() => import('@/pages/StatusCodesPage'), 'StatusCodesPage') },
+      { path: 'errors/:code', lazy: page(() => import('@/pages/StatusCodesPage'), 'StatusCodePage') },
       { path: 'launch', element: <Navigate to={ROUTES.objectSection('obj-001', 'launch')} replace /> },
       { path: '*', element: <NotFoundPage /> },
     ],

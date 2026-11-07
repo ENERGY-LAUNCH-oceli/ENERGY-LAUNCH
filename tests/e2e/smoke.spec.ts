@@ -214,7 +214,7 @@ test('история счётчиков: 19 из 24 месяцев, повтор
 
 test('история счётчиков: файл не того формата не принимается', async ({ page }) => {
   await page.goto('/objects/obj-002/history');
-  await page.locator('input[type="file"]').setInputFiles({ name: 'invoice.csv', mimeType: 'text/csv', buffer: Buffer.from('hello world\n1,2,3\n') });
+  await page.locator('[data-dropzone] input[type="file"]').first().setInputFiles({ name: 'invoice.csv', mimeType: 'text/csv', buffer: Buffer.from('hello world\n1,2,3\n') });
   await expect(page.getByText('Файл не принят')).toBeVisible();
 });
 
@@ -286,6 +286,9 @@ test('адаптивность: страницы не переполняют э�
     '/objects/obj-006/control',
     '/objects/obj-001/dashboards',
     '/objects/obj-001/audit',
+    '/errors',
+    '/errors/502',
+    '/status/504.html',
   ];
 
   for (const width of [320, 375, 768, 1024, 1440]) {
@@ -614,4 +617,132 @@ test('помощь в боковой панели: тур по текущей с
   await page.getByTestId('help-question').fill('где посмотреть все препятствия');
   await page.getByTestId('help-submit').click();
   await expect(page.getByTestId('help-reply')).toHaveAttribute('data-answer', 'blockers-page');
+});
+
+const INVOICE_CSV = ['timestamp (UTC);Grid.energy_kWh.offtake_invoice (kWh);Grid.energy_kWh.offtake_invoice_validated (kWh);Grid.energy_kWh.injection_invoice (kWh);Grid.energy_kWh.injection_invoice_validated (kWh);Grid.power_kW.invoice (kW);Grid.power_kW.CA_offtake (kW);Grid.power_kW.CA_injection (kW)', '2025-01-01T00:00:00Z;6,8;6,8;0;0;27,2;250;-200', '2025-01-01T00:15:00Z;7,1;7,1;0;0;28,4;250;-200'].join('\n');
+
+/** Бросить файлы в окно так, как это делает браузер при перетаскивании. */
+async function dropFiles(page: Page, files: { name: string; text: string; type: string }[]) {
+  await page.evaluate((list) => {
+    const dt = new DataTransfer();
+    for (const f of list) dt.items.add(new File([f.text], f.name, { type: f.type }));
+    const target = document.querySelector('main') ?? document.body;
+    for (const type of ['dragenter', 'dragover', 'drop']) target.dispatchEvent(new DragEvent(type, { dataTransfer: dt, bubbles: true, cancelable: true }));
+  }, files);
+}
+
+test('файл, брошенный в любое место окна, уходит в свой объект и этап', async ({ page }) => {
+  await page.goto('/overview');
+  await dropFiles(page, [{ name: 'OBJ-002_invoice.csv', text: INVOICE_CSV, type: 'text/csv' }]);
+  const plans = page.getByTestId('drop-plans');
+  const row = plans.locator('li').first();
+  await expect(row).toHaveAttribute('data-kind', 'invoice');
+  await expect(row).toHaveAttribute('data-target', 'obj-002');
+  await expect(row).toHaveAttribute('data-match', 'name');
+  await page.getByTestId('drop-apply').click();
+  // Один объект, без ошибок – сразу открывается этап, файл – новая версия набора
+  await expect(page).toHaveURL(/\/objects\/obj-002\/history$/);
+  await expect(page.getByText('OBJ-002_invoice.csv').first()).toBeVisible();
+});
+
+test('не тот файл в поле этапа – предложение загрузить по назначению', async ({ page }) => {
+  await page.goto('/objects/obj-001/history');
+  const telemetry = 'timestamp (UTC);object_id;Grid.power_kW (kW)\n2026-11-05T10:00:00Z;OBJ-002;5';
+  await page.locator('[data-dropzone] input[type=file]').first().setInputFiles({ name: 'telemetry.csv', mimeType: 'text/csv', buffer: Buffer.from(telemetry) });
+  const dialog = page.getByRole('dialog', { name: /Разложить файлы/ });
+  await expect(dialog).toContainText('Это не история счётчиков');
+  await expect(dialog.locator('li').first()).toHaveAttribute('data-kind', 'telemetry');
+  await dialog.getByRole('button', { name: 'Отмена' }).click();
+  await expect(dialog).toHaveCount(0);
+});
+
+test('object.json объекта, которого нет в портфеле, создаёт новый объект', async ({ page }) => {
+  await page.goto('/objects');
+  const passport = { object_id: 'SUN-E2E', name: 'Солнечный парк Е2Е', address: { street: 'Rue 1', postal_code: '9000', city: 'Гент', country: 'BE' }, timezone: 'Europe/Brussels', data_files: { invoice: 'invoice.csv', telemetry: 'telemetry.csv' }, grid_connection: { ean_offtake: '541430000000000081', ean_injection: '541445687468568586' }, assets: [{ asset_id: 'pv-1', type: 'pv', signals: [] }] };
+  await page.getByTestId('drop-picker').setInputFiles({ name: 'object.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(passport)) });
+  const row = page.getByTestId('drop-plans').locator('li').first();
+  await expect(row).toHaveAttribute('data-target', '__new__');
+  await expect(row).toContainText('Солнечный парк Е2Е');
+  await page.getByTestId('drop-apply').click();
+  await expect(page).toHaveURL(/\/objects\/usr-[a-z0-9]+\/launch$/);
+  await expect(page.getByRole('button', { name: 'Текущий объект' })).toContainText('Солнечный парк Е2Е');
+});
+
+test('урок «Загрузка файлов перетаскиванием»: тур показывает разбор и ничего не загружает', async ({ page }) => {
+  await page.goto('/help?lesson=files');
+  await page.getByTestId('lesson-tour').click();
+  const card = page.getByTestId('tour-card');
+  const next = page.getByTestId('tour-next');
+  await expect(card).toContainText('Файлы – в любое место окна');
+  await next.click();
+  await expect(page.getByTestId('drop-plans').locator('li')).toHaveCount(2);
+  for (let i = 0; i < 3; i++) await next.click();
+  await expect(card).toContainText('Загрузить одним нажатием');
+  await next.click();
+  await expect(card).toHaveCount(0);
+  await expect(page.getByTestId('drop-plans')).toHaveCount(0);
+});
+
+test('повторная проверка всегда даёт видимый итог, даже если данные не изменились', async ({ page }) => {
+  await page.goto('/objects/obj-003/history');
+  const recheck = page.locator('[data-tour="stage-actions"] button', { hasText: /проверки/ });
+  await recheck.click();
+  await expect(page.getByText(/Проверки выполнены/).first()).toBeVisible();
+});
+
+test('демо-роль сохраняется после перезагрузки страницы', async ({ page }) => {
+  await page.goto('/objects/obj-001/dashboards?tab=acceptance');
+  const profile = page.getByRole('button', { name: /^Профиль/ }).last();
+  await profile.click();
+  await page.getByRole('menuitem', { name: /Ответственный за приёмку/ }).click();
+  await expect(profile).toHaveAttribute('data-role', 'ACCEPTANCE_OFFICER');
+  await page.reload();
+  await expect(page.getByRole('button', { name: /^Профиль/ }).last()).toHaveAttribute('data-role', 'ACCEPTANCE_OFFICER');
+});
+
+test('страницы состояния: 404 с анимацией, при обновлении – другая; справочник кодов', async ({ page }) => {
+  await page.goto('/net-takoy-stranicy');
+  const screen = page.getByTestId('status-screen');
+  await expect(screen).toHaveAttribute('data-status', '404');
+  await expect(page.getByRole('heading', { name: 'Страница не найдена' })).toBeVisible();
+  const first = await screen.getAttribute('data-animation');
+  await page.reload();
+  await expect(screen).toHaveAttribute('data-status', '404');
+  expect(await screen.getAttribute('data-animation')).not.toBe(first);
+
+  await page.getByRole('link', { name: 'Все коды состояния' }).click();
+  await expect(page.getByRole('heading', { name: 'Коды состояния' })).toBeVisible();
+  await page.getByTestId('status-link-503').click();
+  await expect(page.getByRole('heading', { name: 'Сервис недоступен' })).toBeVisible();
+  await expect(page.getByText('HTTP 503 · Service Unavailable')).toBeVisible();
+});
+
+test('нет подключения: экран поверх приложения, связь вернулась – экран закрылся', async ({ page, context }) => {
+  await page.goto('/overview');
+  await expect(page.getByRole('heading', { name: 'Запуск энергетических объектов' })).toBeVisible();
+  await context.setOffline(true);
+  const overlay = page.getByTestId('offline-overlay');
+  await expect(overlay).toBeVisible();
+  await expect(overlay.getByRole('heading', { name: 'Нет подключения к интернету' })).toBeVisible();
+  await context.setOffline(false);
+  await expect(overlay).toHaveCount(0);
+  await expect(page.getByText('Подключение восстановлено')).toBeVisible();
+
+  // «Продолжить без сети» убирает экран до следующего обрыва
+  await context.setOffline(true);
+  await overlay.getByRole('button', { name: 'Продолжить без сети' }).click();
+  await expect(overlay).toHaveCount(0);
+  await context.setOffline(false);
+});
+
+test('страница ошибки веб-сервера работает без приложения: /status/502.html', async ({ page }) => {
+  const errors: string[] = [];
+  page.on('pageerror', (e) => errors.push(String(e)));
+  await page.goto('/status/502.html');
+  await expect(page.getByRole('heading', { name: 'Ошибка шлюза' })).toBeVisible();
+  await expect(page.locator('html')).toHaveAttribute('data-animation', /.+/);
+  await expect(page.locator('#el-status-anim-name')).toContainText('при обновлении страницы будет другая');
+  await page.goto('/offline.html');
+  await expect(page.getByRole('heading', { name: 'Нет подключения к интернету' })).toBeVisible();
+  expect(errors).toEqual([]);
 });

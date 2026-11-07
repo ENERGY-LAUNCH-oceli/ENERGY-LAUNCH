@@ -10,6 +10,8 @@ export const ROUTES = {
   auditTrail: '/audit',
   scenarios: '/scenarios',
   help: '/help',
+  /** Коды состояния HTTP и «нет подключения»: /errors, /errors/:code. */
+  statusCodes: '/errors',
   object: (id: string) => `/objects/${encodeURIComponent(id)}`,
   objectSection: (id: string, section: ObjectSection) => `/objects/${encodeURIComponent(id)}/${section}`,
 } as const;
