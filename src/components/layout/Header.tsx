@@ -14,7 +14,8 @@ import { useLaunchStore, useNotifications, type NotificationTone } from '@/store
 import { ROLE_TITLE } from '@/engine';
 import { DEMO_ROLES } from '@/types';
 import { cn } from '@/utils/cn';
-import { formatDateTime, formatRelative } from '@/utils/format';
+import { formatDateTime } from '@/utils/format';
+import { RelativeTime } from '@/components/common/RelativeTime';
 import { Breadcrumbs } from './Breadcrumbs';
 import { Logo } from './Logo';
 import { ObjectSwitcher } from './ObjectSwitcher';
@@ -31,7 +32,7 @@ function LaunchStatus() {
     <Tooltip content={at ? `Последняя проверка: ${formatDateTime(at)}` : 'Проверки ещё не запускались'}>
       <span className="hidden items-center gap-1.5 whitespace-nowrap text-caption xl:inline-flex" tabIndex={0} data-status={status}>
         <span className={cn('font-medium', STATUS_TEXT[status])}>{STAGE_STATUS_LABEL[status]}</span>
-        <span className="text-text-muted">· {at ? <span className="tabular">проверка {formatRelative(at)}</span> : 'нет проверок'}</span>
+        <span className="text-text-muted">· {at ? <span className="tabular">проверка <RelativeTime iso={at} /></span> : 'нет проверок'}</span>
       </span>
     </Tooltip>
   );
@@ -77,7 +78,7 @@ function Notifications() {
                 <div className="flex min-w-0 flex-col gap-0.5">
                   <span className="text-body-sm font-medium">{n.title}</span>
                   {n.description && <span className="text-caption text-text-secondary">{n.description}</span>}
-                  <span className="tabular text-[11px] text-text-muted">{formatRelative(n.createdAt)}</span>
+                  <RelativeTime iso={n.createdAt} className="tabular text-[11px] text-text-muted" />
                 </div>
               </li>
             ))}
