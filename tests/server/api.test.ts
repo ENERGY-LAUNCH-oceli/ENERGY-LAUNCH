@@ -118,6 +118,41 @@ describe('API хранилища', () => {
     expect(((await (await api('/api/state')).json()) as { workspaces: unknown[] }).workspaces).toEqual([]);
   });
 
+  describe('помощник по сайту', () => {
+    type Ask = { answer: { id: string; a: string; lesson: string | null } | null; alternatives: { id: string }[]; saved: boolean; published: boolean };
+    type Questions = { questions: { text: string; faqId: string; count: number }[] };
+    const ask = async (question: string) => (await api('/api/help/ask', json('POST', { question }))).json() as Promise<Ask>;
+
+    it('отвечает из базы знаний и переносит вопрос в FAQ; одинаковые формулировки – одна запись со счётчиком', async () => {
+      await db.query('delete from help_questions');
+      const r = await ask('Как добавить новый завод?');
+      expect(r).toMatchObject({ answer: { id: 'create-object', lesson: 'objects' }, saved: true, published: true });
+      await ask('как добавить новый завод');
+      const list = (await (await api('/api/help/questions')).json()) as Questions;
+      expect(list.questions).toEqual([expect.objectContaining({ text: 'Как добавить новый завод?', faqId: 'create-object', count: 2 })]);
+    });
+
+    it('без уверенного ответа вопрос сохраняется, но в общий FAQ не попадает', async () => {
+      await db.query('delete from help_questions');
+      const r = await ask('какая погода в Москве');
+      expect(r).toMatchObject({ answer: null, saved: true, published: false });
+      expect((await db.query<{ n: number }>('select count(*)::int as n from help_questions'))[0]!.n).toBe(1);
+      expect(((await (await api('/api/help/questions')).json()) as Questions).questions).toEqual([]);
+    });
+
+    it('личные данные в вопросе: ответ есть, но вопрос не публикуется', async () => {
+      await db.query('delete from help_questions');
+      const r = await ask('как создать объект, напишите на ivan@mail.ru');
+      expect(r).toMatchObject({ answer: { id: 'create-object' }, published: false });
+      expect(((await (await api('/api/help/questions')).json()) as Questions).questions).toEqual([]);
+    });
+
+    it('проверяет длину вопроса', async () => {
+      expect((await api('/api/help/ask', json('POST', { question: 'a' }))).status).toBe(400);
+      expect((await api('/api/help/ask', json('POST', { question: 'x'.repeat(301) }))).status).toBe(400);
+    });
+  });
+
   describe('отклоняет некорректные запросы', () => {
     it('состояние другого объекта и чужие события журнала', async () => {
       const r1 = await api('/api/workspaces/obj-001', json('PUT', workspace('obj-002', 's')));

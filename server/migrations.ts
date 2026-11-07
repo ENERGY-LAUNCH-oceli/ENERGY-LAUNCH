@@ -58,6 +58,26 @@ export const MIGRATIONS: readonly { version: number; name: string; sql: string }
         for each statement execute function audit_events_append_only();
     `,
   },
+  {
+    version: 2,
+    name: 'help questions',
+    sql: `
+      -- Вопросы пользователей помощнику по сайту: одинаковые по смыслу формулировки – одна строка (norm), count растёт.
+      -- В общий FAQ попадают только вопросы с найденным ответом и без личных данных (published).
+      create table help_questions (
+        id bigserial primary key,
+        text text not null,
+        norm text not null unique,
+        faq_id text,
+        confidence real,
+        published boolean not null default false,
+        count integer not null default 1,
+        created_at timestamptz not null default now(),
+        last_asked_at timestamptz not null default now()
+      );
+      create index help_questions_recent_idx on help_questions (published, last_asked_at desc);
+    `,
+  },
 ];
 
 /** Применяет недостающие миграции, каждую в своей транзакции. Возвращает номер версии схемы. */

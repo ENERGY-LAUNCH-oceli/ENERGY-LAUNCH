@@ -18,6 +18,8 @@ ENV NODE_ENV=production API_HOST=0.0.0.0 API_PORT=8787
 COPY package.json package-lock.json ./
 RUN npm ci --omit=dev --no-audit --no-fund
 COPY server ./server
+# Помощник по сайту и база знаний – общие с приложением
+COPY src/help ./src/help
 USER node
 EXPOSE 8787
 HEALTHCHECK --interval=30s --timeout=3s CMD wget -q -O /dev/null http://127.0.0.1:8787/api/health || exit 1

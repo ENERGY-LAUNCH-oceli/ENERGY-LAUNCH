@@ -1,5 +1,6 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { z } from 'zod';
+import { answer, normalizeQuestion, publishable } from '../src/help/agent.ts';
 import type { Db } from './db.ts';
 
 /**
@@ -211,6 +212,31 @@ export function createHandler(db: Db, opts: AppOptions = {}) {
       return send(res, 200, { inserted });
     }
 
+    // Помощник по сайту: ответ из базы знаний (без внешних ИИ-сервисов), вопрос сохраняется для FAQ
+    if (path === '/api/help/ask' && method === 'POST') {
+      const { question } = parse(z.object({ question: z.string().trim().min(3, 'вопрос слишком короткий').max(300, 'вопрос длиннее 300 знаков') }), await readJson(req, 4096));
+      const r = answer(question);
+      const norm = normalizeQuestion(question);
+      const published = !!r.best && publishable(question);
+      if (norm) {
+        await db.query(
+          `insert into help_questions (text, norm, faq_id, confidence, published) values ($1, $2, $3, $4, $5)
+           on conflict (norm) do update set count = help_questions.count + 1, last_asked_at = now(),
+             faq_id = excluded.faq_id, confidence = excluded.confidence, published = help_questions.published or excluded.published`,
+          [question.replace(/\s+/g, ' '), norm, r.best?.item.id ?? null, r.best?.confidence ?? null, published],
+        );
+      }
+      const pick = (m: (typeof r.alternatives)[number]) => ({ id: m.item.id, q: m.item.q, a: m.item.a, lesson: m.item.lesson ?? null, confidence: m.confidence });
+      return send(res, 200, { answer: r.best ? pick(r.best) : null, alternatives: r.alternatives.map(pick), saved: !!norm, published });
+    }
+
+    if (path === '/api/help/questions' && method === 'GET') {
+      const rows = await db.query<{ text: string; faq_id: string; count: number; last_asked_at: unknown }>(
+        'select text, faq_id, count, last_asked_at from help_questions where published and faq_id is not null order by last_asked_at desc limit 50',
+      );
+      return send(res, 200, { questions: rows.map((q) => ({ text: q.text, faqId: q.faq_id, count: Number(q.count), lastAskedAt: iso(q.last_asked_at) })) });
+    }
+
     if (path === '/api/audit' && method === 'GET') {
       const objectId = url.searchParams.get('objectId');
       const sessionId = url.searchParams.get('sessionId');
@@ -223,7 +249,7 @@ export function createHandler(db: Db, opts: AppOptions = {}) {
       return send(res, 200, { events: rows.map((r) => r.event).reverse() });
     }
 
-    if (path.startsWith('/api/')) throw new HttpError(path.match(/^\/api\/(health|state|objects|workspaces|audit)\b/) ? 405 : 404, 'нет такого метода API');
+    if (path.startsWith('/api/')) throw new HttpError(path.match(/^\/api\/(health|state|objects|workspaces|audit|help)\b/) ? 405 : 404, 'нет такого метода API');
     throw new HttpError(404, 'не найдено');
   }
 
