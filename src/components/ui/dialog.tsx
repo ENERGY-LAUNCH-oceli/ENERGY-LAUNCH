@@ -18,6 +18,16 @@ interface OverlayPanelProps {
   className?: string;
 }
 
+/**
+ * Карточка тура «Обучения» лежит поверх окна: щелчок и фокус в ней не считаются действием «снаружи» и не закрывают окно.
+ * Radix проверяет щелчок снаружи уже после click – к этому моменту тур мог сменить шаг и убрать элемент из DOM,
+ * поэтому отсоединённая цель при активном туре тоже не закрывает окно.
+ */
+const keepForTour = (e: Event) => {
+  const t = e.target as Element | null;
+  if (t?.closest?.('[data-tour-ui]') || (t && !t.isConnected && document.querySelector('[data-tour-ui]'))) e.preventDefault();
+};
+
 function Header({ title, description }: { title: string; description?: React.ReactNode }) {
   return (
     <div className="flex items-start justify-between gap-4 border-b border-border px-6 py-4">
@@ -46,6 +56,9 @@ export function Modal({ open, onOpenChange, trigger, title, description, childre
       <DialogPrimitive.Portal>
         <DialogPrimitive.Overlay className={overlayClass} />
         <DialogPrimitive.Content
+          onPointerDownOutside={keepForTour}
+          onInteractOutside={keepForTour}
+          onFocusOutside={keepForTour}
           className={cn(
             'fixed left-1/2 top-1/2 z-50 flex max-h-[calc(100dvh-2rem)] w-[calc(100vw-2rem)] max-w-lg -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden rounded-lg border border-border bg-surface shadow-lg data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95',
             className,
@@ -68,6 +81,9 @@ export function Drawer({ open, onOpenChange, trigger, title, description, childr
       <DialogPrimitive.Portal>
         <DialogPrimitive.Overlay className={overlayClass} />
         <DialogPrimitive.Content
+          onPointerDownOutside={keepForTour}
+          onInteractOutside={keepForTour}
+          onFocusOutside={keepForTour}
           className={cn(
             'fixed inset-y-0 right-0 z-50 flex w-full max-w-md flex-col border-l border-border bg-surface shadow-lg data-[state=open]:animate-in data-[state=open]:slide-in-from-right data-[state=closed]:animate-out data-[state=closed]:slide-out-to-right',
             className,
