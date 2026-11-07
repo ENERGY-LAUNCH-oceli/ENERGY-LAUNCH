@@ -32,6 +32,8 @@ export default defineConfig({
     environment: 'jsdom',
     include: ['src/**/*.test.ts', 'src/**/*.test.tsx', 'tests/unit/**/*.test.ts', 'tests/server/**/*.test.ts', 'tests/integration/**/*.test.ts'],
     setupFiles: ['./tests/setup.ts'],
+    // Разбор крупных CSV и PGlite (WebAssembly) при параллельном прогоне не всегда укладываются в 5 с по умолчанию
+    testTimeout: 15_000,
     coverage: { provider: 'v8', include: ['src/engine/**', 'src/services/**'] },
   },
 });
