@@ -34,12 +34,25 @@ certbot --nginx -d elaunch.xroyse.ru --non-interactive --agree-tos --redirect
 VITE_DATASET=synthetic npx vite build --outDir build-web   # без public/case4 и карт исходников:
 rm -rf build-web/case4 && find build-web -name '*.map' -delete
 # на сервер: build-web → /var/www/elaunch; server/, src/help/, package.json, package-lock.json → /opt/energy-launch/app
+tar --no-same-owner -xzf web.tgz -C /var/www/elaunch.new   # без --no-same-owner остаётся uid машины сборки
+chown -R root:root /var/www/elaunch.new                    # статика; файлы службы – root:elaunch, права o=
 cd /opt/energy-launch/app && npm ci --omit=dev --ignore-scripts
 systemctl restart energy-launch-api
 ```
 
+Сервер импортирует `src/help/` (помощник по сайту) – без него `/api/help/ask` недоступен. Перед заменой
+сохраняется копия: `/var/www/elaunch.bak-<дата>`, `/opt/energy-launch/app-src.bak-<дата>.tgz`.
+
 Миграции схемы применяются при старте службы. Проверка: `curl -s http://127.0.0.1:8790/api/health`,
 журнал – `journalctl -u energy-launch-api`.
+
+## Страницы ошибок
+
+`dist/` содержит `status/<код>.html`, `offline.html` и `sw.js` – выкладываются вместе со статикой.
+В конфиге nginx на сервере нужны строки `error_page … /status/<код>.html` из `deploy/server/elaunch.nginx.conf`.
+Живой файл дополнен certbot (блоки 443 и 80), поэтому строки вставляются в него, а не копируется файл из репозитория
+(копия до правки – `/root/elaunch.nginx.bak-<дата>`); затем `nginx -t && systemctl reload nginx`. Выложено 07.11.2026.
+Подробно – `docs/status-pages.md`.
 
 ## Ограничения
 
