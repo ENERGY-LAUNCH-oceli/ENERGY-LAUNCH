@@ -36,6 +36,8 @@ const workspaceBody = z.object({
   session: z.looseObject({ id: ID, objectId: ID, rulesetVersion: z.string().min(1).max(32) }),
   inputs: z.looseObject({ object: z.looseObject({ id: ID }) }),
   auditLog: z.array(auditEvent).max(50_000),
+  /** Ревизия, от которой клиент строил изменения (0 – состояния ещё нет): другая на сервере – запись отклоняется (409), устаревшая вкладка не затрёт новое. Без неё – тоже 409. */
+  baseRevision: z.number().int().min(0).optional(),
 });
 
 export type AuditEventRow = z.infer<typeof auditEvent>;
@@ -51,9 +53,11 @@ export interface SavedWorkspace {
 
 class HttpError extends Error {
   readonly status: number;
-  constructor(status: number, message: string) {
+  readonly extra: Record<string, unknown> | undefined;
+  constructor(status: number, message: string, extra?: Record<string, unknown>) {
     super(message);
     this.status = status;
+    this.extra = extra;
   }
 }
 
@@ -125,6 +129,27 @@ async function appendAudit(q: Db['query'], events: readonly AuditEventRow[]): Pr
 export function createHandler(db: Db, opts: AppOptions = {}) {
   const limit = opts.maxBodyBytes ?? 32 * 1024 * 1024;
 
+  /** Сохранённые состояния (все или одного объекта) с журналом – ровно те события и в том порядке, что были у клиента при сохранении. */
+  async function loadWorkspaces(objectId?: string): Promise<SavedWorkspace[]> {
+    const where = objectId ? 'where w.object_id = $1' : '';
+    const params = objectId ? [objectId] : [];
+    const ws = await db.query<{ object_id: string; scenario_id: string | null; session_id: string; inputs: unknown; session: unknown; revision: number; updated_at: unknown }>(
+      `select object_id, scenario_id, session_id, inputs, session, revision, updated_at from workspaces w ${where} order by object_id`,
+      params,
+    );
+    const events = await db.query<{ object_id: string; event: unknown }>(
+      `select w.object_id, e.event from workspaces w
+         cross join lateral json_array_elements_text(w.audit_ids) with ordinality as a(id, ord)
+         join audit_events e on e.id = a.id
+       ${where}
+       order by w.object_id, a.ord`,
+      params,
+    );
+    const byObject = new Map<string, unknown[]>();
+    for (const e of events) byObject.set(e.object_id, [...(byObject.get(e.object_id) ?? []), e.event]);
+    return ws.map((w) => ({ objectId: w.object_id, scenarioId: w.scenario_id, inputs: w.inputs, session: w.session, auditLog: byObject.get(w.object_id) ?? [], revision: Number(w.revision), updatedAt: iso(w.updated_at) }));
+  }
+
   async function route(req: IncomingMessage, res: ServerResponse): Promise<void> {
     const url = new URL(req.url ?? '/', 'http://localhost');
     const path = url.pathname.replace(/\/+$/, '');
@@ -139,20 +164,13 @@ export function createHandler(db: Db, opts: AppOptions = {}) {
 
     if (path === '/api/state' && method === 'GET') {
       const objects = await db.query<{ data: unknown }>('select data from user_objects order by created_at, id');
-      const ws = await db.query<{ object_id: string; scenario_id: string | null; session_id: string; inputs: unknown; session: unknown; revision: number; updated_at: unknown }>(
-        'select object_id, scenario_id, session_id, inputs, session, revision, updated_at from workspaces order by object_id',
-      );
-      // Журнал состояния – ровно те события и в том порядке, что были у клиента при сохранении
-      const events = await db.query<{ object_id: string; event: unknown }>(
-        `select w.object_id, e.event from workspaces w
-           cross join lateral json_array_elements_text(w.audit_ids) with ordinality as a(id, ord)
-           join audit_events e on e.id = a.id
-         order by w.object_id, a.ord`,
-      );
-      const byObject = new Map<string, unknown[]>();
-      for (const e of events) byObject.set(e.object_id, [...(byObject.get(e.object_id) ?? []), e.event]);
-      const workspaces: SavedWorkspace[] = ws.map((w) => ({ objectId: w.object_id, scenarioId: w.scenario_id, inputs: w.inputs, session: w.session, auditLog: byObject.get(w.object_id) ?? [], revision: Number(w.revision), updatedAt: iso(w.updated_at) }));
-      return send(res, 200, { objects: objects.map((o) => o.data), workspaces });
+      return send(res, 200, { objects: objects.map((o) => o.data), workspaces: await loadWorkspaces() });
+    }
+
+    // Ревизии состояний – лёгкий опрос: вкладка подгружает только объекты, изменённые в другом месте
+    if (path === '/api/revisions' && method === 'GET') {
+      const rows = await db.query<{ object_id: string; revision: number }>('select object_id, revision from workspaces order by object_id');
+      return send(res, 200, { revisions: Object.fromEntries(rows.map((r) => [r.object_id, Number(r.revision)])) });
     }
 
     const obj = /^\/api\/objects\/([^/]+)$/.exec(path);
@@ -184,6 +202,10 @@ export function createHandler(db: Db, opts: AppOptions = {}) {
     }
 
     const wsMatch = /^\/api\/workspaces\/([^/]+)$/.exec(path);
+    if (wsMatch && method === 'GET') {
+      const [w] = await loadWorkspaces(parse(ID, decodeURIComponent(wsMatch[1]!)));
+      return w ? send(res, 200, w) : send(res, 404, { error: 'состояние объекта не сохранено', revision: 0 });
+    }
     if (wsMatch && method === 'PUT') {
       const objectId = parse(ID, decodeURIComponent(wsMatch[1]!));
       const body = parse(workspaceBody, await readJson(req, limit));
@@ -191,15 +213,25 @@ export function createHandler(db: Db, opts: AppOptions = {}) {
       const foreign = body.auditLog.find((e) => e.objectId !== undefined && e.objectId !== objectId);
       if (foreign) throw new HttpError(400, `событие ${foreign.id} относится к другому объекту`);
       const result = await db.transaction(async (tx) => {
+        const base = body.baseRevision;
+        const conflict = (revision: number) => new HttpError(409, 'состояние объекта уже изменено в другой вкладке или другим пользователем', { revision });
+        const [cur] = await tx.query<{ revision: number }>('select revision from workspaces where object_id = $1 for update', [objectId]);
+        const current = Number(cur?.revision ?? 0);
+        // Без ревизии пишет вкладка со старой версией приложения – слепая перезапись затёрла бы чужие изменения
+        if (base === undefined) throw new HttpError(409, 'вкладка открыта со старой версией приложения – обновите страницу', { revision: current });
+        if (current !== base) throw conflict(current);
         const rows = await tx.query<{ revision: number; updated_at: unknown }>(
           `insert into workspaces (object_id, session_id, scenario_id, ruleset_version, inputs, session, audit_ids)
            values ($1, $2, $3, $4, $5::json, $6::json, $7::json)
            on conflict (object_id) do update set session_id = excluded.session_id, scenario_id = excluded.scenario_id,
              ruleset_version = excluded.ruleset_version, inputs = excluded.inputs, session = excluded.session,
              audit_ids = excluded.audit_ids, revision = workspaces.revision + 1, updated_at = now()
+           where workspaces.revision = $8::integer
            returning revision, updated_at`,
-          [objectId, body.session.id, body.scenarioId, body.session.rulesetVersion, JSON.stringify(body.inputs), JSON.stringify(body.session), JSON.stringify(body.auditLog.map((e) => e.id))],
+          [objectId, body.session.id, body.scenarioId, body.session.rulesetVersion, JSON.stringify(body.inputs), JSON.stringify(body.session), JSON.stringify(body.auditLog.map((e) => e.id)), base],
         );
+        // Параллельная запись успела раньше (строка появилась между проверкой и вставкой)
+        if (!rows[0]) throw conflict(-1);
         const inserted = await appendAudit(tx.query, body.auditLog);
         return { revision: Number(rows[0]!.revision), updatedAt: iso(rows[0]!.updated_at), auditInserted: inserted };
       });
@@ -249,13 +281,13 @@ export function createHandler(db: Db, opts: AppOptions = {}) {
       return send(res, 200, { events: rows.map((r) => r.event).reverse() });
     }
 
-    if (path.startsWith('/api/')) throw new HttpError(path.match(/^\/api\/(health|state|objects|workspaces|audit|help)\b/) ? 405 : 404, 'нет такого метода API');
+    if (path.startsWith('/api/')) throw new HttpError(path.match(/^\/api\/(health|state|revisions|objects|workspaces|audit|help)\b/) ? 405 : 404, 'нет такого метода API');
     throw new HttpError(404, 'не найдено');
   }
 
   return (req: IncomingMessage, res: ServerResponse): void => {
     route(req, res).catch((e: unknown) => {
-      if (e instanceof HttpError) return send(res, e.status, { error: e.message });
+      if (e instanceof HttpError) return send(res, e.status, { error: e.message, ...e.extra });
       // Наружу – только общее сообщение; в журнал сервера – текст ошибки без тела запроса
       console.error(`[api] ${req.method} ${req.url?.split('?')[0]}:`, e instanceof Error ? e.message : e);
       if (!res.headersSent) send(res, 500, { error: 'внутренняя ошибка сервера' });

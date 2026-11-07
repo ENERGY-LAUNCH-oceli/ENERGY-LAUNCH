@@ -31,6 +31,9 @@ beforeEach(async () => {
 
 const json = (method: string, body?: unknown, headers: Record<string, string> = {}) => ({ method, headers: { 'Content-Type': 'application/json', ...headers }, ...(body === undefined ? {} : { body: JSON.stringify(body) }) });
 const api = (path: string, init?: RequestInit) => fetch(base + path, init);
+/** Запись состояния, как это делает приложение: с ревизией, от которой построены изменения. */
+const revisionOf = async (id: string) => ((await (await api('/api/revisions')).json()) as { revisions: Record<string, number> }).revisions[id] ?? 0;
+const putWs = async (id: string, body: object) => api(`/api/workspaces/${id}`, json('PUT', { ...body, baseRevision: await revisionOf(id) }));
 
 const event = (id: string, objectId: string, sessionId: string, action = 'STAGE_STARTED') => ({ id, action, actor: 'Инженер запуска', timestamp: '2026-11-06T12:00:00.000Z', sessionId, objectId, rulesetVersion: '1.5.0', payload: { b: 2, a: 1 } });
 const workspace = (objectId: string, sessionId: string, auditLog = [event(`${sessionId}-e1`, objectId, sessionId)]) => ({
@@ -57,11 +60,11 @@ describe('API хранилища', () => {
 
   it('состояние объекта сохраняется и возвращается без изменений (порядок ключей, журнал)', async () => {
     const ws = workspace('usr-mw5433aj', 'sess-1');
-    const put = await api('/api/workspaces/usr-mw5433aj', json('PUT', ws));
+    const put = await putWs('usr-mw5433aj', ws);
     expect(put.status).toBe(200);
     expect(await put.json()).toMatchObject({ revision: 1, auditInserted: 1 });
 
-    const again = await api('/api/workspaces/usr-mw5433aj', json('PUT', { ...ws, auditLog: [...ws.auditLog, event('sess-1-e2', 'usr-mw5433aj', 'sess-1', 'STAGE_COMPLETED')] }));
+    const again = await putWs('usr-mw5433aj', { ...ws, auditLog: [...ws.auditLog, event('sess-1-e2', 'usr-mw5433aj', 'sess-1', 'STAGE_COMPLETED')] });
     expect(await again.json()).toMatchObject({ revision: 2, auditInserted: 1 });
 
     const state = (await (await api('/api/state')).json()) as { workspaces: { objectId: string; session: { stages: object }; auditLog: { id: string; payload: object }[]; revision: number }[] };
@@ -74,17 +77,42 @@ describe('API хранилища', () => {
   });
 
   it('новая сессия объекта (сброс) – в состоянии только её журнал, старые записи остаются в базе', async () => {
-    await api('/api/workspaces/obj-001', json('PUT', workspace('obj-001', 'old')));
-    await api('/api/workspaces/obj-001', json('PUT', workspace('obj-001', 'new')));
+    await putWs('obj-001', workspace('obj-001', 'old'));
+    await putWs('obj-001', workspace('obj-001', 'new'));
     const state = (await (await api('/api/state')).json()) as { workspaces: { auditLog: { id: string }[] }[] };
     expect(state.workspaces[0]!.auditLog.map((e) => e.id)).toEqual(['new-e1']);
     // Тот же номер сессии после сброса (исходный портфель детерминирован): прежние события в состояние не возвращаются
-    await api('/api/workspaces/obj-001', json('PUT', workspace('obj-001', 'new', [event('new-e1', 'obj-001', 'new'), event('new-e2', 'obj-001', 'new')])));
-    await api('/api/workspaces/obj-001', json('PUT', workspace('obj-001', 'new', [event('new-e1', 'obj-001', 'new')])));
+    await putWs('obj-001', workspace('obj-001', 'new', [event('new-e1', 'obj-001', 'new'), event('new-e2', 'obj-001', 'new')]));
+    await putWs('obj-001', workspace('obj-001', 'new', [event('new-e1', 'obj-001', 'new')]));
     const reset = (await (await api('/api/state')).json()) as typeof state;
     expect(reset.workspaces[0]!.auditLog.map((e) => e.id)).toEqual(['new-e1']);
     const all = (await (await api('/api/audit?objectId=obj-001')).json()) as { events: { id: string }[] };
     expect(all.events.map((e) => e.id)).toEqual(expect.arrayContaining(['old-e1', 'new-e1']));
+  });
+
+  it('устаревшая вкладка не затирает новое состояние: другая ревизия или её отсутствие – 409, состояние не меняется', async () => {
+    const ws = workspace('obj-003', 'live');
+    expect((await api('/api/workspaces/obj-003', json('PUT', { ...ws, baseRevision: 0 }))).status).toBe(200);
+    // Вторая вкладка уже сохранила ревизию 2 ...
+    const done = { ...ws, session: { ...ws.session, stages: { METER_HISTORY: { status: 'COMPLETED' }, REALTIME_TELEMETRY: { status: 'COMPLETED' } } } };
+    expect((await api('/api/workspaces/obj-003', json('PUT', { ...done, baseRevision: 1 }))).status).toBe(200);
+    // ... а первая, открытая раньше, пишет поверх ревизии 1
+    const stale = await api('/api/workspaces/obj-003', json('PUT', { ...ws, auditLog: [...ws.auditLog, event('stale-e', 'obj-003', 'live', 'VALIDATION_RUN')], baseRevision: 1 }));
+    expect(stale.status).toBe(409);
+    expect(await stale.json()).toMatchObject({ revision: 2 });
+    // Вкладка со старой версией приложения (без ревизии) – тоже отказ
+    expect((await api('/api/workspaces/obj-003', json('PUT', ws))).status).toBe(409);
+    // Состояние осталось новым, отклонённые события в журнал не попали
+    const saved = (await (await api('/api/workspaces/obj-003')).json()) as { revision: number; session: { stages: Record<string, { status: string }> }; auditLog: { id: string }[] };
+    expect(saved.revision).toBe(2);
+    expect(saved.session.stages.REALTIME_TELEMETRY!.status).toBe('COMPLETED');
+    const audit = (await (await api('/api/audit?objectId=obj-003')).json()) as { events: { id: string }[] };
+    expect(audit.events.map((e) => e.id)).not.toContain('stale-e');
+    expect(await (await api('/api/revisions')).json()).toEqual({ revisions: { 'obj-003': 2 } });
+    // После сброса состояния нет: ревизия 0, запись поверх старой ревизии – конфликт
+    await api('/api/workspaces', { method: 'DELETE' });
+    expect((await api('/api/workspaces/obj-003')).status).toBe(404);
+    expect((await api('/api/workspaces/obj-003', json('PUT', { ...done, baseRevision: 2 }))).status).toBe(409);
   });
 
   it('журнал аудита только дополняется: UPDATE, DELETE и TRUNCATE запрещены', async () => {
@@ -101,7 +129,7 @@ describe('API хранилища', () => {
     const o = { id: 'usr-mw5433aj', createdAt: '2026-11-06T15:00:00.000Z', name: 'Тестовое название', code: 'TESTOVOE-NAZVANIE', kind: 'Завод', pvCount: 154, batteryCount: 90 };
     expect((await api('/api/objects/usr-mw5433aj', json('PUT', o))).status).toBe(204);
     expect((await api('/api/objects/usr-mw5433aj', json('PUT', { ...o, name: 'Новое имя' }))).status).toBe(204);
-    await api('/api/workspaces/usr-mw5433aj', json('PUT', workspace('usr-mw5433aj', 'su')));
+    await putWs('usr-mw5433aj', workspace('usr-mw5433aj', 'su'));
     let state = (await (await api('/api/state')).json()) as { objects: { name: string }[]; workspaces: unknown[] };
     expect(state.objects).toEqual([{ ...o, name: 'Новое имя' }]);
     expect(state.workspaces).toHaveLength(1);
@@ -112,8 +140,8 @@ describe('API хранилища', () => {
   });
 
   it('сброс портфеля удаляет состояния всех объектов', async () => {
-    await api('/api/workspaces/obj-001', json('PUT', workspace('obj-001', 'a')));
-    await api('/api/workspaces/obj-002', json('PUT', workspace('obj-002', 'b')));
+    await putWs('obj-001', workspace('obj-001', 'a'));
+    await putWs('obj-002', workspace('obj-002', 'b'));
     expect((await api('/api/workspaces', { method: 'DELETE' })).status).toBe(204);
     expect(((await (await api('/api/state')).json()) as { workspaces: unknown[] }).workspaces).toEqual([]);
   });
@@ -155,9 +183,9 @@ describe('API хранилища', () => {
 
   describe('отклоняет некорректные запросы', () => {
     it('состояние другого объекта и чужие события журнала', async () => {
-      const r1 = await api('/api/workspaces/obj-001', json('PUT', workspace('obj-002', 's')));
+      const r1 = await putWs('obj-001', workspace('obj-002', 's'));
       expect(r1.status).toBe(400);
-      const r2 = await api('/api/workspaces/obj-001', json('PUT', workspace('obj-001', 's', [event('x', 'obj-999', 's')])));
+      const r2 = await putWs('obj-001', workspace('obj-001', 's', [event('x', 'obj-999', 's')]));
       expect(r2.status).toBe(400);
       expect(((await api('/api/state').then((r) => r.json())) as { workspaces: unknown[] }).workspaces).toEqual([]);
     });
@@ -168,7 +196,7 @@ describe('API хранилища', () => {
       expect((await api('/api/audit', { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: '{"events":[]}' })).status).toBe(415);
       const big = workspace('obj-001', 's');
       (big.inputs as Record<string, unknown>).blob = 'x'.repeat(70 * 1024);
-      expect((await api('/api/workspaces/obj-001', json('PUT', big))).status).toBe(413);
+      expect((await putWs('obj-001', big)).status).toBe(413);
       // Таблицы на месте
       expect((await api('/api/state')).status).toBe(200);
     });
