@@ -6,7 +6,7 @@
   от Oceli Energy – только палитра. Источник истины – `src/design/tokens.ts` (светлая и тёмная темы).
   Тема по умолчанию светлая, переключатель в боковой панели.
 - Страницы `/design-system` больше нет. Артефакт https://claude.ai/artifact/87HVsmHPQ8R68mJzjkmTsh
-  и локальная папка `design/` описывают старый дизайн (Manrope, «пилюли») и устарели.
+  описывает старый дизайн (Manrope, «пилюли») и устарел; папка `design/` с ним удалена.
 - Dev-сервер: `npm run dev` → http://127.0.0.1:5173 (Vite привязан к IPv4: на этой машине `localhost`/::1 не открывается).
 - Хранилище: `npm run api` → сервер `server/` (PostgreSQL по `DATABASE_URL`, иначе встроенный PGlite в `.data/pglite`, git-ignored); Vite проксирует `/api`.
   Без сервера – браузер. Сервер запускается Node 22 без сборки (`node server/index.ts`, импорты с `.ts`). Подробно – `docs/storage.md`.
