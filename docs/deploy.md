@@ -7,7 +7,7 @@
 | Что | Где |
 | --- | --- |
 | Статика (сборка Vite) | `/var/www/elaunch` |
-| Сервер хранилища | `/opt/energy-launch/app` (`server/`, `package.json`, зависимости), служба `energy-launch-api` на 127.0.0.1:8790 |
+| Сервер хранилища | `/opt/energy-launch/app` (`server/`, `src/help/` – помощник и база знаний, `package.json`, зависимости), служба `energy-launch-api` на 127.0.0.1:8790 |
 | Переменные службы | `/etc/energy-launch/api.env` (права 640 root:elaunch; `DATABASE_URL` с паролем – только там) |
 | База | PostgreSQL 16 из пакетов Ubuntu, только localhost; база и роль `energy_launch`; настройки – `conf.d/energy-launch.conf` |
 | nginx | `/etc/nginx/sites-available/elaunch.xroyse.ru` ← `deploy/server/elaunch.nginx.conf` |
@@ -33,7 +33,7 @@ certbot --nginx -d elaunch.xroyse.ru --non-interactive --agree-tos --redirect
 # локально
 VITE_DATASET=synthetic npx vite build --outDir build-web   # без public/case4 и карт исходников:
 rm -rf build-web/case4 && find build-web -name '*.map' -delete
-# на сервер: build-web → /var/www/elaunch; server/, package.json, package-lock.json → /opt/energy-launch/app
+# на сервер: build-web → /var/www/elaunch; server/, src/help/, package.json, package-lock.json → /opt/energy-launch/app
 cd /opt/energy-launch/app && npm ci --omit=dev --ignore-scripts
 systemctl restart energy-launch-api
 ```

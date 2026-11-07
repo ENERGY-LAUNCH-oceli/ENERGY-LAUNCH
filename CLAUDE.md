@@ -22,4 +22,6 @@
 - Docker: `Dockerfile` + `deploy/nginx.conf` (строгая CSP, поэтому скрипт темы вынесен в `public/theme-init.js`) + `docker-compose.yml` (case4 – том только для чтения). Docker на этой машине не установлен.
 - Прод: https://elaunch.xroyse.ru – общий сервер 153.80.178.157 (рядом чужие сайты: не трогать их nginx/pm2/Docker).
   Раскладка, обновление и HTTPS – `docs/deploy.md`, конфиги – `deploy/server/`. Пароли в репозиторий не попадают.
+- Обучение `/help`: уроки `features/help/lessons.tsx` + туры `features/tour/tours.ts` (якоря `data-tour`), FAQ и помощник по сайту
+  `src/help/` (общий с сервером: `POST /api/help/ask`, без внешних ИИ). Подробно – `docs/help.md`.
 - Документация – `docs/*.md` (архитектура, автомат, правила, модель данных, загрузка, сценарии, демо, ограничения).
