@@ -4,6 +4,7 @@ import { AppContextMenu } from '@/components/layout/AppContextMenu';
 import { Header } from '@/components/layout/Header';
 import { Sidebar } from '@/components/layout/Sidebar';
 import { Toaster } from '@/components/layout/Toaster';
+import { DropHost } from '@/features/drop/DropHost';
 import { HelpAskDialog } from '@/features/help/HelpAskDialog';
 import { TourHost } from '@/features/tour/TourHost';
 import { useUi } from '@/store';
@@ -83,6 +84,7 @@ export function AppLayout() {
       <Toaster />
       <AppContextMenu />
       <HelpAskDialog />
+      <DropHost />
       <TourHost />
     </div>
   );

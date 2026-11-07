@@ -47,6 +47,7 @@ export function FileUpload({ accept, multiple, maxSizeMb = 50, disabled, label =
     <div className={cn('flex flex-col gap-2', className)}>
       <div
         role="button"
+        data-dropzone=""
         tabIndex={disabled ? -1 : 0}
         aria-disabled={disabled}
         onClick={() => !disabled && inputRef.current?.click()}

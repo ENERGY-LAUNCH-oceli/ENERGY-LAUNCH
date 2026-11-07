@@ -5,6 +5,7 @@ import { DataTable, type ColumnDef } from '@/components/ui/data-table';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { STAGE_META } from '@/config/stages';
 import { OBJECT_CATALOG, type ObjectCatalogEntry } from '@/data/objects';
+import { UploadFilesButton } from '@/features/drop/DropHost';
 import { CreateObjectDialog } from '@/features/objects';
 import { sessionStatus, usePortfolioSessions } from '@/hooks/use-portfolio';
 import type { LaunchSession } from '@/types';
@@ -34,7 +35,12 @@ export function ObjectsPage() {
   const navigate = useNavigate();
   return (
     <div className="flex flex-col gap-8">
-      <PageHeader eyebrow="Реестр" title="Объекты" description="Здания с подключением к сети, PV-установками и батареями. Откройте объект, чтобы перейти к его паспорту и запуску." actions={<CreateObjectDialog />} />
+      <PageHeader eyebrow="Реестр" title="Объекты" description="Здания с подключением к сети, PV-установками и батареями. Откройте объект, чтобы перейти к его паспорту и запуску." actions={
+          <div className="flex flex-wrap gap-2">
+            <UploadFilesButton />
+            <CreateObjectDialog />
+          </div>
+        } />
       <DataTable
         caption="Объекты портфеля"
         columns={COLUMNS}

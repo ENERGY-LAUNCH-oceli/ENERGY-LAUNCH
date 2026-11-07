@@ -1,5 +1,8 @@
 import { ROUTES } from '@/app/routes';
-import { OBJECT_CATALOG } from '@/data/objects';
+import { demoObjectJson } from '@/data/mock';
+import { OBJECT_CATALOG, findObject } from '@/data/objects';
+import { withCheckDigit } from '@/engine/invoice/format';
+import { useDrop } from '@/features/drop/drop-store';
 import { closeDialogs, fillIfEmpty, findVisible, press, setValue, sleep, typeInto, waitFor } from './demo';
 
 /**
@@ -160,6 +163,61 @@ const createObject: TourDef = {
   ],
 };
 
+/* ---------- Загрузка файлов перетаскиванием: тур сам «бросает» учебные файлы ---------- */
+
+const DEMO_NOTE = 'Обучение: так выглядит разбор брошенных файлов. В туре ничего не загружается.';
+
+/** Учебные файлы: история текущего объекта (имя файла называет объект) и паспорт объекта, которого нет в портфеле. */
+function demoFiles(objectId: string): File[] {
+  const invoice = ['timestamp (UTC);Grid.energy_kWh.offtake_invoice (kWh);Grid.energy_kWh.offtake_invoice_validated (kWh);Grid.energy_kWh.injection_invoice (kWh);Grid.energy_kWh.injection_invoice_validated (kWh)', '2025-01-01T00:00:00Z;6,8;6,8;0;0', '2025-01-01T00:15:00Z;7,1;7,1;0;0'].join('\n');
+  const passport = demoObjectJson({ objectId: 'SUN-PARK-DEMO', name: 'Солнечный парк «Пример»', street: 'Rue Exemple 1', postalCode: '9000', city: 'Гент', ean: { offtake: withCheckDigit('54143000000000017'), injection: withCheckDigit('54144000000000017') }, assets: [{ id: 'pv-1', type: 'pv', prefix: 'PV1' }, { id: 'battery-1', type: 'battery', prefix: 'Battery1' }] });
+  return [new File([invoice], `${findObject(objectId)?.code ?? objectId}_invoice.csv`, { type: 'text/csv' }), new File([JSON.stringify(passport, null, 2)], 'object.json', { type: 'application/json' })];
+}
+
+async function demoDrop(ctx: TourCtx) {
+  const st = useDrop.getState();
+  if (!st.open || st.note !== DEMO_NOTE) await st.analyze(demoFiles(ctx.objectId).map((file) => ({ file, path: file.name })), DEMO_NOTE);
+}
+
+const files: TourDef = {
+  id: 'files',
+  title: 'Загрузка файлов перетаскиванием',
+  cleanup: () => useDrop.getState().close(),
+  steps: [
+    {
+      route: () => ROUTES.objects,
+      before: () => useDrop.getState().close(),
+      target: '[data-testid="upload-files"]',
+      title: 'Файлы – в любое место окна',
+      text: 'Не нужно искать объект и вкладку: перетащите invoice.csv, telemetry.csv, object.json или целые папки прямо в окно – на любой странице. Эта кнопка (и пункт «Загрузить файлы…» в меню правой кнопки) делает то же для тех, кто не перетаскивает.',
+    },
+    {
+      before: demoDrop,
+      target: '[data-testid="drop-plans"]',
+      title: 'Система разобрала файлы',
+      text: 'Мы «бросили» два учебных файла. Для каждого определено, что это и куда пойдёт: история счётчиков – на этап 1, паспорт – на этап 2.',
+    },
+    {
+      before: demoDrop,
+      target: '[data-testid="drop-plans"] li[data-kind="invoice"]',
+      title: 'Объект и причина',
+      text: 'Объект определяется по object_id или EAN в файле, по SHA-256 файла из набора, по имени файла или папки (Building3/invoice.csv). Причина написана под списком – объект всегда можно поменять.',
+    },
+    {
+      before: demoDrop,
+      target: '[data-testid="drop-plans"] li[data-kind="passport"]',
+      title: 'Новый объект из паспорта',
+      text: 'Паспорта объекта, которого нет в портфеле, хватает, чтобы создать объект: название, адрес, EAN и оборудование возьмутся из object.json.',
+    },
+    {
+      before: demoDrop,
+      target: '[data-testid="drop-apply"]',
+      title: 'Загрузить одним нажатием',
+      text: 'Сначала загружаются паспорта, затем история и телеметрия – каждый файл в свой объект; начатые этапы перепроверяются сами. В обучении ничего не загружаем: нажмите «Готово», окно закроется.',
+    },
+  ],
+};
+
 /* ---------- Остальные блоки ---------- */
 
 const launch = (c: TourCtx) => ROUTES.objectSection(c.objectId, 'launch');
@@ -280,7 +338,7 @@ const audit: TourDef = {
       title: 'Состояние на момент записи',
       text: 'Мы выбрали запись – вот статусы этапов, последние прогоны и открытые препятствия на тот момент. Решения воспроизводимы по журналу.',
     },
-    { route: (c) => ROUTES.objectSection(c.objectId, 'protocol'), target: '[data-testid="protocol"]', title: 'Протокол запуска', text: 'Итог по этапам, проверкам и подтверждениям с хешами файлов. Кнопка печати сохраняет протокол в PDF.' },
+    { route: (c) => ROUTES.objectSection(c.objectId, 'protocol'), target: '[data-testid="protocol"]', title: 'Протокол запуска', text: 'Итог по этапам, проверкам и подтверждениям с хешами файлов. Протокол можно скачать PDF, отправить или распечатать.' },
   ],
 };
 
@@ -306,7 +364,7 @@ const settings: TourDef = {
   ],
 };
 
-export const TOURS: Record<string, TourDef> = Object.fromEntries([createObject, overview, launchCard, history, telemetry, control, dashboards, blockers, audit, scenarios, settings].map((t) => [t.id, t]));
+export const TOURS: Record<string, TourDef> = Object.fromEntries([createObject, files, overview, launchCard, history, telemetry, control, dashboards, blockers, audit, scenarios, settings].map((t) => [t.id, t]));
 
 /** Урок для текущей страницы – пункт контекстного меню «Обучение по этой странице». */
 export function tourForPath(pathname: string): string | null {

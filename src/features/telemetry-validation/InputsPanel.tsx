@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { FileUpload } from '@/components/ui/file-upload';
 import { demoObjectJson, telemetryCsvText, type TelemetryGenOptions } from '@/data/mock';
 import { findObject } from '@/data/objects';
+import { routeForField } from '@/features/drop/drop-store';
 import { importPassport, importTelemetry } from '@/services/telemetry-import';
 import { useLaunchStore } from '@/store';
 import type { SitePassport, TelemetryDatasetV2 } from '@/types';
@@ -76,7 +77,7 @@ export function InputsPanel({ passport, dataset }: { passport: SitePassport | un
             'Паспорт не загружен – карта сигналов неизвестна.'
           )}
         </p>
-        {busy === 'passport' ? <Loader2 className="size-5 animate-spin text-accent" /> : <FileUpload accept=".json" label="Перетащите object.json или выберите файл" onFilesChange={(f) => f[0] && void loadPassport(f[0], f[0].name, 'UPLOAD')} />}
+        {busy === 'passport' ? <Loader2 className="size-5 animate-spin text-accent" /> : <FileUpload accept=".json,.csv" label="Перетащите object.json или выберите файл" hint="Паспорт объекта; другие файлы система предложит загрузить по назначению" onFilesChange={(f) => f[0] && void routeForField(f[0], 'passport').then((where) => { if (where === 'here') void loadPassport(f[0]!, f[0]!.name, 'UPLOAD'); })} />}
         <div className="flex flex-wrap gap-2">
           <Button size="sm" variant="outline" disabled={!entry || !!busy} onClick={() => void loadPassport(fixedPassport(), 'object.json', 'DEMO')}>
             <Sparkles aria-hidden />
@@ -100,7 +101,7 @@ export function InputsPanel({ passport, dataset }: { passport: SitePassport | un
             'Телеметрия не загружена.'
           )}
         </p>
-        {busy === 'telemetry' ? <Loader2 className="size-5 animate-spin text-accent" /> : <FileUpload accept=".csv" maxSizeMb={500} label="Перетащите telemetry.csv или выберите файл" onFilesChange={(f) => f[0] && void loadTelemetry(f[0], f[0].name, 'UPLOAD')} />}
+        {busy === 'telemetry' ? <Loader2 className="size-5 animate-spin text-accent" /> : <FileUpload accept=".csv,.json" maxSizeMb={500} label="Перетащите telemetry.csv или выберите файл" hint="Можно бросить файлы и папки в любое место окна – система сама разложит их по объектам" onFilesChange={(f) => f[0] && void routeForField(f[0], 'telemetry').then((where) => { if (where === 'here') void loadTelemetry(f[0]!, f[0]!.name, 'UPLOAD'); })} />}
         <div className="flex flex-wrap items-center gap-2">
           <span className="text-caption text-text-muted">Демо-потоки:</span>
           {TEL_DEMO.map((d) => (

@@ -1,8 +1,9 @@
 import * as React from 'react';
-import { ArrowLeft, ArrowRight, CircleHelp, ClipboardList, Copy, Download, ExternalLink, FileText, GraduationCap, Link2, Maximize, Minimize, Moon, PanelLeft, Printer, RotateCw, Rocket, Settings, Sun } from 'lucide-react';
+import { ArrowLeft, ArrowRight, CircleHelp, UploadCloud, ClipboardList, Copy, Download, ExternalLink, FileText, GraduationCap, Link2, Maximize, Minimize, Moon, PanelLeft, Printer, RotateCw, Rocket, Settings, Sun } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { ROUTES } from '@/app/routes';
 import { findObject } from '@/data/objects';
+import { useDrop } from '@/features/drop/drop-store';
 import { useHelpDialog } from '@/features/help/help-api';
 import { startTour } from '@/features/tour/TourHost';
 import { tourForPath } from '@/features/tour/tours';
@@ -180,6 +181,7 @@ export function AppContextMenu() {
     lesson
       ? { id: 'tour-here', label: 'Обучение: как работает эта страница', icon: GraduationCap, run: () => startTour(lesson) }
       : { id: 'tour-here', label: 'Обучение', icon: GraduationCap, run: () => go(ROUTES.help) },
+    { id: 'upload', label: 'Загрузить файлы…', icon: UploadCloud, run: () => useDrop.getState().pick() },
     { id: 'help', label: 'Помощь: задать вопрос…', icon: CircleHelp, run: () => useHelpDialog.getState().show(target.selection && target.selection.length <= 200 ? target.selection : '') },
   ]);
   groups.push([

@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { FileUpload } from '@/components/ui/file-upload';
 import { Progress } from '@/components/ui/progress';
 import { invoiceCsvText, type InvoiceGenOptions } from '@/data/mock';
+import { routeForField } from '@/features/drop/drop-store';
 import { importInvoice, type InvoiceImportProgress } from '@/services/invoice-import';
 import { useLaunchStore } from '@/store';
 import type { InvoiceDataset } from '@/types';
@@ -66,7 +67,14 @@ export function UploadPanel({ dataset }: { dataset: InvoiceDataset | undefined }
             <Progress value={progress.bytes} max={Math.max(progress.totalBytes, 1)} size="sm" />
           </div>
         ) : (
-          <FileUpload accept=".csv" maxSizeMb={500} label="Перетащите invoice.csv или выберите файл" onFilesChange={(f) => f[0] && void run(f[0], f[0].name, 'UPLOAD')} />
+          <FileUpload
+            accept=".csv,.json"
+            maxSizeMb={500}
+            label="Перетащите invoice.csv или выберите файл"
+            hint="Можно бросить файлы и папки в любое место окна – система сама разложит их по объектам"
+            // Не тот файл (телеметрия, паспорт, другой объект) – предложит загрузить по назначению
+            onFilesChange={(f) => f[0] && void routeForField(f[0], 'invoice').then((where) => { if (where === 'here') void run(f[0]!, f[0]!.name, 'UPLOAD'); })}
+          />
         )}
         {error && (
           <Alert tone="error" title="Файл не принят">
