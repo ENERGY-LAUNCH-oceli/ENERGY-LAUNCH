@@ -1,8 +1,8 @@
 # Развёртывание: elaunch.xroyse.ru
 
 Сервер Ubuntu 24.04 (153.80.178.157) общий: на нём есть и другие сайты (nginx, pm2, Docker). ENERGY LAUNCH
-работает отдельно от них – свой сайт nginx, своя служба systemd, свой PostgreSQL. Данные кейса 4 на сервер
-не выкладываются (ТЗ 4.3): приложение собрано на синтетическом портфеле.
+работает отдельно от них – свой сайт nginx, своя служба systemd, свой PostgreSQL. С 07.11.2026 на сервере –
+набор кейса 4 (Building1–6, `/case4/`): публикацию разрешил владелец данных. Документы ТЗ не выкладываются.
 
 | Что | Где |
 | --- | --- |
@@ -31,8 +31,8 @@ certbot --nginx -d elaunch.xroyse.ru --non-interactive --agree-tos --redirect
 
 ```bash
 # локально
-VITE_DATASET=synthetic npx vite build --outDir build-web   # без public/case4 и карт исходников:
-rm -rf build-web/case4 && find build-web -name '*.map' -delete
+npx vite build --outDir build-web   # с public/case4; карты исходников не выкладываются:
+find build-web -name '*.map' -delete
 # на сервер: build-web → /var/www/elaunch; server/, src/help/, package.json, package-lock.json → /opt/energy-launch/app
 tar --no-same-owner -xzf web.tgz -C /var/www/elaunch.new   # без --no-same-owner остаётся uid машины сборки
 chown -R root:root /var/www/elaunch.new                    # статика; файлы службы – root:elaunch, права o=

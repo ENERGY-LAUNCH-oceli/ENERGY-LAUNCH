@@ -175,6 +175,10 @@ export const nextCommandId = (objectCode: string, existing: readonly { commandId
 export function suggestedValue(asset: Pick<ControlAsset, 'type' | 'bench'>, scenario: SimScenario): number {
   const { ratedPowerKw: rated, currentPowerKw: cur } = asset.bench;
   if (scenario === 'INVALID_VALUE') return asset.type === 'BATTERY' ? Math.round(rated * 1.5) : -10;
-  if (asset.type === 'BATTERY') return cur > 20 ? -40 : 50;
+  // Половина номинала: значение всегда в допустимом диапазоне ±номинал, даже у небольших батарей
+  if (asset.type === 'BATTERY') {
+    const v = Math.max(1, Math.round(rated * 0.5));
+    return cur > rated * 0.2 ? -v : v;
+  }
   return Math.max(0, Math.round((cur * 0.5) / 5) * 5);
 }

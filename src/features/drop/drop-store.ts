@@ -79,7 +79,7 @@ export const useDrop = create<DropState>()((set, get) => ({
     set({ open: true, analyzing: true, done: false, note: note ?? null, plans: [], targets: {}, results: {} });
     const st = useLaunchStore.getState();
     const plans = await planDrop(files, objectKeys(), st.currentObjectId, st.actor);
-    set({ analyzing: false, plans, targets: Object.fromEntries(plans.map((p) => [p.id, p.draft ? NEW_OBJECT : p.objectId])) });
+    set({ analyzing: false, plans, targets: Object.fromEntries(plans.map((p) => [p.id, p.draft || p.withPassport ? NEW_OBJECT : p.objectId])) });
   },
 
   setTarget: (planId, target) => set((s) => ({ targets: { ...s.targets, [planId]: target } })),
@@ -91,6 +91,8 @@ export const useDrop = create<DropState>()((set, get) => ({
     set({ applying: true });
     const result = (id: string, r: DropResult) => set((s) => ({ results: { ...s.results, [id]: r } }));
     const touched = new Set<string>();
+    // Новые объекты из паспортов этой загрузки: id плана паспорта → id созданного объекта
+    const created = new Map<string, string>();
     let lastHref = '';
     for (const p of todo) {
       result(p.id, { status: 'running' });
@@ -102,12 +104,17 @@ export const useDrop = create<DropState>()((set, get) => ({
         // Сначала файл разбирается целиком (асинхронно), потом выбор объекта и запись – синхронно, одним шагом:
         // страница объекта синхронизирует текущий объект с адресом и не успеет вмешаться между ними
         let objectId = target;
-        if (target === NEW_OBJECT) {
-          if (!p.draft) throw new Error('Нет данных для нового объекта');
+        if (target === NEW_OBJECT && !p.draft) {
+          const id = p.withPassport ? created.get(p.withPassport) : undefined;
+          if (!id) throw new Error('Новый объект не создан – выберите объект вручную');
+          objectId = id;
+        }
+        if (target === NEW_OBJECT && p.draft) {
           const errors = Object.values(validateDraft(p.draft));
           if (errors.length) throw new Error(`Объект не создан: ${errors.join('; ')}`);
           const passport = await importPassport(p.file, { fileName: name });
           objectId = useLaunchStore.getState().createObject(p.draft).id;
+          created.set(p.id, objectId);
           useLaunchStore.getState().importPassport(passport);
         } else if (p.kind === 'passport') {
           const passport = await importPassport(p.file, { fileName: name });
@@ -122,7 +129,7 @@ export const useDrop = create<DropState>()((set, get) => ({
           select(objectId).importTelemetryReport(report);
         }
         const kind = p.kind as Exclude<DropKind, 'unknown'>;
-        const href = targets[p.id] === NEW_OBJECT ? ROUTES.objectSection(objectId, 'launch') : ROUTES.objectSection(objectId, SECTION[kind]);
+        const href = targets[p.id] === NEW_OBJECT && p.draft ? ROUTES.objectSection(objectId, 'launch') : ROUTES.objectSection(objectId, SECTION[kind]);
         touched.add(objectId);
         lastHref = href;
         result(p.id, { status: 'ok', message: `${KIND_LABEL[kind]} → ${findObject(objectId)?.name ?? objectId}`, href });

@@ -198,7 +198,7 @@ function DropDialog() {
                         value={t ?? undefined}
                         onValueChange={(v) => setTarget(p.id, v)}
                         placeholder="Выберите объект"
-                        options={[...(p.draft ? [{ value: NEW_OBJECT, label: `+ Новый объект «${p.draft.name}»`, description: `${p.draft.pvCount} PV, ${p.draft.batteryCount} батарей` }] : []), ...options]}
+                        options={[...(p.draft ? [{ value: NEW_OBJECT, label: `+ Новый объект «${p.draft.name}»`, description: `${p.draft.pvCount} PV, ${p.draft.batteryCount} батарей` }] : p.withPassport ? [{ value: NEW_OBJECT, label: `Новый объект «${plans.find((x) => x.id === p.withPassport)?.draft?.name ?? ''}»`, description: 'создаётся из паспорта в этой загрузке' }] : []), ...options]}
                         disabled={applying}
                       />
                       {t && t !== NEW_OBJECT && <span className="text-caption text-text-muted sm:text-right">→ {STAGE_META[STAGE_OF[p.kind]].titleRu}</span>}

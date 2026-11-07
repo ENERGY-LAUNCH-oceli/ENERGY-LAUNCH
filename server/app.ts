@@ -1,6 +1,7 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { z } from 'zod';
 import { answer, normalizeQuestion, publishable } from '../src/help/agent.ts';
+import { authRoutes, AuthError, guard } from './auth.ts';
 import type { Db } from './db.ts';
 
 /**
@@ -162,6 +163,10 @@ export function createHandler(db: Db, opts: AppOptions = {}) {
       return send(res, 200, { ok: true, storage: db.kind, version: opts.version ?? null });
     }
 
+    // Вход, личный кабинет, админ-панель; остальной API – только для вошедших (если сотрудники заведены)
+    if (await authRoutes(db, req, res, path, method, () => readJson(req, limit), send)) return;
+    await guard(db, req, path);
+
     if (path === '/api/state' && method === 'GET') {
       const objects = await db.query<{ data: unknown }>('select data from user_objects order by created_at, id');
       return send(res, 200, { objects: objects.map((o) => o.data), workspaces: await loadWorkspaces() });
@@ -281,13 +286,14 @@ export function createHandler(db: Db, opts: AppOptions = {}) {
       return send(res, 200, { events: rows.map((r) => r.event).reverse() });
     }
 
-    if (path.startsWith('/api/')) throw new HttpError(path.match(/^\/api\/(health|state|revisions|objects|workspaces|audit|help)\b/) ? 405 : 404, 'нет такого метода API');
+    if (path.startsWith('/api/')) throw new HttpError(path.match(/^\/api\/(health|state|revisions|auth|admin|me|objects|workspaces|audit|help)\b/) ? 405 : 404, 'нет такого метода API');
     throw new HttpError(404, 'не найдено');
   }
 
   return (req: IncomingMessage, res: ServerResponse): void => {
     route(req, res).catch((e: unknown) => {
       if (e instanceof HttpError) return send(res, e.status, { error: e.message, ...e.extra });
+      if (e instanceof AuthError) return send(res, e.status, { error: e.message });
       // Наружу – только общее сообщение; в журнал сервера – текст ошибки без тела запроса
       console.error(`[api] ${req.method} ${req.url?.split('?')[0]}:`, e instanceof Error ? e.message : e);
       if (!res.headersSent) send(res, 500, { error: 'внутренняя ошибка сервера' });

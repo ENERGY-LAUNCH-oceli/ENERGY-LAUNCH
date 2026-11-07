@@ -78,6 +78,33 @@ export const MIGRATIONS: readonly { version: number; name: string; sql: string }
       create index help_questions_recent_idx on help_questions (published, last_asked_at desc);
     `,
   },
+  {
+    version: 3,
+    name: 'users and sessions',
+    sql: `
+      -- Сотрудники: пароль – только хеш scrypt (соль внутри строки), роль – права в приложении
+      create table users (
+        id bigserial primary key,
+        login text not null unique,
+        name text not null,
+        role text not null,
+        password_hash text not null,
+        disabled boolean not null default false,
+        created_at timestamptz not null default now(),
+        created_by text,
+        last_login_at timestamptz,
+        login_count integer not null default 0
+      );
+      -- Сессии: в базе только SHA-256 токена; сам токен – в cookie HttpOnly
+      create table user_sessions (
+        token_hash text primary key,
+        user_id bigint not null references users(id) on delete cascade,
+        expires_at timestamptz not null,
+        created_at timestamptz not null default now()
+      );
+      create index audit_events_actor_idx on audit_events (actor, ts);
+    `,
+  },
 ];
 
 /** Применяет недостающие миграции, каждую в своей транзакции. Возвращает номер версии схемы. */

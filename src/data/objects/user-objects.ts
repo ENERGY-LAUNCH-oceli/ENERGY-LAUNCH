@@ -21,6 +21,8 @@ export interface UserObjectDraft {
   eanInjection: string;
   pvCount: number;
   batteryCount: number;
+  /** object_id из паспорта (объект создан из object.json): становится id объекта, если свободен – тогда паспорт, история и телеметрия относятся к нему же. */
+  objectId?: string;
 }
 
 export interface StoredUserObject extends UserObjectDraft {
@@ -181,7 +183,9 @@ export function attachStoredObjects(): void {
 }
 
 export function addUserObject(draft: UserObjectDraft, now = new Date()): ObjectCatalogEntry {
-  const stored: StoredUserObject = { ...trimDraft(draft), id: `usr-${now.getTime().toString(36)}`, createdAt: now.toISOString() };
+  const { objectId, ...rest } = trimDraft(draft);
+  const own = objectId && /^[A-Za-z0-9._:-]{1,120}$/.test(objectId) && !OBJECT_CATALOG.some((o) => o.id.toLowerCase() === objectId.toLowerCase()) ? objectId : null;
+  const stored: StoredUserObject = { ...rest, id: own ?? `usr-${now.getTime().toString(36)}`, createdAt: now.toISOString() };
   const entry = buildUserObject(stored);
   OBJECT_CATALOG.push(entry);
   saveStoredObjects([...loadStoredObjects(), stored]);

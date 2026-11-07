@@ -8,7 +8,7 @@ import { objectJsonSchema } from '@/engine/telemetry/passport';
  */
 
 export type DropKind = 'invoice' | 'telemetry' | 'passport' | 'unknown';
-export type MatchBy = 'object_id' | 'ean' | 'hash' | 'name' | 'current' | 'none';
+export type MatchBy = 'object_id' | 'ean' | 'hash' | 'name' | 'new' | 'current' | 'none';
 
 export interface DroppedFile {
   file: File;
@@ -30,6 +30,8 @@ export interface DropPlan {
   found: { objectId?: string; ean?: string[] };
   /** Паспорт объекта, которого нет в портфеле: из него можно создать новый объект. */
   draft?: UserObjectDraft;
+  /** Файл относится к новому объекту из паспорта этой же загрузки (id плана паспорта). */
+  withPassport?: string;
   /** Файл не распознан или не читается. */
   error?: string;
 }
@@ -143,6 +145,7 @@ export function draftFromPassport(j: Record<string, unknown>, actor: string, cat
     eanInjection: s(grid.ean_injection),
     pvCount: assets.filter((a) => String(a.type).toLowerCase() === 'pv').length,
     batteryCount: assets.filter((a) => String(a.type).toLowerCase() === 'battery').length,
+    ...(typeof j.object_id === 'string' && j.object_id.trim() ? { objectId: j.object_id.trim() } : {}),
   };
 }
 
@@ -214,7 +217,26 @@ export async function planDrop(files: DroppedFile[], keys: ObjectKey[], currentO
     const cur = keys.find((k) => k.entry.id === currentObjectId) ?? null;
     plans.push(set(cur, cur ? 'current' : 'none', cur ? 'В файле нет object_id и EAN – выбран текущий объект, при необходимости поменяйте' : 'Объект по файлу не определён – выберите его'));
   }
-  return plans;
+  return linkNewObjectFiles(plans);
+}
+
+/**
+ * Паспорт нового объекта брошен вместе с историей и телеметрией: файлы, не привязанные к существующему объекту,
+ * относятся к новому – по object_id или EAN в файле, по object_id в имени файла, либо это единственный новый паспорт.
+ */
+function linkNewObjectFiles(plans: DropPlan[]): DropPlan[] {
+  const drafts = plans.filter((p) => p.draft);
+  if (!drafts.length) return plans;
+  return plans.map((p) => {
+    if (p.draft || p.kind === 'unknown' || p.kind === 'passport' || !['current', 'none'].includes(p.match)) return p;
+    const name = p.path.toLowerCase();
+    const hit =
+      drafts.find((d) => d.found.objectId && (p.found.objectId?.toLowerCase() === d.found.objectId.toLowerCase() || name.includes(d.found.objectId.toLowerCase()))) ??
+      drafts.find((d) => p.found.ean?.some((e) => d.found.ean?.includes(e))) ??
+      (drafts.length === 1 && !p.found.objectId && !p.found.ean?.length ? drafts[0] : undefined);
+    if (!hit) return p;
+    return { ...p, objectId: null, match: 'new' as const, withPassport: hit.id, reason: `Относится к новому объекту «${hit.draft!.name}» из паспорта в этой же загрузке` };
+  });
 }
 
 /** Файлы из перетаскивания, включая вложенные папки (Building1/…, весь набор кейса). */

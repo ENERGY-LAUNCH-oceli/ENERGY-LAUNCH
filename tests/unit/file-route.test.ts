@@ -56,6 +56,16 @@ describe('распознавание файлов', () => {
     expect(p.reason).toContain('FOREIGN-7');
   });
 
+  it('паспорт нового объекта вместе с историей и телеметрией – файлы идут в новый объект, а не в текущий', async () => {
+    const passport = { object_id: 'test_building_7', name: 'Тестовый объект', timezone: 'Europe/Brussels', data_files: { invoice: 'invoice.csv', telemetry: 'telemetry.csv' }, grid_connection: { ean_offtake: '541448899000000073', ean_injection: '541448899000000141' }, assets: [{ asset_id: 'PV1', type: 'pv' }] };
+    const files = [json('object.json', passport), csv('test_building_7_invoice.csv', [INVOICE_HEAD, '2025-01-01T00:00:00Z;1;0']), csv('test_building_7_telemetry.csv', ['timestamp (UTC);Grid.power_kW (kW);PV1.power_kW (kW)', '2026-11-05T10:00:00Z;5;3'])];
+    const plans = await planDrop(files.map((file) => ({ file, path: file.name })), KEYS, 'obj-001', 'Инженер запуска');
+    expect(plans[0]!.draft).toBeTruthy();
+    for (const p of plans.slice(1)) expect(p).toMatchObject({ objectId: null, match: 'new', withPassport: plans[0]!.id });
+    // Без паспорта в загрузке – по-прежнему текущий объект
+    expect((await planDrop([{ file: files[1]!, path: files[1]!.name }], KEYS, 'obj-001', 'Инженер запуска'))[0]).toMatchObject({ objectId: 'obj-001', match: 'current' });
+  });
+
   it('паспорт нового объекта – черновик объекта из object.json', async () => {
     const passport = { object_id: 'SUN-1', name: 'Солнечный парк', timezone: 'Europe/Brussels', data_files: { invoice: 'invoice.csv', telemetry: 'telemetry.csv' }, address: { street: 'Rue 1', postal_code: '9000', city: 'Гент', country: 'BE' }, grid_connection: { ean_offtake: '541430000000000081', ean_injection: '541445687468568586' }, assets: [{ asset_id: 'pv-1', type: 'pv' }, { asset_id: 'pv-2', type: 'pv' }, { asset_id: 'battery-1', type: 'battery' }] };
     const p = await plan(json('object.json', passport));
