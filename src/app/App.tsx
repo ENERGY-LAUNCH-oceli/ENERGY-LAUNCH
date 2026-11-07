@@ -13,8 +13,8 @@ export function App() {
   const prepared = useLaunchStore((s) => s.dataPrepared);
   const ready = useLaunchStore((s) => s.currentObjectId !== null);
   const [progress, setProgress] = useState<Case4Progress | null>(null);
-  // В e2e-сборке (синтетический портфель) прелоадер не показывается – он перекрывал бы элементы тестам
-  const [preloader, setPreloader] = useState(env.dataset !== 'synthetic');
+  // В e2e-сборке прелоадер не показывается – он перекрывал бы элементы тестам; на синтетике в проде – показывается
+  const [preloader, setPreloader] = useState(env.preloader);
   const hide = useCallback(() => setPreloader(false), []);
   // Данные забираются в паузе анимации (надпись уже на экране) – без рывков во время бега тока
   const hold = useCallback(() => void commit(), [commit]);
