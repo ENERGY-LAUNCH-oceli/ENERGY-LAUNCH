@@ -88,13 +88,13 @@ export function LaunchPage() {
         />
       )}
 
-      <div className="grid gap-4 sm:grid-cols-2 2xl:grid-cols-4">
+      <div data-tour="launch-stages" className="grid gap-4 sm:grid-cols-2 2xl:grid-cols-4">
         {STAGE_IDS.map((id) => (
           <StageSummaryCard key={id} session={session} stageId={id} responsible={entry.responsible} selected={id === selected} onOpen={() => select(id, true)} />
         ))}
       </div>
 
-      <div ref={workspaceRef} className="scroll-mt-24">
+      <div ref={workspaceRef} data-tour="stage-workspace" className="scroll-mt-24">
         <StageWorkspace key={selected} stageId={selected} />
       </div>
 

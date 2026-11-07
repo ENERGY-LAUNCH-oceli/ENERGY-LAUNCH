@@ -32,7 +32,7 @@ function summarize(results: ValidationResult[], rules: string[], stale: boolean)
 /** Шесть блоков результата: одна строка – одно решение. */
 export function CheckBlocks({ results, stale, metrics, blocks = INVOICE_BLOCKS }: { results: ValidationResult[]; stale: boolean; metrics: Record<string, string>; blocks?: CheckBlock[] }) {
   return (
-    <div className="grid grid-cols-2 gap-3 md:grid-cols-3 2xl:grid-cols-6">
+    <div data-tour="check-blocks" className="grid grid-cols-2 gap-3 md:grid-cols-3 2xl:grid-cols-6">
       {blocks.map((b) => {
         const status = summarize(results, b.rules, stale);
         return (

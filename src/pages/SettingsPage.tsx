@@ -364,7 +364,7 @@ export function SettingsPage() {
           Значения ещё не сверены с ТЗ «Кейс 4» и паспортом OE-04 (см. docs/requirements-reconciliation.md).
         </Alert>
       )}
-      <section>
+      <section data-tour="settings-appearance">
         <SectionHeader eyebrow="Оформление" title="Внешний вид" description="Тема и акцентный цвет интерфейса." />
         <AppearanceSettings />
       </section>
@@ -440,7 +440,7 @@ export function SettingsPage() {
           ))}
         </div>
       </section>
-      <section>
+      <section data-tour="settings-storage">
         <SectionHeader eyebrow="Данные" title="Хранилище" description="Где сохраняются объекты, ход запуска и журнал аудита." />
         <StorageSettings />
       </section>

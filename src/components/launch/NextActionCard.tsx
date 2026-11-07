@@ -19,7 +19,7 @@ export interface NextActionCardProps {
  */
 export function NextActionCard({ stageLabel, title, description, reason, action, className }: NextActionCardProps) {
   return (
-    <section aria-label="Следующее действие" className={cn('flex flex-col gap-4 rounded-lg border border-accent/35 bg-accent-subtle px-5 py-4 sm:flex-row sm:items-center sm:justify-between', className)}>
+    <section aria-label="Следующее действие" data-tour="next-action" className={cn('flex flex-col gap-4 rounded-lg border border-accent/35 bg-accent-subtle px-5 py-4 sm:flex-row sm:items-center sm:justify-between', className)}>
       <div className="flex min-w-0 flex-col gap-2">
         <span className="flex items-center gap-2 text-label text-accent-strong">
           <span aria-hidden className="size-1.5 rounded-full bg-accent" />

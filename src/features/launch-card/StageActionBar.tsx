@@ -27,7 +27,7 @@ export function StageActionBar({ stageId }: { stageId: StageId }) {
 
   return (
     <>
-      <div className="flex flex-col gap-4 rounded-lg border border-border bg-surface px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+      <div data-tour="stage-bar" className="flex flex-col gap-4 rounded-lg border border-border bg-surface px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex min-w-0 items-start gap-3">
           <span className="mt-0.5 shrink-0 font-mono text-caption font-medium tabular text-text-muted">0{stage.order}</span>
           <div className="flex min-w-0 flex-col gap-1">
@@ -42,7 +42,7 @@ export function StageActionBar({ stageId }: { stageId: StageId }) {
             </span>
           </div>
         </div>
-        <div className="flex flex-wrap gap-2 sm:shrink-0">
+        <div data-tour="stage-actions" className="flex flex-wrap gap-2 sm:shrink-0">
           {stage.status === 'NOT_STARTED' && (
             <Button variant="accent" onClick={() => start(stageId)}>
               <Play aria-hidden />

@@ -77,7 +77,7 @@ export function OverviewPage() {
         </Button>
       </header>
 
-      <div className="grid grid-cols-2 gap-px overflow-hidden rounded-lg border border-border bg-border md:grid-cols-5 [&>*:last-child]:col-span-2 md:[&>*:last-child]:col-span-1">
+      <div data-tour="overview-stats" className="grid grid-cols-2 gap-px overflow-hidden rounded-lg border border-border bg-border md:grid-cols-5 [&>*:last-child]:col-span-2 md:[&>*:last-child]:col-span-1">
         <Stat label="Объектов" value={rows.length} />
         <Stat label="Полностью готовы" value={count('COMPLETED')} tone="COMPLETED" />
         <Stat label="В работе" value={count('IN_PROGRESS')} tone="IN_PROGRESS" />

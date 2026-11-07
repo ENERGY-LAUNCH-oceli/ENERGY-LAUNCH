@@ -14,7 +14,7 @@ const plural = (n: number) => (n === 1 ? 'препятствие' : n < 5 ? 'п�
 export function AttentionPanel({ rows }: { rows: PortfolioRow[] }) {
   const items = rows.filter((r) => r.status === 'BLOCKED').sort((a, b) => b.blockers.length - a.blockers.length);
   return (
-    <section aria-labelledby="attention-title" className="flex flex-col overflow-hidden rounded-lg border border-border bg-surface">
+    <section aria-labelledby="attention-title" data-tour="attention" className="flex flex-col overflow-hidden rounded-lg border border-border bg-surface">
       <header className="flex items-baseline justify-between gap-3 border-b border-border px-5 py-3">
         <h2 id="attention-title" className="text-h3">
           Требуют внимания
