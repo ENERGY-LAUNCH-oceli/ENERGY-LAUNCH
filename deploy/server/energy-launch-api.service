@@ -1,0 +1,40 @@
+# ENERGY LAUNCH: сервер хранилища. /etc/systemd/system/energy-launch-api.service
+# Переменные (DATABASE_URL с паролем) – /etc/energy-launch/api.env, права 640 root:elaunch; в репозиторий не попадают.
+[Unit]
+Description=ENERGY LAUNCH storage API (PostgreSQL)
+After=network-online.target postgresql.service
+Wants=network-online.target postgresql.service
+
+[Service]
+Type=simple
+User=elaunch
+Group=elaunch
+WorkingDirectory=/opt/energy-launch/app
+EnvironmentFile=/etc/energy-launch/api.env
+ExecStart=/usr/bin/node --disable-warning=ExperimentalWarning server/index.ts
+Restart=on-failure
+RestartSec=3
+MemoryMax=300M
+
+# Изоляция: служба только читает свои файлы и ходит в PostgreSQL по localhost
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectKernelLogs=true
+ProtectControlGroups=true
+ProtectClock=true
+ProtectHostname=true
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+RestrictNamespaces=true
+RestrictRealtime=true
+RestrictSUIDSGID=true
+LockPersonality=true
+CapabilityBoundingSet=
+SystemCallArchitectures=native
+
+[Install]
+WantedBy=multi-user.target
