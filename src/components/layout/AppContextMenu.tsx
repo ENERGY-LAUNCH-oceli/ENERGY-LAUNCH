@@ -1,8 +1,11 @@
 import * as React from 'react';
-import { ArrowLeft, ArrowRight, ClipboardList, Copy, Download, ExternalLink, FileText, Link2, Maximize, Minimize, Moon, PanelLeft, Printer, RotateCw, Rocket, Settings, Sun } from 'lucide-react';
+import { ArrowLeft, ArrowRight, CircleHelp, ClipboardList, Copy, Download, ExternalLink, FileText, GraduationCap, Link2, Maximize, Minimize, Moon, PanelLeft, Printer, RotateCw, Rocket, Settings, Sun } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { ROUTES } from '@/app/routes';
 import { findObject } from '@/data/objects';
+import { useHelpDialog } from '@/features/help/help-api';
+import { startTour } from '@/features/tour/TourHost';
+import { tourForPath } from '@/features/tour/tours';
 import { notify, useUi } from '@/store';
 import { cn } from '@/utils/cn';
 
@@ -168,6 +171,14 @@ export function AppContextMenu() {
   groups.push([
     { id: 'page-tab', label: 'Открыть страницу в новой вкладке', icon: ExternalLink, run: () => window.open(location.href, '_blank', 'noopener') },
     { id: 'page-link', label: 'Копировать адрес страницы', icon: Link2, run: () => copy(location.href, 'Адрес страницы') },
+  ]);
+  // Помощь: тур по текущей странице и вопрос помощнику по сайту (выделенный текст подставляется в вопрос)
+  const lesson = tourForPath(pathname);
+  groups.push([
+    lesson
+      ? { id: 'tour-here', label: 'Обучение: как работает эта страница', icon: GraduationCap, run: () => startTour(lesson) }
+      : { id: 'tour-here', label: 'Обучение', icon: GraduationCap, run: () => go(ROUTES.help) },
+    { id: 'help', label: 'Помощь: задать вопрос…', icon: CircleHelp, run: () => useHelpDialog.getState().show(target.selection && target.selection.length <= 200 ? target.selection : '') },
   ]);
   groups.push([
     { id: 'sidebar', label: collapsed ? 'Развернуть навигацию' : 'Свернуть навигацию', icon: PanelLeft, shortcut: 'Ctrl+B', run: toggleSidebar },
