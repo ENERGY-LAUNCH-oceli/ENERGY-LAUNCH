@@ -149,6 +149,8 @@ interface LaunchState {
 let bootJob: Case4Job | null = null;
 /** Подключение к серверу хранилища и загрузка сохранённого (параллельно с набором кейса). */
 let storageJob: Promise<ServerState | null> | null = null;
+/** Применение портфеля (тяжёлая часть старта) – в паузе анимации заставки. */
+let commitJob: Promise<void> | null = null;
 
 const reportPersistError = (e: unknown) => console.error('[launch-store] persist failed', e);
 const persistFailed = (what: string, e: unknown) => {
@@ -380,8 +382,8 @@ export const useLaunchStore = create<LaunchState>()((set, get) => {
       if (get().dataSource || bootJob || storageJob) return;
       storageJob = connectStorage();
       if (env.dataset === 'synthetic') {
-        set({ dataSource: 'SYNTHETIC', dataPrepared: true });
-        await startPortfolio();
+        // Портфель строится в commitBootstrap – в паузе анимации заставки, а не на её первых кадрах
+        set({ dataPrepared: true });
         return;
       }
       bootJob = startCase4Job(onProgress);
@@ -393,19 +395,22 @@ export const useLaunchStore = create<LaunchState>()((set, get) => {
       set({ dataPrepared: true });
     },
 
-    commitBootstrap: async () => {
-      if (get().dataSource) return;
-      let loaded: Awaited<ReturnType<Case4Job['take']>> = null;
-      try {
-        loaded = bootJob ? await bootJob.take() : null;
-      } catch (e) {
-        console.error('[bootstrap] набор кейса 4 не загружен', e);
-      }
-      if (loaded?.entries.length) {
-        replaceObjectCatalog(loaded.entries);
-        set({ dataSource: 'CASE4', dataManifest: loaded.manifest, dataErrors: loaded.errors });
-      } else set({ dataSource: 'SYNTHETIC' });
-      await startPortfolio();
+    commitBootstrap: () => {
+      // Один раз: вызывается из паузы заставки и, без заставки, из эффекта приложения
+      commitJob ??= (async () => {
+        let loaded: Awaited<ReturnType<Case4Job['take']>> = null;
+        try {
+          loaded = bootJob ? await bootJob.take() : null;
+        } catch (e) {
+          console.error('[bootstrap] набор кейса 4 не загружен', e);
+        }
+        if (loaded?.entries.length) {
+          replaceObjectCatalog(loaded.entries);
+          set({ dataSource: 'CASE4', dataManifest: loaded.manifest, dataErrors: loaded.errors });
+        } else set({ dataSource: 'SYNTHETIC' });
+        await startPortfolio();
+      })();
+      return commitJob;
     },
     scenarioId: null,
     ruleset: getRuleset(env.rulesetVersion),
