@@ -12,7 +12,8 @@ export function Logo({ className, compact }: { className?: string; compact?: boo
         </g>
       </svg>
       {!compact && (
-        <span className="font-heading text-[15px] font-semibold tracking-[-0.03em]">
+        // В свёрнутой боковой панели словесный знак плавно гаснет (группа sb – панель)
+        <span className="whitespace-nowrap font-heading text-[15px] font-semibold tracking-[-0.03em] transition-[opacity,transform] duration-200 ease-out group-data-[collapsed=true]/sb:-translate-x-1 group-data-[collapsed=true]/sb:opacity-0">
           Energy Launch
         </span>
       )}

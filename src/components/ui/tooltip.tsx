@@ -7,12 +7,14 @@ export interface TooltipProps {
   content: React.ReactNode;
   children: React.ReactNode;
   side?: 'top' | 'right' | 'bottom' | 'left';
+  /** Не показывать (элемент остаётся тем же – без пересоздания при переключении). */
+  disabled?: boolean;
 }
 
 /** Подсказка: тёмная (navy) плашка, как подвал Oceli. Только для пояснений, не для критичной информации. */
-export function Tooltip({ content, children, side = 'top' }: TooltipProps) {
+export function Tooltip({ content, children, side = 'top', disabled = false }: TooltipProps) {
   return (
-    <TooltipPrimitive.Root delayDuration={200}>
+    <TooltipPrimitive.Root delayDuration={200} {...(disabled ? { open: false } : {})}>
       <TooltipPrimitive.Trigger asChild>{children}</TooltipPrimitive.Trigger>
       <TooltipPrimitive.Portal>
         <TooltipPrimitive.Content

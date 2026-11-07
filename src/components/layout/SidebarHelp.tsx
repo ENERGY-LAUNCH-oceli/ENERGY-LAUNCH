@@ -5,6 +5,8 @@ import { Tooltip } from '@/components/ui/tooltip';
 import { useHelpDialog } from '@/features/help/help-api';
 import { startTour } from '@/features/tour/TourHost';
 import { TOURS, tourForPath } from '@/features/tour/tours';
+import { cn } from '@/utils/cn';
+import { SB_LABEL, SB_ROW, SB_ROW_SM } from './sidebar-styles';
 
 interface Action {
   id: string;
@@ -33,34 +35,19 @@ export function SidebarHelp({ collapsed = false, onAction }: { collapsed?: boole
     a.run();
   };
 
-  if (collapsed) {
-    return (
-      <div className="flex flex-col items-center gap-1" role="group" aria-label="Помощь">
-        {actions.map((a) => (
-          <Tooltip key={a.id} side="right" content={<span><b>{a.label}</b> · {a.hint}</span>}>
-            <button type="button" onClick={() => run(a)} aria-label={a.label} data-testid={`sidebar-help-${a.id}`} className="flex size-9 items-center justify-center rounded-sm text-accent-strong transition-colors hover:bg-accent-subtle">
-              <a.icon className="size-[17px]" strokeWidth={1.75} aria-hidden />
-            </button>
-          </Tooltip>
-        ))}
-      </div>
-    );
-  }
-
+  // Разметка одна для обоих состояний: в свёрнутой панели рамка и фон гаснут, подписи обрезаются
   return (
-    <section aria-label="Помощь" className="flex flex-col gap-px rounded-md border border-border bg-surface-secondary p-1">
+    <section
+      aria-label="Помощь"
+      className="flex flex-col gap-px rounded-md border border-border bg-surface-secondary p-1 transition-[background-color,border-color] duration-200 group-data-[collapsed=true]/sb:border-transparent group-data-[collapsed=true]/sb:bg-transparent"
+    >
       {actions.map((a) => (
-        <button
-          key={a.id}
-          type="button"
-          onClick={() => run(a)}
-          title={a.hint}
-          data-testid={`sidebar-help-${a.id}`}
-          className="flex h-9 items-center gap-2.5 rounded-sm px-2 text-left text-body-sm text-text-secondary transition-colors duration-fast hover:bg-surface hover:text-text-primary"
-        >
-          <a.icon className="size-[17px] shrink-0 text-accent-strong" strokeWidth={1.75} aria-hidden />
-          <span className="truncate">{a.label}</span>
-        </button>
+        <Tooltip key={a.id} side="right" disabled={!collapsed} content={<span><b>{a.label}</b> · {a.hint}</span>}>
+          <button type="button" onClick={() => run(a)} aria-label={a.label} title={collapsed ? undefined : a.hint} data-testid={`sidebar-help-${a.id}`} className={cn(SB_ROW, SB_ROW_SM, 'px-[6.5px] hover:bg-surface group-data-[collapsed=true]/sb:hover:bg-accent-subtle')}>
+            <a.icon className="size-[17px] shrink-0 text-accent-strong" strokeWidth={1.75} aria-hidden />
+            <span className={SB_LABEL}>{a.label}</span>
+          </button>
+        </Tooltip>
       ))}
     </section>
   );

@@ -2,6 +2,7 @@ import { Database, HardDrive } from 'lucide-react';
 import { Tooltip } from '@/components/ui/tooltip';
 import { useStorageStatus, type StorageStatus } from '@/services/server-storage';
 import { cn } from '@/utils/cn';
+import { SB_LABEL, SB_ROW } from './sidebar-styles';
 
 const time = (iso: string | null) => (iso ? new Date(iso).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : '');
 
@@ -22,25 +23,15 @@ export function StorageIndicator({ collapsed = false }: { collapsed?: boolean })
   const s = useStorageStatus();
   const t = storageText(s);
   const Icon = s.mode === 'server' ? Database : HardDrive;
-  const body = (
-    <div
-      role="status"
-      aria-label={`Хранилище: ${t.title}`}
-      data-testid="storage-indicator"
-      data-storage={s.mode}
-      data-storage-status={s.status}
-      className={cn('flex min-w-0 items-center gap-2 rounded-sm text-caption text-text-muted', collapsed ? 'size-9 justify-center' : 'h-8 px-2.5')}
-    >
-      <span className="relative flex shrink-0">
-        <Icon className="size-4" strokeWidth={1.75} aria-hidden />
-        <span aria-hidden className={cn('absolute -bottom-0.5 -right-0.5 size-1.5 rounded-full ring-2 ring-surface', DOT[t.tone])} />
-      </span>
-      {!collapsed && <span className="truncate">{t.title}</span>}
-    </div>
-  );
   return (
     <Tooltip side={collapsed ? 'right' : 'top'} content={<span><b>{t.title}</b><br />{t.detail}</span>}>
-      {body}
+      <div role="status" aria-label={`Хранилище: ${t.title}`} data-testid="storage-indicator" data-storage={s.mode} data-storage-status={s.status} className={cn(SB_ROW, 'h-8 cursor-default text-caption text-text-muted hover:bg-transparent hover:text-text-muted')}>
+        <span className="relative flex shrink-0">
+          <Icon className="size-[17px]" strokeWidth={1.75} aria-hidden />
+          <span aria-hidden className={cn('absolute -bottom-0.5 -right-0.5 size-1.5 rounded-full ring-2 ring-surface', DOT[t.tone])} />
+        </span>
+        <span className={SB_LABEL}>{t.title}</span>
+      </div>
     </Tooltip>
   );
 }
