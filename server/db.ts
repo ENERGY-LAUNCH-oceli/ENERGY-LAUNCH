@@ -1,3 +1,4 @@
+import { mkdirSync } from 'node:fs';
 import pg from 'pg';
 
 /**
@@ -68,6 +69,8 @@ async function openPostgres(connectionString: string): Promise<Db> {
 
 async function openPglite(dataDir: string): Promise<Db> {
   const { PGlite } = await import('@electric-sql/pglite');
+  // PGlite создаёт только последнюю папку пути: на чистой машине нет и .data
+  if (!dataDir.includes('://')) mkdirSync(dataDir, { recursive: true });
   const db = await PGlite.create(dataDir);
   type Q = { query<T>(sql: string, params?: unknown[]): Promise<{ rows: T[] }>; exec(sql: string): Promise<unknown> };
   const liteTx = (c: Q): Tx => ({
