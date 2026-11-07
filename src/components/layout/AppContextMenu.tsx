@@ -104,15 +104,17 @@ export function AppContextMenu() {
     if (!target) return;
     const onDown = (e: PointerEvent) => !menuRef.current?.contains(e.target as Node) && close();
     const onKey = (e: KeyboardEvent) => e.key === 'Escape' && close();
+    // Прокрутка самого меню (на невысоком экране оно прокручивается) не закрывает его
+    const onScroll = (e: Event) => !menuRef.current?.contains(e.target as Node) && close();
     window.addEventListener('pointerdown', onDown, true);
     window.addEventListener('keydown', onKey);
-    window.addEventListener('scroll', close, true);
+    window.addEventListener('scroll', onScroll, true);
     window.addEventListener('resize', close);
     window.addEventListener('blur', close);
     return () => {
       window.removeEventListener('pointerdown', onDown, true);
       window.removeEventListener('keydown', onKey);
-      window.removeEventListener('scroll', close, true);
+      window.removeEventListener('scroll', onScroll, true);
       window.removeEventListener('resize', close);
       window.removeEventListener('blur', close);
     };
@@ -204,7 +206,7 @@ export function AppContextMenu() {
       onKeyDown={onMenuKey}
       onContextMenu={(e) => e.preventDefault()}
       style={pos ?? { left: target.x, top: target.y, visibility: 'hidden' }}
-      className="fixed z-[80] w-[19rem] rounded-lg border border-border bg-surface py-1.5 shadow-lg animate-in fade-in-0 zoom-in-95"
+      className="fixed z-[80] max-h-[calc(100dvh-1rem)] w-[19rem] overflow-y-auto overscroll-contain rounded-lg border border-border bg-surface py-1.5 shadow-lg [scrollbar-width:thin] animate-in fade-in-0 zoom-in-95"
     >
       {entry && <div className="truncate px-4 pb-1.5 pt-1.5 text-label text-text-muted">{entry.name}</div>}
       {groups.map((g, gi) => (
