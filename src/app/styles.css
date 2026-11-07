@@ -382,10 +382,50 @@ html.theme-reveal::view-transition-new(root) {
 }
 
 /* ===== Печать протокола (экспорт в PDF) ===== */
+.protocol-cover {
+  box-sizing: border-box;
+  display: flex;
+  min-height: 275mm;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.protocol-cover-bottom {
+  margin-top: 2rem;
+}
+
+.protocol-cover .protocol-table {
+  margin-top: 2rem;
+}
+
+.protocol-cover .protocol-table td,
+.protocol-cover .protocol-table th {
+  padding-top: 2mm;
+  padding-bottom: 2mm;
+}
+
+.protocol-contents {
+  list-style: none;
+  padding: 0;
+}
+
+.protocol-table thead th {
+  background: rgb(var(--el-surface-sunken));
+}
+
+.protocol-table {
+  table-layout: fixed;
+}
+
+.protocol-table th,
+.protocol-table td {
+  overflow-wrap: anywhere;
+}
+
 @media print {
   @page {
-    size: A4;
-    margin: 14mm 12mm;
+    size: A4 portrait;
+    margin: 10mm 10mm 12mm;
   }
   body * {
     visibility: hidden;
@@ -399,8 +439,67 @@ html.theme-reveal::view-transition-new(root) {
     inset: 0 auto auto 0;
     width: 100%;
     background: #fff;
+    color: #142b3b;
+    box-shadow: none;
+    font-size: 9pt;
+  }
+  .protocol-cover {
+    min-height: 275mm;
+  }
+  .html2pdf__page-break {
+    display: block;
+    height: 0;
+    break-after: page;
+    page-break-after: always;
+  }
+  .protocol-header {
+    margin-bottom: 5mm;
+  }
+  .protocol h2 {
+    margin-top: 6mm;
+    border-color: #cfdae2;
+    padding-bottom: 2mm;
+    color: #102b42;
+  }
+  .protocol-verdict {
+    break-inside: avoid;
+  }
+  .protocol-table {
+    font-size: 7.5pt;
+  }
+  .protocol-table thead {
+    display: table-header-group;
+  }
+  .protocol-table th,
+  .protocol-table td {
+    padding: 1.2mm 1.5mm !important;
+    overflow-wrap: anywhere;
+  }
+  .protocol-table th {
+    color: #51677a;
+    font-size: 7pt;
+  }
+  .protocol-table tr,
+  .protocol section {
+    break-inside: avoid;
+  }
+  .protocol-draft {
+    color: #74510c;
+    background: #fff8e6;
+    border-color: #ead18c;
   }
   body {
     background: #fff;
   }
+}
+
+.protocol-pdf-layout {
+  border: 0 !important;
+  padding: 0 !important;
+  box-shadow: none !important;
+}
+
+.protocol-pdf-layout .html2pdf__page-break {
+  display: block;
+  height: 0;
 }
