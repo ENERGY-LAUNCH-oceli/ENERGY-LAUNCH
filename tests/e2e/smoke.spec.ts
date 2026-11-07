@@ -272,11 +272,12 @@ test('управление: имитатор, отправка без откли
 });
 
 test('адаптивность: страницы не переполняют экран на телефоне, планшете и компьютере', async ({ page }) => {
-  test.setTimeout(60_000);
+  test.setTimeout(90_000);
   const routes = [
     '/overview',
     '/objects',
     '/settings',
+    '/help',
     '/objects/nope/launch',
     '/objects/obj-001',
     '/objects/obj-001/launch',
@@ -528,4 +529,75 @@ test('препятствие: следующее действие – ссылк
   const id = new URL(page.url()).hash.slice(1);
   await expect(page.locator(`#${id}`)).toBeInViewport();
   await expect(page.locator(`#${id}`)).toHaveClass(/anchor-flash/);
+});
+
+test('обучение: урок «Новый объект» – тур сам заполняет форму, подсвечивает поля и ничего не создаёт', async ({ page }) => {
+  await page.goto('/objects');
+  await expect(page.locator('tbody tr').first()).toBeVisible();
+  const rowsBefore = await page.locator('tbody tr').count();
+  await page.goto('/help');
+  await expect(page.getByTestId('lesson')).toContainText('Как создать новый объект');
+  await page.getByTestId('lesson-tour').click();
+  const card = page.getByTestId('tour-card');
+  const next = page.getByTestId('tour-next');
+  await expect(card).toContainText('Шаг 1 из 10');
+  await expect(page).toHaveURL(/\/objects$/);
+  await next.click();
+  // Тур открыл форму и печатает название; код подставился из названия
+  await expect(page.locator('#obj-name')).toHaveValue('Солнечный парк «Пример»');
+  await expect(page.locator('#obj-code')).toHaveValue('SOLNECHNYY-PARK-PRIMER');
+  for (let i = 2; i < 9; i++) {
+    await next.click();
+    await expect(card).toContainText(`Шаг ${i + 1} из 10`);
+  }
+  // Контрольная цифра подставлена, второй EAN и оборудование заполнены
+  await expect(page.locator('#obj-eanOfftake')).toHaveValue('541430000000000081');
+  await expect(page.locator('#obj-eanInjection')).toHaveValue('541445687468568586');
+  await expect(page.locator('#obj-pvCount')).toHaveValue('12');
+  await next.click();
+  await expect(card).toContainText('Осталось нажать «Создать объект»');
+  await next.click();
+  await expect(card).toHaveCount(0);
+  await expect(page.locator('#create-object-form')).toHaveCount(0);
+  await expect(page.locator('tbody tr')).toHaveCount(rowsBefore);
+  await page.goto('/help');
+  await expect(page.locator('[data-lesson="objects"]')).toContainText('пройден');
+});
+
+test('обучение: тур закрывается по Esc, листается стрелками; тур по странице – из контекстного меню', async ({ page }) => {
+  await page.goto('/settings');
+  await page.locator('main h1').first().click({ button: 'right' });
+  await page.getByRole('menuitem', { name: 'Обучение: как работает эта страница' }).click();
+  const card = page.getByTestId('tour-card');
+  await expect(card).toContainText('Внешний вид');
+  await page.keyboard.press('ArrowRight');
+  await expect(card).toContainText('Хранилище');
+  await page.keyboard.press('ArrowLeft');
+  await expect(card).toContainText('Внешний вид');
+  await page.keyboard.press('Escape');
+  await expect(card).toHaveCount(0);
+});
+
+test('помощь: вопрос своими словами из контекстного меню – ответ из базы знаний и показ на сайте; FAQ с поиском', async ({ page }) => {
+  await page.goto('/objects');
+  await page.locator('main h1').first().click({ button: 'right' });
+  await page.getByRole('menuitem', { name: 'Помощь: задать вопрос…' }).click();
+  await page.getByTestId('help-question').fill('какой еан вбивать при создании завода');
+  await page.getByTestId('help-submit').click();
+  const reply = page.getByTestId('help-reply');
+  await expect(reply).toHaveAttribute('data-answer', 'ean-what');
+  await expect(reply).toContainText('18-значный код');
+  // Посторонний вопрос – честное «не знаю», без выдуманного ответа
+  await page.getByTestId('help-question').fill('какая погода в Москве');
+  await page.getByTestId('help-submit').click();
+  await expect(reply).toHaveAttribute('data-answer', '');
+  await expect(reply).toContainText('Пока не знаю точного ответа');
+  await page.keyboard.press('Escape');
+
+  await page.goto('/help?tab=faq');
+  await page.getByLabel('Поиск по вопросам').fill('тёмн');
+  const list = page.getByTestId('faq-list');
+  await expect(list.locator('[data-faq]')).toHaveCount(1);
+  await list.locator('[data-faq="theme"] button').first().click();
+  await expect(list.locator('[data-faq="theme"]')).toContainText('Кнопка с луной');
 });
