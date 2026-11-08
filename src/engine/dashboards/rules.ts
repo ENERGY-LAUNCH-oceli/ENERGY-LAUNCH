@@ -54,7 +54,7 @@ export function validateDashboardConfig(inputs: LaunchInputs, rules: DashboardCo
     'DB-015',
     !!pub && shape.length === 0,
     {
-      message: !pub ? 'Панель не опубликована: приёмка возможна только для опубликованной версии' : shape.length ? `Конфигурация v${pub.version} некорректна: ${shape.join('; ')}` : `Опубликована версия v${pub.version} (${pub.publishedBy})`,
+      message: !pub ? 'Панель ещё не опубликована: во вкладке «Конструктор» нажмите «Опубликовать» – после этого ответственный сможет её принять' : shape.length ? `Конфигурация v${pub.version} некорректна: ${shape.join('; ')}` : `Опубликована версия v${pub.version} (${pub.publishedBy})`,
       ...(pub ? { actual: pub.version } : {}),
     },
     env,
@@ -69,7 +69,7 @@ export function validateDashboardConfig(inputs: LaunchInputs, rules: DashboardCo
         acc?.result === 'ACCEPTED',
         {
           message: !pub
-            ? 'Нет опубликованной версии для приёмки'
+            ? 'Принимать пока нечего: сначала опубликуйте панель во вкладке «Конструктор»'
             : acc?.result === 'ACCEPTED'
               ? `Принята v${acc.configVersion}: ${acc.author}`
               : acc?.result === 'REJECTED'

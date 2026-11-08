@@ -1,6 +1,7 @@
 import { Eye, LayoutDashboard, Stamp, UserRound, Wrench } from 'lucide-react';
 import { useSearchParams } from 'react-router-dom';
 import { NextActionCard } from '@/components/launch';
+import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ACTION_TITLE, compareVersions, currentAcceptance, evaluateBlocks, getNextAction, objectReadiness, ROLE_PERMISSIONS, ROLE_TITLE } from '@/engine';
 import { Acceptance, Builder, DashboardView, ReadinessPanel, useDashboardData } from '@/features/dashboards';
@@ -81,7 +82,24 @@ export function DashboardsPage() {
 
       <StageActionBar stageId="FINAL_DASHBOARDS" />
 
-      {next && stage.status !== 'COMPLETED' && <NextActionCard stageLabel="Финальные дашборды" title={next.title} {...(next.reason ? { reason: next.reason } : {})} />}
+      {next && stage.status !== 'COMPLETED' && (
+        <NextActionCard
+          stageLabel="Финальные дашборды"
+          title={next.title}
+          {...(next.reason ? { reason: next.reason } : {})}
+          action={
+            next.ruleId === 'DB-015' || next.ruleId === 'DB-004' ? (
+              <Button variant="accent" onClick={() => setParams({ tab: 'builder' }, { replace: true })}>
+                Открыть конструктор
+              </Button>
+            ) : next.ruleId === 'DB-016' ? (
+              <Button variant="accent" onClick={() => setParams({ tab: 'acceptance' }, { replace: true })}>
+                Перейти к приёмке
+              </Button>
+            ) : undefined
+          }
+        />
+      )}
 
       <CheckBlocks results={stage.validationResults} stale={false} blocks={BLOCKS} metrics={metrics} />
 
