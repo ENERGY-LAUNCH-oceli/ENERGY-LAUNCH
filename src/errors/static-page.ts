@@ -1,10 +1,15 @@
 /**
  * Статические страницы состояния: /status/<код>.html (error_page nginx) и /offline.html (service worker).
- * Работают без приложения: текст – в HTML, анимация и кнопки – /status/status.js (строгая CSP: без встроенных скриптов).
+ * Работают без приложения: текст – в HTML, кнопки – /status/status.js (строгая CSP: без встроенных скриптов).
+ * Вид – как у страниц ошибок в приложении: тёмная панель с кодом слева, пояснение справа.
  * Модуль используется конфигом сборки (vite.config.ts) – только относительные импорты.
  */
 import { accentThemes, themes } from '../design/tokens';
-import { OFFLINE_INFO, statusClass, type StatusInfo } from './codes';
+import { CLASS_TITLE, OFFLINE_INFO, statusClass, type StatusInfo } from './codes';
+
+/** «Нет сигнала»: точка и три гаснущие дуги волн (как в приложении). */
+const WIFI_OFF =
+  '<svg class="no-signal" viewBox="0 0 120 100" fill="none" stroke-linecap="round" aria-hidden="true"><path d="M44.44 68.44A22 22 0 0 1 75.56 68.44" stroke="#fff" stroke-opacity=".4" stroke-width="7"/><path d="M30.3 54.3A42 42 0 0 1 89.7 54.3" stroke="#fff" stroke-opacity=".2" stroke-width="7"/><path d="M16.16 40.16A62 62 0 0 1 103.84 40.16" stroke="#fff" stroke-opacity=".1" stroke-width="7"/><circle cx="60" cy="84" r="6.5" fill="#fff"/></svg>';
 
 const esc = (s: string) => s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
 
@@ -27,19 +32,26 @@ export function renderStatusPage(info: StatusInfo): string {
 <script src="/status/status.js" defer></script>
 </head>
 <body>
-<main class="status">
-<canvas id="el-status-anim" aria-hidden="true"></canvas>
-<p class="status-label${failing ? ' is-failing' : ''}">${esc(label)}</p>
-<h1>${esc(info.title)}</h1>
-<p class="status-text">${esc(info.text)}</p>
-<p class="status-hint">${esc(info.hint)}</p>
-<div class="status-actions">
+<main class="page">
+<section class="card" aria-labelledby="status-title">
+<div class="side">
+<div class="brand"><img src="/favicon.svg" alt="" width="32" height="32" /><span>Energy Launch</span></div>
+<div class="code">${offline ? WIFI_OFF : esc(String(info.code))}</div>
+<p class="side-label">${esc(label)}</p>
+</div>
+<div class="body">
+<p class="group${failing ? ' is-failing' : ''}">${esc(CLASS_TITLE[cls])}</p>
+<h1 id="status-title">${esc(info.title)}</h1>
+<p class="text">${esc(info.text)}</p>
+<p class="hint">${esc(info.hint)}</p>
+<div class="actions">
 <button type="button" class="btn btn-accent" data-action="reload">${offline ? 'Проверить подключение' : 'Обновить страницу'}</button>
 <a class="btn" href="/">На главную</a>
 ${offline ? '' : '<button type="button" class="btn btn-ghost" data-action="back">Назад</button>'}
 </div>
-${offline ? '<p class="status-note" id="el-status-net" aria-live="polite">Страница обновится сама, когда связь вернётся.</p>' : ''}
-<p class="status-anim" id="el-status-anim-name"></p>
+${offline ? '<p class="hint" id="el-status-net" aria-live="polite">Страница обновится сама, когда связь вернётся.</p>' : ''}
+</div>
+</section>
 </main>
 </body>
 </html>
@@ -61,21 +73,29 @@ export function statusCss(): string {
 *{box-sizing:border-box}
 html,body{margin:0;min-height:100%}
 body{background:var(--bg);color:var(--fg);font:400 15px/1.55 "Inter Variable",Inter,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;-webkit-font-smoothing:antialiased}
-.status{min-height:100vh;max-width:760px;margin:0 auto;padding:32px 16px 40px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;text-align:center}
-canvas{width:100%;height:240px;display:block;touch-action:none;margin-bottom:12px}
-@media (min-width:640px){canvas{height:300px}}
-.status-label{margin:0;font:600 12px/1.4 "JetBrains Mono Variable","JetBrains Mono",ui-monospace,Menlo,Consolas,monospace;letter-spacing:.06em;text-transform:uppercase;color:var(--accent)}
-.status-label.is-failing{color:var(--error)}
-h1{margin:0;font:600 clamp(26px,5vw,34px)/1.2 "Inter Tight Variable","Inter Tight","Inter Variable",Inter,system-ui,sans-serif;letter-spacing:-.01em}
-.status-text{margin:0;max-width:560px;font-size:17px;color:var(--fg2)}
-.status-hint,.status-note,.status-anim{margin:0;max-width:560px;font-size:13px;color:var(--muted)}
-.status-actions{display:flex;flex-wrap:wrap;justify-content:center;gap:8px;margin:14px 0 6px}
-.btn{display:inline-flex;align-items:center;justify-content:center;height:36px;padding:0 16px;border-radius:8px;border:1px solid var(--border);background:var(--surface);color:var(--fg);font:500 14px/1 inherit;font-family:inherit;text-decoration:none;cursor:pointer;transition:background-color .15s,border-color .15s}
+.page{min-height:100vh;padding:12px}
+.card{min-height:calc(100vh - 24px);display:grid;overflow:hidden;border:1px solid var(--border);border-radius:16px;background:var(--surface)}
+@media (min-width:768px){.card{grid-template-columns:minmax(0,1fr) minmax(0,1.1fr)}}
+.side{position:relative;overflow:hidden;min-height:240px;padding:32px;color:#fff;background:radial-gradient(130% 85% at 80% 110%,rgba(43,199,214,.95) 0%,rgba(1,138,152,.7) 22%,rgba(1,101,112,.4) 42%,rgba(5,40,73,.25) 62%,transparent 80%),#020B16}
+.side::after{content:"";position:absolute;inset:0;opacity:.18;mix-blend-mode:overlay;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.55'/%3E%3C/svg%3E");pointer-events:none}
+.brand{position:absolute;top:32px;left:32px;z-index:1;display:flex;align-items:center;gap:10px;font:600 18px/1 "Inter Tight Variable","Inter Tight","Inter Variable",Inter,system-ui,sans-serif;letter-spacing:-.01em}
+.code{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;padding-right:.05em;font:600 clamp(96px,13vw,200px)/1 "Inter Tight Variable","Inter Tight","Inter Variable",Inter,system-ui,sans-serif;letter-spacing:-.05em}
+.side-label{position:absolute;bottom:32px;left:32px;z-index:1;margin:0;font:500 12px/1.4 "JetBrains Mono Variable","JetBrains Mono",ui-monospace,Menlo,Consolas,monospace;letter-spacing:.14em;text-transform:uppercase;color:rgba(255,255,255,.6)}
+.no-signal{width:clamp(120px,14vw,190px)}
+.body{display:flex;flex-direction:column;justify-content:center;gap:16px;padding:32px}
+@media (min-width:640px){.body{padding:48px}}
+.group{margin:0;font:600 11px/1.4 "JetBrains Mono Variable","JetBrains Mono",ui-monospace,Menlo,Consolas,monospace;letter-spacing:.08em;text-transform:uppercase;color:var(--accent)}
+.group.is-failing{color:var(--error)}
+h1{margin:0;font:600 clamp(28px,4vw,36px)/1.15 "Inter Tight Variable","Inter Tight","Inter Variable",Inter,system-ui,sans-serif;letter-spacing:-.02em}
+.text{margin:0;max-width:520px;font-size:17px;color:var(--fg2)}
+.hint{margin:0;max-width:520px;font-size:13px;color:var(--muted)}
+.actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
+.btn{display:inline-flex;align-items:center;justify-content:center;height:36px;padding:0 16px;border-radius:8px;border:1px solid var(--border);background:var(--surface);color:var(--fg);font:500 14px/1 "Inter Variable",Inter,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;text-decoration:none;cursor:pointer;transition:background-color .15s,border-color .15s}
 .btn:hover{background:var(--hover);border-color:var(--border2)}
 .btn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.btn:disabled{opacity:.5;cursor:default}
 .btn-accent{background:var(--accent);border-color:var(--accent);color:var(--accent-fg)}
 .btn-accent:hover{background:var(--accent-hover);border-color:var(--accent-hover)}
 .btn-ghost{border-color:transparent;background:transparent;color:var(--fg2)}
-.status-anim{margin-top:10px}
 `;
 }

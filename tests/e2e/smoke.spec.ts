@@ -664,7 +664,8 @@ test('object.json объекта, которого нет в портфеле, �
   await expect(row).toHaveAttribute('data-target', '__new__');
   await expect(row).toContainText('Солнечный парк Е2Е');
   await page.getByTestId('drop-apply').click();
-  await expect(page).toHaveURL(/\/objects\/usr-[a-z0-9]+\/launch$/);
+  // id объекта – object_id паспорта (паспорт, история и телеметрия относятся к одному объекту)
+  await expect(page).toHaveURL(/\/objects\/SUN-E2E\/launch$/);
   await expect(page.getByRole('button', { name: 'Текущий объект' })).toContainText('Солнечный парк Е2Е');
 });
 
@@ -692,23 +693,27 @@ test('повторная проверка всегда даёт видимый �
 
 test('демо-роль сохраняется после перезагрузки страницы', async ({ page }) => {
   await page.goto('/objects/obj-001/dashboards?tab=acceptance');
+  const main = page.locator('main');
+  const beforeOpen = await main.boundingBox();
   const profile = page.getByRole('button', { name: /^Профиль/ }).last();
   await profile.click();
+  await expect(page.getByRole('menu')).toBeVisible();
+  const afterOpen = await main.boundingBox();
+  expect(afterOpen?.x).toBe(beforeOpen?.x);
+  expect(afterOpen?.width).toBe(beforeOpen?.width);
   await page.getByRole('menuitem', { name: /Ответственный за приёмку/ }).click();
   await expect(profile).toHaveAttribute('data-role', 'ACCEPTANCE_OFFICER');
   await page.reload();
   await expect(page.getByRole('button', { name: /^Профиль/ }).last()).toHaveAttribute('data-role', 'ACCEPTANCE_OFFICER');
 });
 
-test('страницы состояния: 404 с анимацией, при обновлении – другая; справочник кодов', async ({ page }) => {
+test('страницы состояния: 404 по адресу – сразу, без прелоадера; справочник кодов', async ({ page }) => {
   await page.goto('/net-takoy-stranicy');
   const screen = page.getByTestId('status-screen');
   await expect(screen).toHaveAttribute('data-status', '404');
   await expect(page.getByRole('heading', { name: 'Страница не найдена' })).toBeVisible();
-  const first = await screen.getAttribute('data-animation');
-  await page.reload();
-  await expect(screen).toHaveAttribute('data-status', '404');
-  expect(await screen.getAttribute('data-animation')).not.toBe(first);
+  await expect(screen.getByText('404', { exact: true })).toBeVisible();
+  await expect(screen.locator('canvas')).toHaveCount(0);
 
   await page.getByRole('link', { name: 'Все коды состояния' }).click();
   await expect(page.getByRole('heading', { name: 'Коды состояния' })).toBeVisible();
@@ -740,8 +745,8 @@ test('страница ошибки веб-сервера работает бе�
   page.on('pageerror', (e) => errors.push(String(e)));
   await page.goto('/status/502.html');
   await expect(page.getByRole('heading', { name: 'Ошибка шлюза' })).toBeVisible();
-  await expect(page.locator('html')).toHaveAttribute('data-animation', /.+/);
-  await expect(page.locator('#el-status-anim-name')).toContainText('при обновлении страницы будет другая');
+  await expect(page.locator('.code')).toHaveText('502');
+  await expect(page.locator('canvas')).toHaveCount(0);
   await page.goto('/offline.html');
   await expect(page.getByRole('heading', { name: 'Нет подключения к интернету' })).toBeVisible();
   expect(errors).toEqual([]);

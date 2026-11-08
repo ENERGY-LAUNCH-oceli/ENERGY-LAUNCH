@@ -48,9 +48,10 @@ export function OfflineOverlay() {
   };
 
   return (
-    <div role="dialog" aria-modal="true" aria-labelledby="status-title" data-testid="offline-overlay" className="fixed inset-0 z-[200] overflow-y-auto bg-background/95 px-4 backdrop-blur-sm">
-      <div className="flex min-h-full items-center justify-center py-10">
+    <div role="dialog" aria-modal="true" aria-labelledby="status-title" data-testid="offline-overlay" className="fixed inset-0 z-[200] overflow-y-auto bg-background p-3">
+      <div>
         <StatusScreen
+          standalone
           info={OFFLINE_INFO}
           actions={
             <>

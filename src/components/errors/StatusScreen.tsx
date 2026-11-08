@@ -1,42 +1,18 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { pickAnimation, startStatusAnimation, type StatusAnimation } from '@/errors/animations';
-import { statusClass, type StatusInfo } from '@/errors/codes';
-import { animationColors } from '@/errors/theme';
+import type { ReactNode } from 'react';
+import { GlowBrand, GlowPanel } from '@/components/common/GlowPanel';
+import { CLASS_TITLE, statusClass, type StatusInfo } from '@/errors/codes';
 import { cn } from '@/utils/cn';
 
-/** Принудительная анимация для проверки: ?anim=<id>. */
-const forcedAnimation = () => {
-  try {
-    return new URLSearchParams(window.location.search).get('anim');
-  } catch {
-    return null;
-  }
-};
-
-/**
- * Анимация на canvas: выбирается один раз при монтировании (при обновлении страницы – другая),
- * при смене темы перезапускается с новыми цветами.
- */
-export function useStatusAnimation(info: StatusInfo) {
-  const ref = useRef<HTMLCanvasElement>(null);
-  const [anim] = useState<StatusAnimation>(() => pickAnimation(forcedAnimation()));
-  useEffect(() => {
-    const canvas = ref.current;
-    if (!canvas) return;
-    const label = info.code ? String(info.code) : '000';
-    const cls = statusClass(info.code);
-    let running = startStatusAnimation(canvas, { label, colors: animationColors(cls), animation: anim });
-    const mo = new MutationObserver(() => {
-      running.stop();
-      running = startStatusAnimation(canvas, { label, colors: animationColors(cls), animation: anim });
-    });
-    mo.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme', 'data-accent'] });
-    return () => {
-      mo.disconnect();
-      running.stop();
-    };
-  }, [anim, info.code]);
-  return { ref, anim };
+/** «Нет сигнала»: точка и три гаснущие дуги волн. */
+export function NoSignal({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 120 100" className={cn('w-[clamp(120px,14vw,190px)]', className)} fill="none" strokeLinecap="round" aria-hidden>
+      <path d="M44.44 68.44A22 22 0 0 1 75.56 68.44" stroke="white" strokeOpacity=".4" strokeWidth="7" />
+      <path d="M30.3 54.3A42 42 0 0 1 89.7 54.3" stroke="white" strokeOpacity=".2" strokeWidth="7" />
+      <path d="M16.16 40.16A62 62 0 0 1 103.84 40.16" stroke="white" strokeOpacity=".1" strokeWidth="7" />
+      <circle cx="60" cy="84" r="6.5" fill="white" />
+    </svg>
+  );
 }
 
 export interface StatusScreenProps {
@@ -44,30 +20,53 @@ export interface StatusScreenProps {
   actions?: ReactNode;
   /** Под кнопками: ссылки, пояснения. */
   footer?: ReactNode;
+  /** Отдельная страница (по адресу, офлайн): во весь экран и с логотипом на тёмной панели. */
+  standalone?: boolean;
   className?: string;
 }
 
-/** Страница состояния: анимация, код, пояснение и что делать. Один вид для кодов HTTP и «нет подключения». */
-export function StatusScreen({ info, actions, footer, className }: StatusScreenProps) {
-  const { ref, anim } = useStatusAnimation(info);
+/**
+ * Страница состояния – одна для всех кодов HTTP и «Нет подключения»: слева тёмная панель с кодом
+ * (как на окне входа), справа – что произошло и что делать.
+ */
+export function StatusScreen({ info, actions, footer, standalone, className }: StatusScreenProps) {
   const cls = statusClass(info.code);
   const failing = cls === 'client' || cls === 'server' || cls === 'offline';
   return (
-    <section data-testid="status-screen" data-status={info.code} data-animation={anim.id} aria-labelledby="status-title" className={cn('mx-auto flex w-full max-w-3xl flex-col items-center gap-6 py-6 text-center', className)}>
-      <canvas ref={ref} aria-hidden className="h-[220px] w-full touch-none sm:h-[280px]" />
-      <div className="flex max-w-xl flex-col items-center gap-2">
-        <span className={cn('font-mono text-caption font-medium uppercase tracking-wide', failing ? 'text-error' : 'text-accent-strong')}>{info.code ? `HTTP ${info.code} · ${info.name}` : 'Offline · нет ответа сервера'}</span>
+    <section
+      data-testid="status-screen"
+      data-status={info.code}
+      aria-labelledby="status-title"
+      className={cn('grid w-full overflow-hidden rounded-2xl border border-border bg-surface md:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)]', standalone ? 'min-h-[calc(100dvh-1.5rem)]' : 'min-h-[460px]', className)}
+    >
+      <GlowPanel className="min-h-[240px]">
+        {/* Код – ровно по центру всей панели; логотип и подпись не сдвигают его */}
+        <div className="absolute inset-0 flex items-center justify-center">
+          {info.code ? (
+            // Отрицательный трекинг съедает правый край последней цифры – компенсация справа
+            <span className="pr-[0.05em] font-heading text-[clamp(96px,13vw,200px)] font-semibold leading-none tracking-[-0.05em]">{info.code}</span>
+          ) : (
+            <NoSignal />
+          )}
+        </div>
+        {standalone && (
+          <div className="absolute left-8 top-8">
+            <GlowBrand />
+          </div>
+        )}
+        <span className="absolute bottom-8 left-8 font-mono text-caption uppercase tracking-[0.14em] text-white/60">{info.code ? `HTTP ${info.code} · ${info.name}` : 'Offline · нет ответа сервера'}</span>
+      </GlowPanel>
+
+      <div className="flex flex-col justify-center gap-4 p-8 sm:p-12">
+        <span className={cn('text-label', failing ? 'text-error' : 'text-accent-strong')}>{CLASS_TITLE[cls]}</span>
         <h1 id="status-title" className="text-h1">
           {info.title}
         </h1>
-        <p className="text-body-lg text-text-secondary">{info.text}</p>
-        <p className="text-body-sm text-text-muted">{info.hint}</p>
+        <p className="max-w-lg text-body-lg text-text-secondary">{info.text}</p>
+        <p className="max-w-lg text-body-sm text-text-muted">{info.hint}</p>
+        {actions && <div className="mt-2 flex flex-wrap gap-2">{actions}</div>}
+        {footer}
       </div>
-      {actions && <div className="flex flex-wrap justify-center gap-2">{actions}</div>}
-      {footer}
-      <p className="text-caption text-text-muted" data-testid="status-animation-name">
-        Анимация «{anim.name}» – при обновлении страницы будет другая
-      </p>
     </section>
   );
 }
