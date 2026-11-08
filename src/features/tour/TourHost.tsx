@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { DEFAULT_OBJECT_ID } from '@/data/objects';
 import { notify, useLaunchStore } from '@/store';
 import { cn } from '@/utils/cn';
-import { reducedMotion, waitFor } from './demo';
+import { reducedMotion, smoothScrollTo, waitFor } from './demo';
 import { useHelpProgress, useTour } from './tour-store';
 import { TOURS } from './tours';
 
@@ -54,6 +54,8 @@ export function TourHost() {
   // Готов ли текущий шаг (ключ шага, а не флаг: при смене шага «готовность» сбрасывается в том же кадре)
   const [readyKey, setReadyKey] = React.useState('');
   const ready = readyKey === `${tourId}:${index}`;
+  const readyRef = React.useRef(ready);
+  readyRef.current = ready;
 
   const finish = React.useCallback(
     (completed: boolean) => {
@@ -94,8 +96,11 @@ export function TourHost() {
       const el = step.target ? await waitFor(step.target, ctrl.signal, step.route ? 6000 : 2500) : null;
       if (ctrl.signal.aborted) return;
       targetRef.current = el;
-      morphUntil.current = performance.now() + 450;
-      el?.scrollIntoView({ block: 'center', inline: 'nearest', behavior: reducedMotion() ? 'auto' : 'smooth' });
+      // Пока страница едет к блоку, «окно» плавно догоняет его, а карточка скрыта – не прыгает по краям
+      morphUntil.current = Number.POSITIVE_INFINITY;
+      if (el) await smoothScrollTo(el, ctrl.signal);
+      if (ctrl.signal.aborted) return;
+      morphUntil.current = performance.now() + 360;
       setReadyKey(key);
       nextRef.current?.focus({ preventScroll: true });
     })();
@@ -133,8 +138,14 @@ export function TourHost() {
           [left, top] = [(vw - cw) / 2, (vh - ch) / 2];
         }
         hole.style.transition = performance.now() < morphUntil.current && !reducedMotion() ? 'left 320ms cubic-bezier(.2,.7,.2,1), top 320ms cubic-bezier(.2,.7,.2,1), width 320ms cubic-bezier(.2,.7,.2,1), height 320ms cubic-bezier(.2,.7,.2,1)' : 'none';
-        card.style.left = `${clamp(left, EDGE, vw - cw - EDGE)}px`;
-        card.style.top = `${clamp(top, EDGE, vh - ch - EDGE)}px`;
+        // Карточка встаёт на место, когда блок доехал; во время прокрутки – скрыта (иначе мечется между сторонами)
+        const shown = readyRef.current;
+        if (shown) {
+          card.style.left = `${clamp(left, EDGE, vw - cw - EDGE)}px`;
+          card.style.top = `${clamp(top, EDGE, vh - ch - EDGE)}px`;
+        }
+        card.style.opacity = shown ? '1' : '0';
+        card.style.transform = shown || reducedMotion() ? 'none' : 'translateY(6px)';
       }
       raf = requestAnimationFrame(frame);
     };
@@ -189,8 +200,8 @@ export function TourHost() {
         data-tour-ui=""
         data-testid="tour-card"
         data-step={index}
-        className="fixed z-[202] max-h-[calc(100dvh-2rem)] w-[min(23rem,calc(100vw-2rem))] overflow-y-auto rounded-lg border border-border bg-surface p-5 shadow-lg"
-        style={{ pointerEvents: 'auto', left: -9999, top: -9999 }}
+        className="fixed z-[202] max-h-[calc(100dvh-2rem)] w-[min(23rem,calc(100vw-2rem))] overflow-y-auto rounded-lg border border-border bg-surface p-5 shadow-lg transition-[opacity,transform] duration-200 ease-out motion-reduce:transition-none"
+        style={{ pointerEvents: 'auto', left: -9999, top: -9999, opacity: 0 }}
       >
         <div className="flex flex-col gap-3">
           <div className="flex items-start justify-between gap-3">

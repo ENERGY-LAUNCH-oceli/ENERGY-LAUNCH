@@ -33,14 +33,14 @@ export function ObjectPassportPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <PageHeader eyebrow="Паспорт объекта · object.json" title={p?.name ?? inputs.object.name} description={[p?.address, p?.timezone].filter(Boolean).join(' · ')} actions={entry && <DeleteObjectButton entry={entry} />} />
-      <LaunchProgress currentStageId={session.currentStageId} ready={objectReadiness(session, inputs, ruleset).ready} stages={STAGE_IDS.map((id) => ({ id, title: STAGE_META[id].titleRu, status: session.stages[id].status }))} />
+      <div data-tour="passport-header"><PageHeader eyebrow="Паспорт объекта · object.json" title={p?.name ?? inputs.object.name} description={[p?.address, p?.timezone].filter(Boolean).join(' · ')} actions={entry && <DeleteObjectButton entry={entry} />} /></div>
+      <div data-tour="passport-progress"><LaunchProgress currentStageId={session.currentStageId} ready={objectReadiness(session, inputs, ruleset).ready} stages={STAGE_IDS.map((id) => ({ id, title: STAGE_META[id].titleRu, status: session.stages[id].status }))} /></div>
 
       {!p ? (
         <p className="text-body-sm text-text-muted">Паспорт object.json не загружен.</p>
       ) : (
         <div className="grid gap-4 lg:grid-cols-2">
-          <Card>
+          <Card data-tour="passport-object">
             <CardHeader>
               <CardTitle>Объект и точка подключения</CardTitle>
             </CardHeader>
@@ -60,7 +60,7 @@ export function ObjectPassportPage() {
               {p.warnings.length > 0 && <ul className="mt-3 text-caption text-warning">{p.warnings.map((w) => <li key={w}>– {w}</li>)}</ul>}
             </CardContent>
           </Card>
-          <Card>
+          <Card data-tour="passport-assets">
             <CardHeader>
               <CardTitle>Активы и карта сигналов · {p.assets.length}</CardTitle>
             </CardHeader>
@@ -97,7 +97,7 @@ export function ObjectPassportPage() {
       )}
 
       {files.length > 0 && (
-        <Card>
+        <Card data-tour="passport-files">
           <CardHeader>
             <CardTitle>Файлы набора · неизменяемый срез</CardTitle>
           </CardHeader>

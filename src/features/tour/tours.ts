@@ -251,6 +251,18 @@ const overview: TourDef = {
   ],
 };
 
+const passportTour: TourDef = {
+  id: 'passport',
+  title: 'Паспорт объекта',
+  steps: [
+    { route: (c) => ROUTES.object(c.objectId), target: '[data-tour="passport-header"]', title: 'Паспорт объекта', text: 'Данные из object.json: название, адрес и часовой пояс. Здесь же объект, добавленный вручную, можно удалить.' },
+    { target: '[data-tour="passport-progress"]', title: 'Ход запуска', text: 'Четыре этапа и статус каждого. Подробности и действия – на вкладке «Запуск» и на страницах этапов.' },
+    { target: '[data-tour="passport-object"]', title: 'Точка подключения', text: 'Коды EAN отбора и отдачи – по ним история счётчиков привязывается к объекту. Ошибка в EAN останавливает этап 1.' },
+    { target: '[data-tour="passport-assets"]', title: 'Активы и карта сигналов', text: 'Солнечные установки и батареи объекта и сигналы, которые от них ждёт проверка телеметрии.' },
+    { target: '[data-tour="passport-files"]', title: 'Файлы набора', text: 'Неизменяемый срез входных файлов с SHA-256: по нему всегда видно, на каких данных выполнены проверки.' },
+  ],
+};
+
 const launchCard: TourDef = {
   id: 'launch',
   title: 'Карточка запуска и этапы',
@@ -364,14 +376,15 @@ const settings: TourDef = {
   ],
 };
 
-export const TOURS: Record<string, TourDef> = Object.fromEntries([createObject, files, overview, launchCard, history, telemetry, control, dashboards, blockers, audit, scenarios, settings].map((t) => [t.id, t]));
+export const TOURS: Record<string, TourDef> = Object.fromEntries([createObject, files, overview, passportTour, launchCard, history, telemetry, control, dashboards, blockers, audit, scenarios, settings].map((t) => [t.id, t]));
 
 /** Урок для текущей страницы – пункт контекстного меню «Обучение по этой странице». */
 export function tourForPath(pathname: string): string | null {
   const m = /^\/objects\/[^/]+(?:\/([^/]+))?/.exec(pathname);
   if (m) {
     const section = m[1];
-    if (!section) return 'objects';
+    // Страница объекта – свой тур, а не «Как создать объект» (тот уводил бы со страницы на список объектов)
+    if (!section) return 'passport';
     if (section === 'protocol') return 'audit';
     return TOURS[section] ? section : null;
   }

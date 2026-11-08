@@ -35,6 +35,49 @@ export function waitFor(selector: string, signal: AbortSignal, timeout = 5000): 
   });
 }
 
+/** Ближайший прокручиваемый предок (окно приложения, модальное окно); нет – прокручивается страница. */
+function scrollParent(el: HTMLElement): HTMLElement {
+  for (let p = el.parentElement; p; p = p.parentElement) {
+    const oy = getComputedStyle(p).overflowY;
+    if ((oy === 'auto' || oy === 'scroll') && p.scrollHeight > p.clientHeight + 1) return p;
+  }
+  return (document.scrollingElement as HTMLElement) ?? document.documentElement;
+}
+
+const easeInOut = (t: number) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
+
+/**
+ * Плавная прокрутка к элементу: по центру экрана (высокий блок – к верху), скорость с разгоном и торможением,
+ * длительность растёт с расстоянием (дальний блок – не рывком). Завершается, когда прокрутка закончена.
+ */
+export function smoothScrollTo(el: HTMLElement, signal: AbortSignal): Promise<void> {
+  return new Promise((resolve) => {
+    const box = scrollParent(el);
+    const page = box === document.scrollingElement || box === document.documentElement;
+    const view = page ? { top: 0, height: window.innerHeight } : box.getBoundingClientRect();
+    const r = el.getBoundingClientRect();
+    const headerGap = page ? 88 : 16;
+    const offset = r.height > view.height - headerGap - 48 ? r.top - view.top - headerGap : r.top - view.top - (view.height - r.height) / 2;
+    const from = box.scrollTop;
+    const to = Math.max(0, Math.min(box.scrollHeight - box.clientHeight, from + offset));
+    const dist = Math.abs(to - from);
+    if (dist < 2 || reducedMotion()) {
+      box.scrollTop = to;
+      return resolve();
+    }
+    const duration = Math.min(1100, Math.max(380, 260 + dist * 0.45));
+    const start = performance.now();
+    const tick = (now: number) => {
+      if (signal.aborted) return resolve();
+      const k = Math.min(1, (now - start) / duration);
+      box.scrollTop = from + (to - from) * easeInOut(k);
+      if (k < 1) requestAnimationFrame(tick);
+      else resolve();
+    };
+    requestAnimationFrame(tick);
+  });
+}
+
 /** Значение поля так, как будто его ввёл человек: React получает обычное событие input. */
 export function setValue(el: HTMLInputElement | HTMLTextAreaElement, value: string) {
   const setter = Object.getOwnPropertyDescriptor(Object.getPrototypeOf(el), 'value')?.set;
