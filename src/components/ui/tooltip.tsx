@@ -1,5 +1,5 @@
 import * as TooltipPrimitive from '@radix-ui/react-tooltip';
-import type * as React from 'react';
+import * as React from 'react';
 
 export const TooltipProvider = TooltipPrimitive.Provider;
 
@@ -13,8 +13,14 @@ export interface TooltipProps {
 
 /** Подсказка: тёмная (navy) плашка, как подвал Oceli. Только для пояснений, не для критичной информации. */
 export function Tooltip({ content, children, side = 'top', disabled = false }: TooltipProps) {
+  // Всегда управляемая: переключение disabled не меняет режим Radix (иначе React предупреждает о смене controlled → uncontrolled).
+  // Пока подсказка отключена, наведение её не открывает и не запоминается
+  const [open, setOpen] = React.useState(false);
+  React.useEffect(() => {
+    if (disabled) setOpen(false);
+  }, [disabled]);
   return (
-    <TooltipPrimitive.Root delayDuration={200} {...(disabled ? { open: false } : {})}>
+    <TooltipPrimitive.Root delayDuration={200} open={!disabled && open} onOpenChange={(v) => setOpen(disabled ? false : v)}>
       <TooltipPrimitive.Trigger asChild>{children}</TooltipPrimitive.Trigger>
       <TooltipPrimitive.Portal>
         <TooltipPrimitive.Content

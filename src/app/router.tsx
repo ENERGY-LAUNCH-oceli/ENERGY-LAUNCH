@@ -15,6 +15,9 @@ export const router = createBrowserRouter([
   {
     path: ROUTES.root,
     element: <AppLayout />,
+    // Первый показ ленивой страницы: пока её чанк грузится, рисовать нечего (как и без этого свойства) –
+    // явный пустой fallback убирает предупреждение React Router «No HydrateFallback element provided» в консоли
+    HydrateFallback: () => null,
     children: [
       { index: true, element: <Navigate to={ROUTES.overview} replace /> },
       { path: 'overview', element: <OverviewPage /> },
