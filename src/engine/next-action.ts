@@ -114,103 +114,83 @@ const utcShort = (iso: string) => `${day(iso)} ${iso.slice(11, 16)} UTC`;
 /** Список сигналов в подсказке: до трёх, дальше – «и ещё N». */
 const short = (xs: string[]) => (xs.length > 3 ? `${xs.slice(0, 3).join(', ')} и ещё ${xs.length - 3}` : xs.join(', '));
 
-/** Конкретизация действия по деталям проверки: какой сигнал, какая команда, какой период. */
+type SpecificAction = (details: Record<string, unknown>) => string | undefined;
+
+/** Все значения через запятую (короткие списки: активы, команды, поля). */
+const all = (xs: string[]) => xs.join(', ');
+/** «Префикс: значения из details[field]» – если значения есть. */
+const listed =
+  (field: string, prefix: string, fmt: (xs: string[]) => string = short): SpecificAction =>
+  (d) => {
+    const xs = list(d[field]);
+    return xs.length ? `${prefix}: ${fmt(xs)}` : undefined;
+  };
+
+/** MH-008: несколько нарушений – перечислить; много – с какого интервала и сколько всего. */
+const signViolations: SpecificAction = (d) => {
+  const where = (examples: unknown, count: unknown) => {
+    const ex = (Array.isArray(examples) ? examples : []) as { timestamp?: string; value?: string }[];
+    const when = ex.filter((e) => e.timestamp).map((e) => `${utcShort(e.timestamp!)} (${e.value})`);
+    const total = typeof count === 'number' ? count : when.length;
+    if (!when.length) return '';
+    return total <= 3 ? when.join(', ') : `с ${utcShort(ex[0]!.timestamp!)}, всего ${total.toLocaleString('ru-RU')} интервалов`;
+  };
+  const signs = list(d.fields);
+  const ranges = list(d.rangeFields);
+  const parts = [
+    signs.length ? `знак ${short(signs)}${where(d.examples, d.count) ? ` (${where(d.examples, d.count)})` : ''}` : '',
+    ranges.length ? `выбросы ${short(ranges)}${where(d.rangeExamples, d.rangeCount) ? ` (${where(d.rangeExamples, d.rangeCount)})` : ''}` : '',
+  ].filter(Boolean);
+  if (!parts.length) return undefined;
+  if (signs.length && !ranges.length) return `Исправить знак ${short(signs)} в выгрузке${where(d.examples, d.count) ? `: ${where(d.examples, d.count)}` : ''}`;
+  if (!signs.length) return `Сверить с поставщиком данных выбросы ${short(ranges)}${where(d.rangeExamples, d.rangeCount) ? `: ${where(d.rangeExamples, d.rangeCount)}` : ''}`;
+  return `Исправить в выгрузке ${parts.join('; ')}`;
+};
+
+/** DB-011…014: сначала недостающие данные блока, затем выключенные обязательные виджеты. */
+const dashboardBlock: SpecificAction = (d) => {
+  const data = list(d.dataIssues);
+  if (data.length) return `Добавить данные для блока: ${short(data)}`;
+  return listed('fields', 'Включить обязательные виджеты')(d);
+};
+
+/**
+ * Конкретизация действия по деталям проверки: какой сигнал, какая команда, какой период.
+ * Реестр по коду правила – новое правило добавляется строкой, остальные обработчики не меняются.
+ */
+const SPECIFIC_ACTIONS: Readonly<Record<string, SpecificAction>> = {
+  'TM-002': listed('signals', 'Дополнить карту сигналов паспорта object.json'),
+  'TM-003': listed('signals', 'Получить телеметрию с сигналами'),
+  'TM-005': listed('signals', 'Восстановить поток и выгрузить свежие данные'),
+  'TM-006': listed('signals', 'Восстановить полноту за 48 ч'),
+  'TM-007': listed('signals', 'Запросить в правильных единицах'),
+  // Знак обратный почти во всех интервалах – это не выбросы, а другая конвенция знака в источнике
+  'TM-008': (d) => {
+    const sys = list(d.systematic);
+    return sys.length ? `Исправить знак ${short(sys)} в источнике телеметрии и выгрузить заново` : listed('signals', 'Исправить знаки и диапазоны в telemetry.csv')(d);
+  },
+  'TM-011': listed('owners', 'Проверить связь и сигналы батарей'),
+  'MH-002': listed('missingMonths', 'Получить полную выгрузку за недостающие месяцы', (m) => (m.length > 3 ? `${m[0]} … ${m.at(-1)} (${m.length})` : all(m))),
+  'MH-004': (d) => {
+    const i = d.interval as { from?: string; to?: string } | null;
+    return i?.from ? `Получить выгрузку за пропущенный интервал ${day(i.from)} – ${day(i.to)}` : undefined;
+  },
+  'MH-007': listed('fields', 'Запросить выгрузку в kWh', all),
+  'MH-008': signViolations,
+  'DB-011': dashboardBlock,
+  'DB-012': dashboardBlock,
+  'DB-013': dashboardBlock,
+  'DB-014': dashboardBlock,
+  'CT-001': listed('commands', 'Повторить тест управления', all),
+  'CT-006': listed('commands', 'Повторить тест управления', all),
+  'CT-011': listed('assets', 'Отправить тестовую команду', all),
+  'CT-012': listed('assets', 'Повторить тест управления', all),
+  'CT-013': listed('assets', 'Повторить тест управления', all),
+  'CT-014': listed('assets', 'Повторить тест управления', all),
+  'CT-015': listed('assets', 'Повторить тест управления', all),
+  'CT-017': listed('assets', 'Повторить тест после паузы', all),
+};
+
 export function specificAction(ruleId: string, details: Record<string, unknown> | undefined): string | undefined {
-  if (!details) return undefined;
-  switch (ruleId) {
-    case 'TM-002': {
-      const s = list(details.signals);
-      return s.length ? `Дополнить карту сигналов паспорта object.json: ${short(s)}` : undefined;
-    }
-    case 'TM-003': {
-      const s = list(details.signals);
-      return s.length ? `Получить телеметрию с сигналами: ${short(s)}` : undefined;
-    }
-    case 'TM-005': {
-      const s = list(details.signals);
-      return s.length ? `Восстановить поток и выгрузить свежие данные: ${short(s)}` : undefined;
-    }
-    case 'TM-006': {
-      const s = list(details.signals);
-      return s.length ? `Восстановить полноту за 48 ч: ${short(s)}` : undefined;
-    }
-    case 'TM-007': {
-      const s = list(details.signals);
-      return s.length ? `Запросить в правильных единицах: ${short(s)}` : undefined;
-    }
-    case 'TM-008': {
-      // Знак обратный почти во всех интервалах – это не выбросы, а другая конвенция знака в источнике
-      const sys = list(details.systematic);
-      if (sys.length) return `Исправить знак ${short(sys)} в источнике телеметрии и выгрузить заново`;
-      const s = list(details.signals);
-      return s.length ? `Исправить знаки и диапазоны в telemetry.csv: ${short(s)}` : undefined;
-    }
-    case 'TM-011': {
-      const o = list(details.owners);
-      return o.length ? `Проверить связь и сигналы батарей: ${short(o)}` : undefined;
-    }
-    case 'MH-002': {
-      const m = list(details.missingMonths);
-      return m.length ? `Получить полную выгрузку за недостающие месяцы: ${m.length > 3 ? `${m[0]} … ${m.at(-1)} (${m.length})` : m.join(', ')}` : undefined;
-    }
-    case 'MH-004': {
-      const i = details.interval as { from?: string; to?: string } | null;
-      return i?.from ? `Получить выгрузку за пропущенный интервал ${day(i.from)} – ${day(i.to)}` : undefined;
-    }
-    case 'MH-008': {
-      // Несколько нарушений – перечислить; много – с какого интервала и сколько всего
-      const where = (examples: unknown, count: unknown) => {
-        const ex = (Array.isArray(examples) ? examples : []) as { timestamp?: string; value?: string }[];
-        const when = ex.filter((e) => e.timestamp).map((e) => `${utcShort(e.timestamp!)} (${e.value})`);
-        const total = typeof count === 'number' ? count : when.length;
-        if (!when.length) return '';
-        return total <= 3 ? when.join(', ') : `с ${utcShort(ex[0]!.timestamp!)}, всего ${total.toLocaleString('ru-RU')} интервалов`;
-      };
-      const signs = list(details.fields);
-      const ranges = list(details.rangeFields);
-      const parts = [
-        signs.length ? `знак ${short(signs)}${where(details.examples, details.count) ? ` (${where(details.examples, details.count)})` : ''}` : '',
-        ranges.length ? `выбросы ${short(ranges)}${where(details.rangeExamples, details.rangeCount) ? ` (${where(details.rangeExamples, details.rangeCount)})` : ''}` : '',
-      ].filter(Boolean);
-      if (!parts.length) return undefined;
-      if (signs.length && !ranges.length) return `Исправить знак ${short(signs)} в выгрузке${where(details.examples, details.count) ? `: ${where(details.examples, details.count)}` : ''}`;
-      if (!signs.length) return `Сверить с поставщиком данных выбросы ${short(ranges)}${where(details.rangeExamples, details.rangeCount) ? `: ${where(details.rangeExamples, details.rangeCount)}` : ''}`;
-      return `Исправить в выгрузке ${parts.join('; ')}`;
-    }
-    case 'DB-011':
-    case 'DB-012':
-    case 'DB-013':
-    case 'DB-014': {
-      const data = list(details.dataIssues);
-      const off = list(details.fields);
-      if (data.length) return `Добавить данные для блока: ${short(data)}`;
-      return off.length ? `Включить обязательные виджеты: ${short(off)}` : undefined;
-    }
-    case 'MH-007': {
-      const f = list(details.fields);
-      return f.length ? `Запросить выгрузку в kWh: ${f.join(', ')}` : undefined;
-    }
-    case 'CT-011': {
-      const a = list(details.assets);
-      return a.length ? `Отправить тестовую команду: ${a.join(', ')}` : undefined;
-    }
-    case 'CT-012':
-    case 'CT-013':
-    case 'CT-014':
-    case 'CT-015': {
-      const a = list(details.assets);
-      return a.length ? `Повторить тест управления: ${a.join(', ')}` : undefined;
-    }
-    case 'CT-017': {
-      const a = list(details.assets);
-      return a.length ? `Повторить тест после паузы: ${a.join(', ')}` : undefined;
-    }
-    case 'CT-006':
-    case 'CT-001': {
-      const c = list(details.commands);
-      return c.length ? `Повторить тест управления: ${c.join(', ')}` : undefined;
-    }
-    default:
-      return undefined;
-  }
+  return details ? SPECIFIC_ACTIONS[ruleId]?.(details) : undefined;
 }
