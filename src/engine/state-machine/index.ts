@@ -3,3 +3,4 @@ export * from './errors';
 export * from './session';
 export * from './guards';
 export * from './machine';
+export * from './audit-event';

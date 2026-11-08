@@ -14,6 +14,7 @@ import type {
 import type { EngineContext } from '../context';
 import { getNextStage } from '../dependencies';
 import { getRule, isKnownRule } from '../rules';
+import { auditEvent } from './audit-event';
 import type { TransitionError } from './errors';
 import { guardCanComplete, guardPreviousCompleted, openBlockers } from './guards';
 import { canTransition } from './transitions';
@@ -29,25 +30,8 @@ export type MachineResult =
 
 // ─── внутренние утилиты ─────────────────────────────────────────────────
 
-function audit(
-  ctx: EngineContext,
-  session: LaunchSession,
-  action: AuditAction,
-  stageId?: StageId,
-  payload?: Record<string, unknown>,
-): AuditEvent {
-  return {
-    id: ctx.newId(),
-    action,
-    actor: ctx.actor,
-    timestamp: ctx.now(),
-    sessionId: session.id,
-    objectId: session.objectId,
-    rulesetVersion: session.rulesetVersion,
-    ...(stageId ? { stageId } : {}),
-    ...(payload ? { payload } : {}),
-  };
-}
+const audit = (ctx: EngineContext, session: LaunchSession, action: AuditAction, stageId?: StageId, payload?: Record<string, unknown>): AuditEvent =>
+  auditEvent(ctx, session, action, { ...(stageId ? { stageId } : {}), ...(payload ? { payload } : {}) });
 
 function reject(ctx: EngineContext, session: LaunchSession, error: TransitionError): MachineResult {
   return {

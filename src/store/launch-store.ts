@@ -3,12 +3,15 @@ import { env } from '@/config/env';
 import { getRuleset } from '@/config/rules';
 import { STAGE_META } from '@/config/stages';
 import { DEFAULT_SCENARIO_ID, loadScenario } from '@/data/scenarios';
-import { OBJECT_CATALOG, addUserObject, attachStoredObjects, findObject, findStoredObject, loadObjectInputs, removeUserObject, replaceObjectCatalog, seedWorkspace, type ObjectCatalogEntry, type StoredUserObject, type UserObjectDraft } from '@/data/objects';
+import { OBJECT_CATALOG, addUserObject, attachStoredObjects, findObject, findStoredObject, loadObjectInputs, removeUserObject, replaceObjectCatalog, seedWorkspace, type ObjectCatalogEntry, type UserObjectDraft } from '@/data/objects';
 import { startCase4Job, type Case4Job, type Case4Manifest, type Case4Progress } from '@/data/case4';
 import { notify } from './notifications-store';
+import { dexiePersistence, persistFailed, reportPersistError, type LaunchPersistence } from './persistence';
+import { createRemoteSync, type ObjectWorkspace } from './remote-sync';
 import {
   addConfirmation,
   addEvidence,
+  auditEvent,
   completeStage,
   createEngineContext,
   markConfirmationsStale,
@@ -21,73 +24,17 @@ import {
   type MachineResult,
   type TransitionError,
 } from '@/engine';
-import { auditRepository, broadcastStorage, createWorkspaceWriter, detectServer, loadServerState, onStorageSignal, saveLaunchInputs, saveServerObject, serverApi, sessionRepository, useStorageStatus, type SavedWorkspace, type ServerState, type WorkspaceDoc } from '@/services';
+import type { ServerState } from '@/services';
 import { makeInvoiceRun } from '@/engine/invoice';
 import type { InvoiceReport, SitePassport, TelemetryReport } from '@/types';
 import { makeTelemetryRun } from '@/engine/telemetry';
 import { controlAssets, executeControlTest, makeControlRun, nextCommandId } from '@/engine/control';
-import { AFFECTED_STAGES, inputRef, makeSnapshot, type ShaResolver } from '@/engine/trail';
+import { AFFECTED_STAGES, inputRef, makeSnapshot, staleValidationReason, type ShaResolver } from '@/engine/trail';
 import { createSimulatorTransport } from '@/simulator/control';
 import type { AccessAction, BlockReview, ControlTestCommand, DemoRole, InputKind, SimScenario, SourceStatus } from '@/types';
 import { acceptDashboard, AccessDeniedError, can, changeDashboard, DashboardRuleError, publishDashboard, ROLE_TITLE, type DashboardActor, type DashboardChange } from '@/engine/dashboards';
 import type { AuditEvent, Evidence, LaunchInputs, LaunchSession, RulesConfig, StageConfirmation, StageId } from '@/types';
-
-/** Адаптер сохранения: подменяется в тестах. */
-export interface LaunchPersistence {
-  saveInputs(inputs: LaunchInputs): Promise<void>;
-  saveSession(session: LaunchSession): Promise<void>;
-  appendAudit(events: readonly AuditEvent[]): Promise<void>;
-  /** Хранение на сервере (PostgreSQL): состояние объекта целиком, объекты пользователя, сброс. */
-  saveWorkspace?(objectId: string, doc: WorkspaceDoc): void;
-  saveUserObject?(o: StoredUserObject): Promise<void>;
-  deleteUserObject?(id: string): Promise<void>;
-  resetWorkspaces?(): Promise<void>;
-  /** Дописать ожидающие изменения. */
-  flush?(): Promise<void>;
-}
-
-export const dexiePersistence: LaunchPersistence = {
-  saveInputs: saveLaunchInputs,
-  saveSession: sessionRepository.save,
-  appendAudit: auditRepository.append,
-};
-
-const workspaceWriter = createWorkspaceWriter();
-workspaceWriter.onError((message) => notify({ tone: 'error', title: 'Не удалось сохранить в PostgreSQL', description: `${message}. Изменения будут отправлены со следующим действием.` }));
-
-/** PostgreSQL через API сервера: каждое изменение объекта уходит документом (входы, сессия, журнал). */
-export const serverPersistence: LaunchPersistence = {
-  saveInputs: async () => {},
-  saveSession: async () => {},
-  appendAudit: async () => {},
-  saveWorkspace: (objectId, doc) => workspaceWriter.schedule(objectId, doc),
-  saveUserObject: saveServerObject,
-  deleteUserObject: async (id) => {
-    await workspaceWriter.cancel(id);
-    await serverApi.deleteObject(id);
-  },
-  resetWorkspaces: async () => {
-    await workspaceWriter.cancel();
-    await serverApi.resetWorkspaces();
-    workspaceWriter.clearRevisions();
-    broadcastStorage({ type: 'reset' });
-  },
-  flush: () => workspaceWriter.flushAll(),
-};
-
-export const noopPersistence: LaunchPersistence = {
-  saveInputs: async () => {},
-  saveSession: async () => {},
-  appendAudit: async () => {},
-};
-
-/** Состояние запуска одного объекта. */
-export interface ObjectWorkspace {
-  scenarioId: string | null;
-  inputs: LaunchInputs;
-  session: LaunchSession;
-  auditLog: AuditEvent[];
-}
+import { localStore } from '@/utils/local-store';
 
 interface LaunchState {
   actor: string;
@@ -157,35 +104,27 @@ interface LaunchState {
 /** Демо-роль запоминается в браузере: перезагрузка страницы во время приёмки не сбрасывает её на инженера. */
 const ROLE_KEY = 'el.role';
 const INITIAL_ROLE: DemoRole = (() => {
-  try {
-    const v = localStorage.getItem(ROLE_KEY);
-    return v && v in ROLE_TITLE ? (v as DemoRole) : 'LAUNCH_ENGINEER';
-  } catch {
-    return 'LAUNCH_ENGINEER';
-  }
+  const v = localStore.get(ROLE_KEY);
+  return v && v in ROLE_TITLE ? (v as DemoRole) : 'LAUNCH_ENGINEER';
 })();
 
 /** Фоновая загрузка набора кейса 4 (одна на сессию приложения). */
 let bootJob: Case4Job | null = null;
-/** Применяется состояние с сервера (из другой вкладки или от другого пользователя) – его не нужно сохранять обратно. */
-let applyingRemote = false;
-/** Опрос ревизий: изменения из других вкладок и от других пользователей видны без перезагрузки. */
-const SYNC_INTERVAL_MS = 15_000;
 /** Подключение к серверу хранилища и загрузка сохранённого (параллельно с набором кейса). */
 let storageJob: Promise<ServerState | null> | null = null;
 /** Применение портфеля (тяжёлая часть старта) – в паузе анимации заставки. */
 let commitJob: Promise<void> | null = null;
 
-const reportPersistError = (e: unknown) => console.error('[launch-store] persist failed', e);
-const persistFailed = (what: string, e: unknown) => {
-  console.error(`[storage] ${what}`, e);
-  notify({ tone: 'error', title: 'Хранилище PostgreSQL', description: `${what}: ${e instanceof Error ? e.message : String(e)}` });
-};
-
 /** Единственный транспорт команд – локальный имитатор. */
 const controlTransport = createSimulatorTransport();
 
 const OUTCOME_LABEL = { PASSED: 'Passed', FAILED: 'Failed', TIMEOUT: 'Timeout' } as const;
+
+/** Синхронизация с сервером хранилища: узкий срез состояния, ссылки на хранилище разрешаются при вызове. */
+const remote = createRemoteSync(
+  () => useLaunchStore.getState(),
+  (patch) => useLaunchStore.setState(patch),
+);
 
 /**
  * Presentation-адаптер над движком: хранит состояние для UI, делегирует
@@ -193,6 +132,12 @@ const OUTCOME_LABEL = { PASSED: 'Passed', FAILED: 'Failed', TIMEOUT: 'Timeout' }
  */
 export const useLaunchStore = create<LaunchState>()((set, get) => {
   const ctx = () => createEngineContext(get().actor);
+
+  /** Дописать события в журнал (вместе с изменением состояния) и отправить их в хранилище. Журнал только дополняется. */
+  const record = (events: readonly AuditEvent[], patch: Partial<LaunchState> = {}) => {
+    set((s) => ({ ...patch, auditLog: [...s.auditLog, ...events] }));
+    if (events.length) void get().persistence.appendAudit(events).catch(reportPersistError);
+  };
 
   /** Применить результат движка: обновить состояние, журнал, сохранить. */
   const commit = (result: MachineResult): boolean => {
@@ -204,11 +149,7 @@ export const useLaunchStore = create<LaunchState>()((set, get) => {
       if (e.action === 'SESSION_COMPLETED') notify({ tone: 'success', title: 'Объект готов к эксплуатации' });
     }
     if (env.debugStateMachine) console.debug('[state-machine]', result);
-    set((s) => ({
-      auditLog: [...s.auditLog, ...result.events],
-      ...(result.ok ? { session: result.session, lastError: null } : { lastError: result.error }),
-    }));
-    void persistence.appendAudit(result.events).catch(reportPersistError);
+    record(result.events, result.ok ? { session: result.session, lastError: null } : { lastError: result.error });
     if (result.ok) void persistence.saveSession(result.session).catch(reportPersistError);
     return result.ok;
   };
@@ -219,9 +160,7 @@ export const useLaunchStore = create<LaunchState>()((set, get) => {
     if (can(role, action)) return false;
     const c = ctx();
     const err = new AccessDeniedError(role, action);
-    const event: AuditEvent = { id: c.newId(), action: 'ACCESS_DENIED', actor: c.actor, timestamp: c.now(), ...(session ? { sessionId: session.id, objectId: session.objectId, rulesetVersion: session.rulesetVersion } : {}), payload: { role, action, message: err.message } };
-    set((s) => ({ auditLog: [...s.auditLog, event] }));
-    void get().persistence.appendAudit([event]).catch(reportPersistError);
+    record([auditEvent(c, session, 'ACCESS_DENIED', { payload: { role, action, message: err.message } })]);
     notify({ tone: 'warning', title: 'Нет прав', description: err.message });
     return true;
   };
@@ -303,123 +242,22 @@ export const useLaunchStore = create<LaunchState>()((set, get) => {
     }
   };
 
+  /** Событие этапа 4: автор и время – из того же действия с панелью, что и изменение конфигурации. */
+  const dashboardEvent = (actor: DashboardActor, session: LaunchSession, action: AuditEvent['action'], payload: Record<string, unknown>) =>
+    auditEvent({ actor: actor.name, newId: actor.newId, now: () => actor.now }, session, action, { stageId: 'FINAL_DASHBOARDS', payload });
+
   const withSession = (fn: (session: LaunchSession) => MachineResult): boolean => {
     const { session } = get();
     if (!session) return false;
     return commit(fn(session));
   };
 
-  /** Сервер хранилища запущен – состояние сохраняется в PostgreSQL; нет – в браузере, как раньше. */
-  const connectStorage = async (): Promise<ServerState | null> => {
-    if (env.storage === 'browser') return null;
-    const kind = await detectServer();
-    if (!kind) {
-      if (env.storage === 'server') notify({ tone: 'error', title: 'Сервер хранилища недоступен', description: 'Запустите npm run api. Пока изменения хранятся только до перезагрузки страницы.' });
-      return null;
-    }
-    try {
-      const state = await loadServerState();
-      set({ persistence: serverPersistence });
-      useStorageStatus.setState({ mode: 'server', kind, status: 'idle', error: null });
-      // Перезагрузка страницы, пока изменения ещё отправляются, – браузер переспросит
-      window.addEventListener('beforeunload', (e) => {
-        if (workspaceWriter.busy()) e.preventDefault();
-      });
-      return state;
-    } catch (e) {
-      persistFailed('сохранённое состояние не загружено', e);
-      return null;
-    }
-  };
-
-  /** Сохранённые состояния объектов поверх исходного портфеля (только для того же набора правил). */
-  const applySaved = (saved: readonly SavedWorkspace[]) => {
-    const s = get();
-    const workspaces = { ...s.workspaces };
-    let current: ObjectWorkspace | null = null;
-    for (const w of saved) {
-      workspaceWriter.setRevision(w.objectId, w.revision);
-      const entry = findObject(w.objectId);
-      if (!entry || entry.source === 'SCENARIO') continue;
-      if (w.session?.objectId !== w.objectId || w.session.rulesetVersion !== s.ruleset.version) continue;
-      const ws: ObjectWorkspace = { scenarioId: w.scenarioId, inputs: w.inputs, session: w.session, auditLog: w.auditLog };
-      if (w.objectId === s.currentObjectId) current = ws;
-      else workspaces[w.objectId] = ws;
-    }
-    set({ workspaces, ...(current ?? {}) });
-  };
-
   const startPortfolio = async () => {
     const saved = storageJob ? await storageJob : null;
     get().initPortfolio(true);
-    if (saved) applySaved(saved.workspaces);
+    if (saved) remote.applySaved(saved.workspaces);
     set({ storageReady: saved !== null });
-    if (saved) watchRemote();
-  };
-
-  /** Заменить состояние объекта сохранённым на сервере (null – на сервере его нет: исходное состояние). */
-  const applyRemote = (objectId: string, saved: SavedWorkspace | null): boolean => {
-    const s = get();
-    const entry = findObject(objectId);
-    if (!entry || entry.source === 'SCENARIO') return false;
-    workspaceWriter.setRevision(objectId, saved?.revision ?? 0);
-    const usable = saved && saved.session?.objectId === objectId && saved.session.rulesetVersion === s.ruleset.version;
-    const ws: ObjectWorkspace = usable ? { scenarioId: saved.scenarioId, inputs: saved.inputs, session: saved.session, auditLog: saved.auditLog } : seedWorkspace(entry, s.ruleset);
-    applyingRemote = true;
-    try {
-      if (objectId === s.currentObjectId) set({ ...ws, lastError: null });
-      else set({ workspaces: { ...s.workspaces, [objectId]: ws } });
-    } finally {
-      applyingRemote = false;
-    }
-    return true;
-  };
-
-  let syncing: Promise<void> | null = null;
-  /**
-   * Подтянуть изменения, сделанные в другой вкладке или другим пользователем: сравниваются ревизии,
-   * загружаются только изменённые объекты. Объект с неотправленными изменениями этой вкладки не трогается –
-   * если они построены на устаревшем состоянии, сервер их отклонит (409) и объект обновится через конфликт.
-   */
-  const syncFromServer = (force: readonly string[] = []): Promise<void> => {
-    if (syncing) return syncing.then(() => (force.length ? syncFromServer(force) : undefined));
-    syncing = (async () => {
-      const revs = await serverApi.revisions();
-      const ids = new Set([...Object.keys(revs), ...OBJECT_CATALOG.map((e) => e.id), ...force]);
-      let currentChanged = false;
-      for (const id of ids) {
-        const forced = force.includes(id);
-        const known = workspaceWriter.revision(id);
-        if (workspaceWriter.busyFor(id) || (!forced && (revs[id] ?? 0) === known)) continue;
-        const saved = revs[id] ? await serverApi.workspace(id) : null;
-        // Пока загружалось, вкладка могла изменить объект или сохранить его сама – её состояние новее
-        if (workspaceWriter.busyFor(id) || workspaceWriter.revision(id) !== known) continue;
-        if (applyRemote(id, saved) && id === get().currentObjectId && !forced) currentChanged = true;
-      }
-      if (currentChanged) notify({ tone: 'info', title: 'Состояние объекта обновлено', description: 'Объект изменили в другой вкладке или другим пользователем – показано актуальное состояние' });
-    })()
-      .catch((e: unknown) => console.error('[storage] синхронизация не выполнена', e))
-      .finally(() => {
-        syncing = null;
-      });
-    return syncing;
-  };
-
-  let watching = false;
-  const watchRemote = () => {
-    if (watching || typeof window === 'undefined') return;
-    watching = true;
-    const visible = () => typeof document === 'undefined' || document.visibilityState === 'visible';
-    onStorageSignal(() => void syncFromServer());
-    document.addEventListener('visibilitychange', () => visible() && void syncFromServer());
-    window.addEventListener('focus', () => void syncFromServer());
-    setInterval(() => visible() && void syncFromServer(), SYNC_INTERVAL_MS);
-    workspaceWriter.onConflict((objectId) => {
-      const name = findObject(objectId)?.name ?? objectId;
-      notify({ tone: 'warning', title: 'Изменение не сохранено', description: `Объект «${name}» уже изменили в другой вкладке или другим пользователем. Показано актуальное состояние – повторите действие, если оно ещё нужно.` });
-      // После того как отклонённая запись снимется с очереди
-      setTimeout(() => void syncFromServer([objectId]), 0);
-    });
+    if (saved) remote.watch();
   };
 
   return {
@@ -429,11 +267,7 @@ export const useLaunchStore = create<LaunchState>()((set, get) => {
 
     setRole: (role) => {
       set({ role, actor: ROLE_TITLE[role] });
-      try {
-        localStorage.setItem(ROLE_KEY, role);
-      } catch {
-        /* без хранилища роль живёт до перезагрузки */
-      }
+      localStore.set(ROLE_KEY, role);
       notify({ tone: 'info', title: `Роль: ${ROLE_TITLE[role]}`, description: 'Демонстрационная роль – права действуют на всех экранах' });
     },
 
@@ -441,19 +275,14 @@ export const useLaunchStore = create<LaunchState>()((set, get) => {
       dashboardAction('Изменение панели', (actor) => {
         const { inputs, session } = get();
         const ws = changeDashboard(inputs!.dashboard!, change, actor);
-        set((s) => ({
-          inputs: { ...inputs!, dashboard: ws },
-          auditLog: [...s.auditLog, { id: actor.newId(), action: 'DASHBOARD_UPDATED' as const, actor: actor.name, timestamp: actor.now, sessionId: session!.id, objectId: session!.objectId, stageId: 'FINAL_DASHBOARDS' as const, rulesetVersion: session!.rulesetVersion, payload: { ...change, draftVersion: ws.draft.version } }],
-        }));
+        record([dashboardEvent(actor, session!, 'DASHBOARD_UPDATED', { ...change, draftVersion: ws.draft.version })], { inputs: { ...inputs!, dashboard: ws } });
       }),
 
     publishDashboard: () =>
       dashboardAction('Публикация', (actor) => {
         const { inputs, session } = get();
         const ws = publishDashboard(inputs!.dashboard!, session!.objectId, actor);
-        const event: AuditEvent = { id: actor.newId(), action: 'DASHBOARD_PUBLISHED', actor: actor.name, timestamp: actor.now, sessionId: session!.id, objectId: session!.objectId, stageId: 'FINAL_DASHBOARDS', rulesetVersion: session!.rulesetVersion, payload: { version: ws.published!.version, objectId: ws.published!.objectId } };
-        set((s) => ({ inputs: { ...inputs!, dashboard: ws }, auditLog: [...s.auditLog, event] }));
-        void get().persistence.appendAudit([event]).catch(reportPersistError);
+        record([dashboardEvent(actor, session!, 'DASHBOARD_PUBLISHED', { version: ws.published!.version, objectId: ws.published!.objectId })], { inputs: { ...inputs!, dashboard: ws } });
         notify({ tone: 'info', title: `Опубликована версия v${ws.published!.version}`, description: 'Передайте панель ответственному за приёмку' });
         invalidate('dashboard', `опубликована конфигурация панели v${ws.published!.version}`);
       }),
@@ -462,9 +291,7 @@ export const useLaunchStore = create<LaunchState>()((set, get) => {
       dashboardAction('Приёмка', (actor) => {
         const { inputs, session } = get();
         const { ws, acceptance } = acceptDashboard(inputs!.dashboard!, session!.objectId, input, actor);
-        const event: AuditEvent = { id: actor.newId(), action: 'DASHBOARD_ACCEPTANCE', actor: actor.name, timestamp: actor.now, sessionId: session!.id, objectId: session!.objectId, stageId: 'FINAL_DASHBOARDS', rulesetVersion: session!.rulesetVersion, payload: { result: acceptance.result, configVersion: acceptance.configVersion, objectId: acceptance.objectId, role: acceptance.role, blocks: acceptance.blocks } };
-        set((s) => ({ inputs: { ...inputs!, dashboard: ws }, auditLog: [...s.auditLog, event] }));
-        void get().persistence.appendAudit([event]).catch(reportPersistError);
+        record([dashboardEvent(actor, session!, 'DASHBOARD_ACCEPTANCE', { result: acceptance.result, configVersion: acceptance.configVersion, objectId: acceptance.objectId, role: acceptance.role, blocks: acceptance.blocks })], { inputs: { ...inputs!, dashboard: ws } });
         notify({ tone: acceptance.result === 'ACCEPTED' ? 'success' : 'warning', title: acceptance.result === 'ACCEPTED' ? `Панель v${acceptance.configVersion} принята` : `Панель v${acceptance.configVersion} отклонена`, description: acceptance.result === 'ACCEPTED' ? 'Этап 4 можно завершить' : 'Этап остаётся заблокированным до исправления и новой приёмки' });
         revalidateDashboards();
       }),
@@ -478,7 +305,7 @@ export const useLaunchStore = create<LaunchState>()((set, get) => {
 
     bootstrap: async (onProgress) => {
       if (get().dataSource || bootJob || storageJob) return;
-      storageJob = connectStorage();
+      storageJob = remote.connect();
       if (env.dataset === 'synthetic') {
         // Портфель строится в commitBootstrap – в паузе анимации заставки, а не на её первых кадрах
         set({ dataPrepared: true });
@@ -568,16 +395,7 @@ export const useLaunchStore = create<LaunchState>()((set, get) => {
       const scenario = entry ? { ...loaded, inputs: loadObjectInputs({ ...entry, scenarioId: id }) } : loaded;
       const c = ctx();
       const session = createLaunchSession(scenario.inputs.object.id, ruleset.version, c);
-      const created: AuditEvent = {
-        id: c.newId(),
-        action: 'SESSION_CREATED',
-        actor: c.actor,
-        timestamp: c.now(),
-        sessionId: session.id,
-        objectId: session.objectId,
-        rulesetVersion: session.rulesetVersion,
-        payload: { scenarioId: id },
-      };
+      const created = auditEvent(c, session, 'SESSION_CREATED', { payload: { scenarioId: id } });
       set({ scenarioId: id, inputs: scenario.inputs, session, auditLog: [created], lastError: null });
       void persistence
         .saveInputs(scenario.inputs)
@@ -640,10 +458,9 @@ export const useLaunchStore = create<LaunchState>()((set, get) => {
       const prev = inputs.telemetry;
       const version = (prev?.version ?? 0) + 1;
       const dataset = { kind: 'TELEMETRY' as const, id: `telemetry-${session.objectId}-v${version}`, objectId: session.objectId, version, report };
-      set((s) => ({
+      record([auditEvent(c, session, 'DATASET_IMPORTED', { stageId: 'REALTIME_TELEMETRY', payload: { fileName: report.meta.fileName, version, rows: report.meta.rows } })], {
         inputs: { ...inputs, telemetry: dataset, telemetryHistory: [...(inputs.telemetryHistory ?? []), ...(prev ? [prev] : [])] },
-        auditLog: [...s.auditLog, { id: c.newId(), action: 'DATASET_IMPORTED' as const, actor: c.actor, timestamp: c.now(), sessionId: session.id, objectId: session.objectId, stageId: 'REALTIME_TELEMETRY' as const, rulesetVersion: session.rulesetVersion, payload: { fileName: report.meta.fileName, version, rows: report.meta.rows } }],
-      }));
+      });
       if (session.stages.REALTIME_TELEMETRY.status !== 'COMPLETED') get().addEvidence({ stageId: 'REALTIME_TELEMETRY', type: 'FILE', title: `telemetry.csv v${version}`, fileName: report.meta.fileName, sizeBytes: report.meta.sizeBytes, mimeType: 'text/csv' });
       notify({ tone: 'info', title: `Загружена телеметрия v${version}`, description: `${report.meta.rows.toLocaleString('ru-RU')} строк` });
       invalidate('telemetry', `загружена telemetry.csv v${version}`);
@@ -656,10 +473,9 @@ export const useLaunchStore = create<LaunchState>()((set, get) => {
       const c = ctx();
       const prev = inputs.passport;
       const next = { ...passport, version: (prev?.version ?? 0) + 1 };
-      set((s) => ({
+      record([auditEvent(c, session, 'DATASET_IMPORTED', { stageId: 'REALTIME_TELEMETRY', payload: { fileName: passport.fileName, kind: 'object.json', version: next.version, assets: next.assets.map((a) => a.assetId) } })], {
         inputs: { ...inputs, passport: next, passportHistory: [...(inputs.passportHistory ?? []), ...(prev ? [prev] : [])] },
-        auditLog: [...s.auditLog, { id: c.newId(), action: 'DATASET_IMPORTED' as const, actor: c.actor, timestamp: c.now(), sessionId: session.id, objectId: session.objectId, stageId: 'REALTIME_TELEMETRY' as const, rulesetVersion: session.rulesetVersion, payload: { fileName: passport.fileName, kind: 'object.json', version: next.version, assets: next.assets.map((a) => a.assetId) } }],
-      }));
+      });
       notify({ tone: 'info', title: `Паспорт объекта v${next.version}`, description: 'Карта сигналов обновлена' });
       invalidate('passport', `изменён паспорт object.json v${next.version} (карта сигналов)`);
     },
@@ -678,19 +494,12 @@ export const useLaunchStore = create<LaunchState>()((set, get) => {
         rules,
         controlTransport,
       );
-      const event: AuditEvent = {
-        id: c.newId(),
-        action: 'CONTROL_COMMAND',
-        actor: c.actor,
-        timestamp: command.createdAt,
-        sessionId: session.id,
-        objectId: session.objectId,
+      const event = auditEvent(c, session, 'CONTROL_COMMAND', {
         stageId: 'ASSET_CONTROL',
-        rulesetVersion: session.rulesetVersion,
+        timestamp: command.createdAt,
         payload: { commandId: command.commandId, assetId, valueKw, scenario, transport: command.transport, state: command.state, reason: command.reason },
-      };
-      set((s) => ({ inputs: { ...inputs, controlCommands: [...existing, command] }, auditLog: [...s.auditLog, event] }));
-      void get().persistence.appendAudit([event]).catch(reportPersistError);
+      });
+      record([event], { inputs: { ...inputs, controlCommands: [...existing, command] } });
       if (session.stages.ASSET_CONTROL.status !== 'COMPLETED') {
         get().addEvidence({ stageId: 'ASSET_CONTROL', type: 'COMMAND_LOG', title: `${command.commandId} · ${assetId} · ${valueKw} кВт · ${OUTCOME_LABEL[command.state]}`, description: command.reason, mimeType: 'application/json' });
       }
@@ -736,21 +545,8 @@ export const useLaunchStore = create<LaunchState>()((set, get) => {
         version,
         report,
       };
-      const event: AuditEvent = {
-        id: c.newId(),
-        action: 'DATASET_IMPORTED',
-        actor: c.actor,
-        timestamp: c.now(),
-        sessionId: session.id,
-        objectId: session.objectId,
-        stageId: 'METER_HISTORY',
-        rulesetVersion: session.rulesetVersion,
-        payload: { fileName: report.meta.fileName, version, rows: report.meta.rows, sizeBytes: report.meta.sizeBytes },
-      };
-      set((s) => ({
-        inputs: { ...inputs, invoice: dataset, invoiceHistory: [...(inputs.invoiceHistory ?? []), ...(prev ? [prev] : [])] },
-        auditLog: [...s.auditLog, event],
-      }));
+      const event = auditEvent(c, session, 'DATASET_IMPORTED', { stageId: 'METER_HISTORY', payload: { fileName: report.meta.fileName, version, rows: report.meta.rows, sizeBytes: report.meta.sizeBytes } });
+      record([event], { inputs: { ...inputs, invoice: dataset, invoiceHistory: [...(inputs.invoiceHistory ?? []), ...(prev ? [prev] : [])] } });
       if (session.stages.METER_HISTORY.status !== 'COMPLETED') {
         get().addEvidence({ stageId: 'METER_HISTORY', type: 'FILE', title: `invoice.csv v${version}`, fileName: report.meta.fileName, sizeBytes: report.meta.sizeBytes, mimeType: 'text/csv' });
       }
@@ -762,24 +558,11 @@ export const useLaunchStore = create<LaunchState>()((set, get) => {
       if (denied('launch.manage')) return false;
       const { inputs, session } = get();
       // Изменённые входные данные делают результат проверки неактуальным (ТЗ 2.2.4)
-      const lastRun = inputs?.invoiceRuns?.at(-1);
-      const tRun = inputs?.telemetryRuns?.at(-1);
-      const cRun = inputs?.controlRuns?.at(-1);
-      const staleMsg =
-        stageId === 'METER_HISTORY' && inputs?.invoice && lastRun && lastRun.datasetVersion !== inputs.invoice.version
-          ? `Загружена версия v${inputs.invoice.version}, а проверялась v${lastRun.datasetVersion}: повторите проверку`
-          : stageId === 'REALTIME_TELEMETRY' && tRun && ((inputs?.telemetry?.version ?? 0) !== tRun.datasetVersion || (inputs?.passport?.version ?? 0) !== tRun.passportVersion)
-            ? `Телеметрия или паспорт изменены после проверки (данные v${inputs?.telemetry?.version ?? 0}, паспорт v${inputs?.passport?.version ?? 0}): повторите проверку`
-            : stageId === 'ASSET_CONTROL' && cRun && (inputs?.controlCommands?.length ?? 0) !== cRun.commandsCount
-              ? `После проверки выполнены новые тесты управления (${(inputs?.controlCommands?.length ?? 0) - cRun.commandsCount}): повторите проверку`
-              : null;
+      const staleMsg = staleValidationReason(stageId, inputs);
       if (session && staleMsg) {
         const c = ctx();
         const error = { code: 'VALIDATION_NOT_RUN' as const, stageId, message: staleMsg };
-        set((s) => ({
-          lastError: error,
-          auditLog: [...s.auditLog, { id: c.newId(), action: 'TRANSITION_REJECTED' as const, actor: c.actor, timestamp: c.now(), sessionId: session.id, objectId: session.objectId, stageId, rulesetVersion: session.rulesetVersion, payload: { code: error.code, message: error.message } }],
-        }));
+        record([auditEvent(c, session, 'TRANSITION_REJECTED', { stageId, payload: { code: error.code, message: error.message } })], { lastError: error });
         notify({ tone: 'warning', title: 'Переход отклонён', description: error.message });
         return false;
       }
@@ -824,7 +607,7 @@ export const useLaunchStore = create<LaunchState>()((set, get) => {
 useLaunchStore.subscribe((s, prev) => {
   const save = s.persistence.saveWorkspace;
   const id = s.currentObjectId;
-  if (!save || !s.storageReady || !id || !s.session || !s.inputs || applyingRemote) return;
+  if (!save || !s.storageReady || !id || !s.session || !s.inputs || remote.isApplyingRemote()) return;
   // Переключение объекта ничего в нём не меняет – сохранять нечего (иначе открытая давно вкладка затёрла бы свежее состояние)
   if (id !== prev.currentObjectId) return;
   if (s.session === prev.session && s.inputs === prev.inputs && s.auditLog === prev.auditLog && s.scenarioId === prev.scenarioId) return;
