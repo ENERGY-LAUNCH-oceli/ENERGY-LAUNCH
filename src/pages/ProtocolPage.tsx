@@ -8,7 +8,9 @@ import { findObject } from '@/data/objects';
 import { stageStats } from '@/features/launch-card';
 import { useLaunchStore } from '@/store';
 import { STAGE_IDS, type EnergyObjectType, type InputKind } from '@/types';
+import { renderProtocolPdf } from '@/services/protocol-pdf';
 import { cn } from '@/utils/cn';
+import { downloadFile, safeFileName } from '@/utils/download';
 
 const dt = (iso?: string | null) => (iso ? `${iso.slice(0, 10).split('-').reverse().join('.')} ${iso.slice(11, 16)} UTC` : '–');
 const OBJECT_TYPE_LABEL: Record<EnergyObjectType, string> = {
@@ -55,23 +57,6 @@ const T = ({ head, rows, mono }: { head: string[]; rows: React.ReactNode[][]; mo
   </table>
 );
 
-interface ProtocolPdfDocument {
-  internal: { getNumberOfPages: () => number };
-  setPage: (page: number) => void;
-  setFontSize: (size: number) => void;
-  setTextColor: (red: number, green: number, blue: number) => void;
-  text: (value: string, x: number, y: number, options?: { align?: 'left' | 'center' | 'right' }) => void;
-}
-
-function isProtocolPdfDocument(value: unknown): value is ProtocolPdfDocument {
-  if (typeof value !== 'object' || value === null) return false;
-  const candidate = value as Record<string, unknown>;
-  const internal = candidate.internal;
-  if (typeof internal !== 'object' || internal === null) return false;
-  const internals = internal as Record<string, unknown>;
-  return typeof internals.getNumberOfPages === 'function' && typeof candidate.setPage === 'function' && typeof candidate.setFontSize === 'function' && typeof candidate.setTextColor === 'function' && typeof candidate.text === 'function';
-}
-
 /** Протокол готовности энергетического объекта формируется из текущего состояния приложения. */
 export function ProtocolPage() {
   const session = useLaunchStore((s) => s.session);
@@ -113,16 +98,7 @@ export function ProtocolPage() {
     'История изменений',
     'Заключение',
   ];
-  const safeObjectName = inputs.object.name
-    .normalize('NFKC')
-    .replace(/[<>:"/\\|?*]/g, '-')
-    .replace(/\s+/g, '-')
-    .split('')
-    .filter((character) => character.charCodeAt(0) >= 32)
-    .join('')
-    .replace(/-+/g, '-')
-    .replace(/^-|-$/g, '') || 'object';
-  const fileName = `protocol-${safeObjectName}-${generatedAt.slice(0, 10)}.pdf`;
+  const fileName = `protocol-${safeFileName(inputs.object.name, 'object')}-${generatedAt.slice(0, 10)}.pdf`;
 
   const printProtocol = () => {
     const title = document.title;
@@ -131,61 +107,17 @@ export function ProtocolPage() {
     document.title = title;
   };
 
-  const createPdf = async () => {
+  const createPdf = () => {
     const element = document.getElementById('protocol-document');
     if (!element) throw new Error('Не удалось найти документ протокола.');
-    const existingOverlays = new Set(document.querySelectorAll<HTMLElement>('.html2pdf__overlay'));
-    const html2pdf = (await import('html2pdf.js')).default;
-    try {
-      const worker = html2pdf()
-        .set({
-          filename: fileName,
-          margin: [10, 10, 12, 10],
-          image: { type: 'jpeg', quality: 0.98 },
-          html2canvas: {
-            backgroundColor: '#ffffff',
-            scale: 2,
-            useCORS: true,
-            windowWidth: element.clientWidth,
-            onclone: (clonedDocument: Document) => {
-              clonedDocument.documentElement.setAttribute('data-theme', 'light');
-              clonedDocument.querySelectorAll<HTMLElement>('#protocol-document').forEach((documentElement) => documentElement.classList.add('protocol-pdf-layout'));
-            },
-          },
-          jsPDF: { format: 'a4', orientation: 'portrait', unit: 'mm' },
-        })
-        .from(element);
-      await worker.toPdf();
-      const pdfDocument: unknown = await worker.get('pdf');
-      if (!isProtocolPdfDocument(pdfDocument)) throw new Error('Не удалось подготовить страницы PDF.');
-      const pageCount = pdfDocument.internal.getNumberOfPages();
-      pdfDocument.setFontSize(8);
-      pdfDocument.setTextColor(95, 105, 115);
-      for (let page = 1; page <= pageCount; page += 1) {
-        pdfDocument.setPage(page);
-        pdfDocument.text(`${page} / ${pageCount}`, 105, 289, { align: 'center' });
-      }
-      const result = await worker.outputPdf('blob');
-      if (!(result instanceof Blob)) throw new Error('Не удалось сформировать PDF-файл.');
-      return result;
-    } finally {
-      document.querySelectorAll<HTMLElement>('.html2pdf__overlay').forEach((overlay) => {
-        if (!existingOverlays.has(overlay)) overlay.remove();
-      });
-    }
+    return renderProtocolPdf(element, fileName);
   };
 
   const downloadPdf = async () => {
     setBusyAction('download');
     setFeedback(null);
     try {
-      const blob = await createPdf();
-      const url = URL.createObjectURL(blob);
-      const link = Object.assign(document.createElement('a'), { href: url, download: fileName });
-      document.body.append(link);
-      link.click();
-      link.remove();
-      window.setTimeout(() => URL.revokeObjectURL(url), 30_000);
+      downloadFile(fileName, await createPdf());
       setFeedback({ message: 'PDF скачан.', type: 'success' });
     } catch (error) {
       setFeedback({ message: error instanceof Error ? error.message : 'Не удалось скачать PDF.', type: 'error' });
