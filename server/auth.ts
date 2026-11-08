@@ -90,7 +90,7 @@ type Body = () => Promise<unknown>;
  * Маршруты входа и админ-панели. Возвращает true, если запрос обработан.
  * Остальной API при наличии сотрудников требует входа (guard ниже).
  */
-export async function authRoutes(db: Db, req: IncomingMessage, res: ServerResponse, path: string, method: string, body: Body, send: Send): Promise<boolean> {
+export async function authRoutes(db: Db, req: IncomingMessage, res: ServerResponse, path: string, method: string, body: Body, send: Send, required = false): Promise<boolean> {
   const parse = <T>(schema: z.ZodType<T>, v: unknown): T => {
     const r = schema.safeParse(v);
     if (!r.success) throw new AuthError(400, r.error.issues.map((i) => i.message).join('; '));
@@ -99,7 +99,7 @@ export async function authRoutes(db: Db, req: IncomingMessage, res: ServerRespon
 
   if (path === '/api/auth/me' && method === 'GET') {
     const user = await currentUser(db, req);
-    return send(res, 200, { user, setup: !user && !(await usersExist(db)) }), true;
+    return send(res, 200, { user, setup: !user && !(await usersExist(db)), required }), true;
   }
 
   if (path === '/api/auth/setup' && method === 'POST') {

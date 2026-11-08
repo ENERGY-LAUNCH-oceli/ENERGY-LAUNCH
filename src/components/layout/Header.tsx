@@ -1,4 +1,4 @@
-import { Bell, BellOff, Check, CheckCheck, LogOut, Menu, Settings, UserRound, X } from 'lucide-react';
+import { Bell, BellOff, Check, CheckCheck, LogOut, Menu, Settings, ShieldCheck, UserRound, X } from 'lucide-react';
 import * as React from 'react';
 import { Link } from 'react-router-dom';
 import { ROUTES } from '@/app/routes';
@@ -13,6 +13,7 @@ import { lastCheckAt, sessionStatus } from '@/hooks/use-portfolio';
 import { useLaunchStore, useNotifications, type NotificationTone } from '@/store';
 import { ROLE_TITLE } from '@/engine';
 import { DEMO_ROLES } from '@/types';
+import { ACCOUNT_ROLE_TITLE, useAuth } from '@/store/auth-store';
 import { cn } from '@/utils/cn';
 import { formatDateTime } from '@/utils/format';
 import { RelativeTime } from '@/components/common/RelativeTime';
@@ -95,6 +96,11 @@ function Profile() {
   const actor = useLaunchStore((s) => s.actor);
   const role = useLaunchStore((s) => s.role);
   const setRole = useLaunchStore((s) => s.setRole);
+  const user = useAuth((s) => s.user);
+  const logout = useAuth((s) => s.logout);
+  // Вошедший сотрудник: роль из учётной записи, демо-роли не переключаются
+  const roles = user ? [] : DEMO_ROLES;
+  const subtitle = user ? ACCOUNT_ROLE_TITLE[user.role] : 'Демонстрационная роль: права проверяются в логике приложения';
   const [mobileOpen, setMobileOpen] = React.useState(false);
   return (
     <>
@@ -111,9 +117,7 @@ function Profile() {
             <div className="flex items-start justify-between gap-4 border-b border-border px-5 pb-4 pt-5">
               <div className="min-w-0">
                 <DialogPrimitive.Title className="text-body-sm font-medium">{actor}</DialogPrimitive.Title>
-                <DialogPrimitive.Description className="mt-1 text-caption leading-relaxed text-text-muted">
-                  Демонстрационная роль: права проверяются в логике приложения
-                </DialogPrimitive.Description>
+                <DialogPrimitive.Description className="mt-1 text-caption leading-relaxed text-text-muted">{subtitle}</DialogPrimitive.Description>
               </div>
               <DialogPrimitive.Close asChild>
                 <Button variant="ghost" size="icon-sm" aria-label="Закрыть меню профиля" className="-mr-2 -mt-2 shrink-0">
@@ -121,8 +125,8 @@ function Profile() {
                 </Button>
               </DialogPrimitive.Close>
             </div>
-            <div className="border-b border-border px-3 py-2" aria-label="Выбор роли">
-              {DEMO_ROLES.map((r) => (
+            <div className={cn('border-b border-border px-3 py-2', !roles.length && 'hidden')} aria-label="Выбор роли">
+              {roles.map((r) => (
                 <button
                   type="button"
                   key={r}
@@ -148,37 +152,53 @@ function Profile() {
                 <Settings className="size-4 text-text-muted" aria-hidden />
                 Настройки
               </Link>
-              <div aria-disabled="true" className="flex min-h-11 items-center gap-3 px-3 text-body-sm text-text-muted opacity-60">
-                <UserRound className="size-4" aria-hidden />
-                Профиль (в следующих фазах)
-              </div>
+              {!user && (
+                <a href="/login" className="flex min-h-11 items-center gap-3 rounded-sm px-3 text-body-sm text-text-primary hover:bg-surface-hover">
+                  <UserRound className="size-4 text-text-muted" aria-hidden />
+                  Войти в личный кабинет
+                </a>
+              )}
+              {user && (
+                <Link to={ROUTES.me} onClick={() => setMobileOpen(false)} className="flex min-h-11 items-center gap-3 rounded-sm px-3 text-body-sm text-text-primary hover:bg-surface-hover">
+                  <UserRound className="size-4 text-text-muted" aria-hidden />
+                  Личный кабинет
+                </Link>
+              )}
+              {user?.role === 'ADMIN' && (
+                <Link to={ROUTES.admin} onClick={() => setMobileOpen(false)} className="flex min-h-11 items-center gap-3 rounded-sm px-3 text-body-sm text-text-primary hover:bg-surface-hover">
+                  <ShieldCheck className="size-4 text-text-muted" aria-hidden />
+                  Админ-панель
+                </Link>
+              )}
             </div>
-            <div className="px-3 py-2">
-              <div aria-disabled="true" className="flex min-h-11 items-center gap-3 px-3 text-body-sm text-text-muted opacity-60">
-                <LogOut className="size-4" aria-hidden />
-                Выйти
+            {user && (
+              <div className="px-3 py-2">
+                <button type="button" onClick={() => void logout()} className="flex min-h-11 w-full items-center gap-3 rounded-sm px-3 text-left text-body-sm text-text-primary hover:bg-surface-hover">
+                  <LogOut className="size-4 text-text-muted" aria-hidden />
+                  Выйти
+                </button>
               </div>
-            </div>
+            )}
           </DialogPrimitive.Content>
         </DialogPrimitive.Portal>
       </DialogPrimitive.Root>
-      <DropdownMenu>
+      <DropdownMenu modal={false}>
         <DropdownMenuTrigger asChild>
           <button type="button" aria-label={`Профиль: ${ROLE_TITLE[role]}`} data-role={role} className="hidden items-center gap-2 rounded-md p-1 hover:bg-surface-hover lg:flex">
             <span className="flex size-7 items-center justify-center rounded-full border border-border bg-surface-sunken font-heading text-[11px] font-medium text-text-secondary">{INITIALS[role]}</span>
             <span className="hidden flex-col text-left leading-tight 2xl:flex">
               <span className="text-caption font-medium">{actor}</span>
-              <span className="text-[11px] text-text-muted">демо-роль</span>
+              <span className="text-[11px] text-text-muted">{user ? ACCOUNT_ROLE_TITLE[user.role] : 'демо-роль'}</span>
             </span>
           </button>
         </DropdownMenuTrigger>
         <DropdownMenuContent className="hidden lg:block">
           <DropdownMenuLabel>
             <span className="block text-body-sm font-medium">{actor}</span>
-            <span className="text-caption text-text-muted">Демонстрационная роль: права проверяются в логике приложения</span>
+            <span className="text-caption text-text-muted">{subtitle}</span>
           </DropdownMenuLabel>
-          <DropdownMenuSeparator />
-          {DEMO_ROLES.map((r) => (
+          {roles.length > 0 && <DropdownMenuSeparator />}
+          {roles.map((r) => (
             <DropdownMenuItem key={r} onSelect={() => setRole(r)} data-role-option={r}>
               {r === role ? <Check /> : <span className="size-4" />}
               {ROLE_TITLE[r]}
@@ -191,15 +211,36 @@ function Profile() {
               Настройки
             </Link>
           </DropdownMenuItem>
-          <DropdownMenuItem disabled>
-            <UserRound />
-            Профиль (в следующих фазах)
-          </DropdownMenuItem>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem disabled>
-            <LogOut />
-            Выйти
-          </DropdownMenuItem>
+          {user ? (
+            <DropdownMenuItem asChild>
+              <Link to={ROUTES.me}>
+                <UserRound />
+                Личный кабинет
+              </Link>
+            </DropdownMenuItem>
+          ) : (
+            <DropdownMenuItem asChild>
+              <a href="/login" data-testid="login-link">
+                <UserRound />
+                Войти в личный кабинет
+              </a>
+            </DropdownMenuItem>
+          )}
+          {user?.role === 'ADMIN' && (
+            <DropdownMenuItem asChild>
+              <Link to={ROUTES.admin}>
+                <ShieldCheck />
+                Админ-панель
+              </Link>
+            </DropdownMenuItem>
+          )}
+          {user && <DropdownMenuSeparator />}
+          {user && (
+            <DropdownMenuItem onSelect={() => void logout()}>
+              <LogOut />
+              Выйти
+            </DropdownMenuItem>
+          )}
         </DropdownMenuContent>
       </DropdownMenu>
     </>

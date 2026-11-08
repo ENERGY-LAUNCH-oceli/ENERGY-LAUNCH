@@ -17,7 +17,7 @@ const { version } = JSON.parse(readFileSync(new URL('../package.json', import.me
 
 const db = await openDb({ databaseUrl: env.DATABASE_URL, pgliteDir: env.PGLITE_DIR });
 const schema = await migrate(db);
-const server = createServer({ requestTimeout: 60_000 }, createHandler(db, { version }));
+const server = createServer({ requestTimeout: 60_000 }, createHandler(db, { version, authRequired: process.env.AUTH_REQUIRED === '1' }));
 
 server.listen(port, host, () => {
   // Строка подключения содержит пароль – в журнал попадает только вид хранилища

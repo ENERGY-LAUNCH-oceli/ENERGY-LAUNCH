@@ -94,6 +94,8 @@ interface LaunchState {
   /** Демонстрационная роль: права проверяются в каждом действии, а не только в интерфейсе. */
   role: DemoRole;
   setRole(role: DemoRole): void;
+  /** Вошедший сотрудник: имя в журнале и права по его учётной записи (без уведомления и без смены демо-роли в браузере). */
+  setIdentity(name: string, role: DemoRole): void;
   /** Этап 4: изменение черновика, публикация, приёмка рабочей панели. */
   updateDashboard(change: DashboardChange): boolean;
   publishDashboard(): boolean;
@@ -423,6 +425,8 @@ export const useLaunchStore = create<LaunchState>()((set, get) => {
   return {
     actor: ROLE_TITLE[INITIAL_ROLE],
     role: INITIAL_ROLE,
+    setIdentity: (name, role) => set({ actor: name, role }),
+
     setRole: (role) => {
       set({ role, actor: ROLE_TITLE[role] });
       try {

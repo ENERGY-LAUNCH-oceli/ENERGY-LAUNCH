@@ -10,6 +10,8 @@ import { migrate, MIGRATIONS } from '../../server/migrations.ts';
 let db: Db;
 let server: Server;
 let base: string;
+let strict: Server;
+let strictBase: string;
 
 beforeAll(async () => {
   db = await openDb({ pgliteDir: 'memory://' });
@@ -17,16 +19,22 @@ beforeAll(async () => {
   server = createServer(createHandler(db, { maxBodyBytes: 64 * 1024, version: 'test' }));
   await new Promise<void>((r) => server.listen(0, '127.0.0.1', r));
   base = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
+  // Тот же API с обязательным входом (AUTH_REQUIRED=1)
+  strict = createServer(createHandler(db, { maxBodyBytes: 64 * 1024, version: 'test', authRequired: true }));
+  await new Promise<void>((r) => strict.listen(0, '127.0.0.1', r));
+  strictBase = `http://127.0.0.1:${(strict.address() as AddressInfo).port}`;
 }, 60_000);
 
 afterAll(async () => {
   await new Promise((r) => server.close(r));
+  await new Promise((r) => strict.close(r));
   await db.close();
 });
 
 beforeEach(async () => {
   await db.query('delete from workspaces');
   await db.query('delete from user_objects');
+  await db.query('delete from users');
 });
 
 const json = (method: string, body?: unknown, headers: Record<string, string> = {}) => ({ method, headers: { 'Content-Type': 'application/json', ...headers }, ...(body === undefined ? {} : { body: JSON.stringify(body) }) });
@@ -178,6 +186,66 @@ describe('API хранилища', () => {
     it('проверяет длину вопроса', async () => {
       expect((await api('/api/help/ask', json('POST', { question: 'a' }))).status).toBe(400);
       expect((await api('/api/help/ask', json('POST', { question: 'x'.repeat(301) }))).status).toBe(400);
+    });
+  });
+
+  describe('сотрудники и вход', () => {
+    const cookieOf = (r: Response) => /el_session=([^;]+)/.exec(r.headers.get('set-cookie') ?? '')?.[1] ?? '';
+    const as = (cookie: string, init: RequestInit = {}) => ({ ...init, headers: { ...(init.headers as Record<string, string>), Cookie: `el_session=${cookie}` } });
+
+    it('первый запуск, вход, закрытый API, права администратора, отключение и смена пароля', async () => {
+      // Сотрудников нет – API открыт, предлагается создать администратора
+      expect(await (await api('/api/auth/me')).json()).toEqual({ user: null, setup: true, required: false });
+      expect((await api('/api/state')).status).toBe(200);
+      const setup = await api('/api/auth/setup', json('POST', { login: 'Admin', name: 'Иван Админов', password: 'secret-123' }));
+      expect(setup.status).toBe(200);
+      const admin = cookieOf(setup);
+      expect(setup.headers.get('set-cookie')).toMatch(/HttpOnly; SameSite=Strict/);
+      expect((await api('/api/auth/setup', json('POST', { login: 'admin2', name: 'Второй', password: 'secret-123' }))).status).toBe(409);
+      // Пароль в базе – только хеш
+      const [row] = await db.query<{ password_hash: string }>("select password_hash from users where login = 'admin'");
+      expect(row!.password_hash).toMatch(/^scrypt\$/);
+      expect(row!.password_hash).not.toContain('secret-123');
+
+      // По умолчанию вход не обязателен (демо-режим); с AUTH_REQUIRED=1 данные только после входа
+      expect((await api('/api/state')).status).toBe(200);
+      expect((await fetch(strictBase + '/api/state')).status).toBe(401);
+      expect((await fetch(strictBase + '/api/health')).status).toBe(200);
+      expect((await fetch(strictBase + '/api/state', as(admin))).status).toBe(200);
+
+      // Администратор создаёт сотрудника
+      const created = await api('/api/admin/users', as(admin, json('POST', { login: 'petrov', name: 'Пётр Петров', role: 'OPERATOR', password: 'operator-1' })));
+      expect(created.status).toBe(201);
+      expect((await api('/api/admin/users', as(admin, json('POST', { login: 'petrov', name: 'Другой', role: 'OPERATOR', password: 'operator-1' })))).status).toBe(409);
+      expect((await api('/api/auth/login', json('POST', { login: 'petrov', password: 'wrong-pass' }))).status).toBe(401);
+      const login = await api('/api/auth/login', json('POST', { login: 'Petrov', password: 'operator-1' }));
+      expect(await login.json()).toMatchObject({ user: { login: 'petrov', name: 'Пётр Петров', role: 'OPERATOR' } });
+      const op = cookieOf(login);
+      expect((await api('/api/admin/users', as(op))).status).toBe(403);
+
+      // Действие сотрудника попадает в его метрики
+      await api('/api/audit', as(op, json('POST', { events: [{ ...event('op-e1', 'obj-001', 's'), actor: 'Пётр Петров' }] })));
+      expect(await (await api('/api/me/stats', as(op))).json()).toMatchObject({ actions: 1, objects: 1 });
+      const list = (await (await api('/api/admin/users', as(admin))).json()) as { users: { login: string; actions: number; login_count: number }[]; summary: { users: number } };
+      expect(list.summary.users).toBe(2);
+      expect(list.users.find((u) => u.login === 'petrov')).toMatchObject({ actions: 1, login_count: 1 });
+
+      // Смена пароля сотрудником
+      expect((await api('/api/auth/password', as(op, json('POST', { current: 'nope', next: 'operator-2' })))).status).toBe(400);
+      expect((await api('/api/auth/password', as(op, json('POST', { current: 'operator-1', next: 'operator-2' })))).status).toBe(204);
+      expect((await api('/api/auth/login', json('POST', { login: 'petrov', password: 'operator-2' }))).status).toBe(200);
+
+      // Отключение: сеансы закрыты, вход запрещён; себя отключить нельзя
+      const id = list.users.find((u) => u.login === 'petrov') as unknown as { id: number };
+      expect((await api(`/api/admin/users/${id.id}`, as(admin, json('PATCH', { disabled: true })))).status).toBe(200);
+      expect((await fetch(strictBase + '/api/state', as(op))).status).toBe(401);
+      expect((await api('/api/auth/login', json('POST', { login: 'petrov', password: 'operator-2' }))).status).toBe(403);
+      const me = (await (await api('/api/auth/me', as(admin))).json()) as { user: { id: number } };
+      expect((await api(`/api/admin/users/${me.user.id}`, as(admin, json('PATCH', { disabled: true })))).status).toBe(400);
+
+      // Выход
+      expect((await api('/api/auth/logout', as(admin, json('POST', {})))).status).toBe(204);
+      expect((await fetch(strictBase + '/api/state', as(admin))).status).toBe(401);
     });
   });
 

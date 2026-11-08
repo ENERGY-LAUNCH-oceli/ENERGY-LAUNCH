@@ -9,5 +9,5 @@ import { migrate } from './migrations.ts';
 export async function startDevApi(env: Record<string, string | undefined>) {
   const db = await openDb({ databaseUrl: env.DATABASE_URL || undefined, pgliteDir: env.PGLITE_DIR || undefined });
   const schema = await migrate(db);
-  return { db, schema, handler: createHandler(db, { version: 'dev' }) };
+  return { db, schema, handler: createHandler(db, { version: 'dev', authRequired: process.env.AUTH_REQUIRED === '1' }) };
 }

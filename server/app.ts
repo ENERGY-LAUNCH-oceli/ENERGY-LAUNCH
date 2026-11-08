@@ -66,6 +66,8 @@ export interface AppOptions {
   /** Предел тела запроса: состояние крупного объекта – сотни КБ, с историей загрузок – единицы МБ. */
   maxBodyBytes?: number;
   version?: string;
+  /** Вход обязателен для всего API данных (AUTH_REQUIRED=1). По умолчанию – нет: демо-режим без входа, личный кабинет по желанию. */
+  authRequired?: boolean;
 }
 
 const iso = (v: unknown) => (v instanceof Date ? v.toISOString() : String(v));
@@ -164,8 +166,8 @@ export function createHandler(db: Db, opts: AppOptions = {}) {
     }
 
     // Вход, личный кабинет, админ-панель; остальной API – только для вошедших (если сотрудники заведены)
-    if (await authRoutes(db, req, res, path, method, () => readJson(req, limit), send)) return;
-    await guard(db, req, path);
+    if (await authRoutes(db, req, res, path, method, () => readJson(req, limit), send, opts.authRequired)) return;
+    if (opts.authRequired) await guard(db, req, path);
 
     if (path === '/api/state' && method === 'GET') {
       const objects = await db.query<{ data: unknown }>('select data from user_objects order by created_at, id');

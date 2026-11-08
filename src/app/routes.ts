@@ -12,6 +12,9 @@ export const ROUTES = {
   help: '/help',
   /** Коды состояния HTTP и «нет подключения»: /errors, /errors/:code. */
   statusCodes: '/errors',
+  /** Личный кабинет и админ-панель (вход через сервер). */
+  me: '/me',
+  admin: '/admin',
   object: (id: string) => `/objects/${encodeURIComponent(id)}`,
   objectSection: (id: string, section: ObjectSection) => `/objects/${encodeURIComponent(id)}/${section}`,
 } as const;
