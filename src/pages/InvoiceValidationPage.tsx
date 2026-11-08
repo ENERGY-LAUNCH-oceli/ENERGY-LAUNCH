@@ -2,6 +2,7 @@ import { History } from 'lucide-react';
 import { NextActionCard } from '@/components/launch';
 import { Alert } from '@/components/ui/alert';
 import { getNextAction } from '@/engine';
+import { FixAssistant } from '@/features/fix/FixAssistant';
 import { StageActionBar } from '@/features/launch-card';
 import { CheckBlocks, CompletenessPanel, CoverageTimeline, EanPanel, FieldQualityTable, IssuesTable, RunsHistory, UploadPanel } from '@/features/invoice-validation';
 import { coverageMonths } from '@/features/invoice-validation/labels';
@@ -44,7 +45,7 @@ export function InvoiceValidationPage() {
         </Alert>
       )}
 
-      {next && stage.status !== 'COMPLETED' && <NextActionCard stageLabel="История счётчиков" title={next.title} {...(next.reason ? { reason: next.reason } : {})} />}
+      {next && stage.status !== 'COMPLETED' && <NextActionCard stageLabel="История счётчиков" title={next.title} {...(next.reason ? { reason: next.reason } : {})} action={<FixAssistant stageId="METER_HISTORY" ruleId={next.ruleId} />} />}
 
       <div id={ANCHORS.mhUpload} className="scroll-mt-24">
         <UploadPanel dataset={ds} />

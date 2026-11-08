@@ -2,6 +2,7 @@ import { NextActionCard } from '@/components/launch';
 import { Alert } from '@/components/ui/alert';
 import { getNextAction } from '@/engine';
 import { CheckBlocks } from '@/features/invoice-validation';
+import { FixAssistant } from '@/features/fix/FixAssistant';
 import { StageActionBar } from '@/features/launch-card';
 import { DiagnosisLegend, InputsPanel, PassportCard, QualityHeatmap, SignalMapping, TelemetryIssues, TelemetryRuns } from '@/features/telemetry-validation';
 import { ANCHORS } from '@/config/blocker-links';
@@ -59,7 +60,7 @@ export function TelemetryValidationPage() {
           Паспорт или телеметрия изменены после последней проверки (сейчас: данные v{ds?.version ?? 0}, паспорт v{passport?.version ?? 0}; проверялись v{last!.datasetVersion} и v{last!.passportVersion}). Зависимые подтверждения не действуют до повторной проверки.
         </Alert>
       )}
-      {next && stage.status !== 'COMPLETED' && <NextActionCard stageLabel="Данные в реальном времени" title={next.title} {...(next.reason ? { reason: next.reason } : {})} />}
+      {next && stage.status !== 'COMPLETED' && <NextActionCard stageLabel="Данные в реальном времени" title={next.title} {...(next.reason ? { reason: next.reason } : {})} action={<FixAssistant stageId="REALTIME_TELEMETRY" ruleId={next.ruleId} />} />}
 
       <div id={ANCHORS.tmInputs} className="scroll-mt-24">
         <InputsPanel passport={passport} dataset={ds} />

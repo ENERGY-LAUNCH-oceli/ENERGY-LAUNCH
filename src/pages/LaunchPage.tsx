@@ -9,6 +9,7 @@ import { STAGE_META } from '@/config/stages';
 import { SCENARIO_LIST } from '@/data/scenarios';
 import { findObject } from '@/data/objects';
 import { getNextAction, objectReadiness } from '@/engine';
+import { FixAssistant } from '@/features/fix/FixAssistant';
 import { LaunchStepper, ObjectHeader, StageSummaryCard, StageWorkspace } from '@/features/launch-card';
 import { sessionStatus } from '@/hooks/use-portfolio';
 import { useLaunchStore } from '@/store';
@@ -70,10 +71,13 @@ export function LaunchPage() {
           title={next.title}
           {...(next.reason ? { reason: next.reason } : {})}
           action={
-            <Button variant="accent" size="lg" onClick={() => select(next.stageId, true)}>
-              Открыть этап
-              <ArrowRight aria-hidden />
-            </Button>
+            <div className="flex flex-wrap gap-2">
+              <FixAssistant stageId={next.stageId} ruleId={next.ruleId} variant="secondary" size="lg" />
+              <Button variant="accent" size="lg" onClick={() => select(next.stageId, true)}>
+                Открыть этап
+                <ArrowRight aria-hidden />
+              </Button>
+            </div>
           }
         />
       ) : readiness.ready ? (
