@@ -503,3 +503,16 @@ html.theme-reveal::view-transition-new(root) {
   display: block;
   height: 0;
 }
+
+/* ===== Окно входа: парящие карточки ===== */
+@keyframes auth-float {
+  0%, 100% { transform: translateY(0) rotate(var(--r, 0deg)); }
+  50% { transform: translateY(-10px) rotate(var(--r, 0deg)); }
+}
+.auth-float {
+  transform: rotate(var(--r, 0deg));
+  animation: auth-float 7s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .auth-float { animation: none; }
+}
