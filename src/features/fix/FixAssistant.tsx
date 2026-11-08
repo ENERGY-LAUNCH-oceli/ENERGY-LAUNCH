@@ -9,6 +9,7 @@ import { importPassport } from '@/services/telemetry-import';
 import { notify, useLaunchStore } from '@/store';
 import type { StageId } from '@/types';
 import { cn } from '@/utils/cn';
+import { downloadFile } from '@/utils/download';
 import { controlAssets } from '@/engine/control';
 import { createSimulatorTransport } from '@/simulator/control';
 import { buildFixPlan, type FixOption } from './fix-plans';
@@ -57,13 +58,7 @@ export function FixAssistant({ stageId, ruleId, variant = 'accent', size = 'md' 
 
   const download = (o: FixOption) => {
     const text = corrected(o);
-    if (!text) return;
-    const url = URL.createObjectURL(new Blob([text], { type: 'application/json' }));
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'object.json';
-    a.click();
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    if (text) downloadFile('object.json', text, 'application/json');
   };
 
   const copy = async () => {

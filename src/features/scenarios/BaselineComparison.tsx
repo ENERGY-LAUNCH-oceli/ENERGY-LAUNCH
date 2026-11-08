@@ -3,29 +3,17 @@ import * as React from 'react';
 import { Button } from '@/components/ui/button';
 import { manualChecklistCsv, parseMinutes, SCENARIOS, timeReduction, TIME_REDUCTION_TARGET_PCT, type ScenarioRun } from '@/scenarios';
 import { cn } from '@/utils/cn';
+import { toCsv } from '@/utils/csv';
+import { downloadFile } from '@/utils/download';
+import { localStore } from '@/utils/local-store';
 
 type Kind = 'manual' | 'proto';
 const KEYS: Record<Kind, string> = { manual: 'el.scenarios.baseline', proto: 'el.scenarios.prototype' };
 
-function load(kind: Kind): Record<number, string> {
-  try {
-    return JSON.parse(localStorage.getItem(KEYS[kind]) ?? '{}') as Record<number, string>;
-  } catch {
-    return {};
-  }
-}
+const load = (kind: Kind) => localStore.getJson<Record<number, string>>(KEYS[kind], {}, (v): v is Record<number, string> => typeof v === 'object' && v !== null && !Array.isArray(v));
 
 const fmtMin = (v: number | null) => (v === null ? '–' : `${v.toLocaleString('ru-RU', { maximumFractionDigits: 2 })} мин`);
 const clock = (ms: number) => `${Math.floor(ms / 60000)}:${String(Math.floor((ms % 60000) / 1000)).padStart(2, '0')}`;
-
-function save(name: string, text: string, type: string) {
-  const url = URL.createObjectURL(new Blob([text], { type }));
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = name;
-  a.click();
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
-}
 
 /**
  * Сравнение с ручным чек-листом (ТЗ 6.1 п. 5, 6.2): на тех же 6 оценочных сценариях инженер засекает время ручной
@@ -46,11 +34,7 @@ export function BaselineComparison({ runs, rulesetVersion }: { runs: Record<numb
   const set = (kind: Kind, n: number, v: string) =>
     setValues((s) => {
       const next = { ...s, [kind]: { ...s[kind], [n]: v } };
-      try {
-        localStorage.setItem(KEYS[kind], JSON.stringify(next[kind]));
-      } catch {
-        /* хранилище недоступно – значение живёт до перезагрузки */
-      }
+      localStore.setJson(KEYS[kind], next[kind]);
       return next;
     });
 
@@ -75,7 +59,6 @@ export function BaselineComparison({ runs, rulesetVersion }: { runs: Record<numb
   const anyFallback = rows.some((r) => r.measuredProto === undefined && r.runMs !== undefined);
 
   const exportCsv = () => {
-    const cell = (v: unknown) => `"${String(v ?? '').replace(/"/g, '""')}"`;
     const lines = [
       ['Сценарий', 'Ручная проверка, мин', 'С прототипом, мин', 'Источник времени прототипа', 'Прогон сценария, с'],
       ...rows.map((r) => [`${r.def.n}. ${r.def.title}`, r.manualMin ?? 'не измерено', r.protoMin !== undefined ? Math.round(r.protoMin * 1000) / 1000 : 'не измерено', r.measuredProto !== undefined ? 'замер инженера' : 'время прогона', r.runMs !== undefined ? r.runMs / 1000 : '']),
@@ -85,7 +68,7 @@ export function BaselineComparison({ runs, rulesetVersion }: { runs: Record<numb
       ['Набор правил', rulesetVersion],
       ['Выгружено (UTC)', new Date().toISOString()],
     ];
-    save('baseline-comparison.csv', `\uFEFF${lines.map((l) => l.map(cell).join(';')).join('\n')}\n`, 'text/csv');
+    downloadFile('baseline-comparison.csv', toCsv(lines), 'text/csv');
   };
 
   const input = (def: (typeof evaluation)[number], kind: Kind, label: string, placeholder: string) => {
@@ -119,7 +102,7 @@ export function BaselineComparison({ runs, rulesetVersion }: { runs: Record<numb
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Button variant="secondary" size="sm" onClick={() => save(`manual-checklist-${rulesetVersion}.csv`, manualChecklistCsv(rulesetVersion), 'text/csv')} data-testid="manual-checklist">
+          <Button variant="secondary" size="sm" onClick={() => downloadFile(`manual-checklist-${rulesetVersion}.csv`, manualChecklistCsv(rulesetVersion), 'text/csv')} data-testid="manual-checklist">
             <Download aria-hidden />
             Ручной чек-лист
           </Button>

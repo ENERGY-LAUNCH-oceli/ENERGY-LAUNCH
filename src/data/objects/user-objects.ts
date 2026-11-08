@@ -4,6 +4,7 @@ import { parseObjectJson } from '@/engine/telemetry/passport';
 import { demoObjectJson } from '@/data/mock';
 import type { EnergyObject, LaunchInputs } from '@/types';
 import { OBJECT_CATALOG, type ObjectCatalogEntry } from './catalog';
+import { localStore } from '@/utils/local-store';
 
 /**
  * Объекты, добавленные пользователем. Хранится только описание (паспорт из формы) – в браузере;
@@ -147,12 +148,7 @@ export function buildUserObject(stored: StoredUserObject): ObjectCatalogEntry {
 }
 
 export function loadStoredObjects(): StoredUserObject[] {
-  try {
-    const raw = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '[]') as unknown;
-    return Array.isArray(raw) ? (raw as StoredUserObject[]).filter((o) => o && typeof o.id === 'string' && typeof o.name === 'string') : [];
-  } catch {
-    return [];
-  }
+  return localStore.getJson<StoredUserObject[]>(STORAGE_KEY, [], Array.isArray).filter((o) => o && typeof o.id === 'string' && typeof o.name === 'string');
 }
 
 /** Список целиком (загружен с сервера): localStorage – его копия для синхронного старта. */
@@ -163,11 +159,7 @@ export function replaceStoredObjects(list: StoredUserObject[]): void {
 export const findStoredObject = (id: string) => loadStoredObjects().find((o) => o.id === id);
 
 function saveStoredObjects(list: StoredUserObject[]): void {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
-  } catch {
-    /* хранилище недоступно – объект живёт до перезагрузки */
-  }
+  localStore.setJson(STORAGE_KEY, list);
 }
 
 /** Добавляет сохранённые объекты в портфель (после загрузки набора). Повреждённые записи пропускаются. */

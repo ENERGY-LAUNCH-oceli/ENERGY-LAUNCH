@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { RULESET_V1_5 } from '@/config/rules';
-import { manualChecklistCsv, median, parseMinutes, SCENARIOS, timeReduction } from '@/scenarios';
+import { median } from '@/engine/validators/helpers';
+import { manualChecklistCsv, parseMinutes, SCENARIOS, timeReduction } from '@/scenarios';
 
 describe('сравнение с ручным чек-листом (ТЗ 6.1 п. 5)', () => {
   it('медиана: нечётное и чётное число значений', () => {

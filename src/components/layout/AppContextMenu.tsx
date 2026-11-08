@@ -9,6 +9,7 @@ import { startTour } from '@/features/tour/TourHost';
 import { tourForPath } from '@/features/tour/tours';
 import { notify, useUi } from '@/store';
 import { cn } from '@/utils/cn';
+import { downloadFile } from '@/utils/download';
 
 interface MenuItem {
   id: string;
@@ -31,13 +32,6 @@ interface Target {
 /** Поля ввода и редактируемый текст – родное меню браузера (вставка, орфография). */
 const nativeTarget = (el: Element | null) => !!el?.closest('input, textarea, select, [contenteditable=""], [contenteditable="true"], [data-native-context]');
 
-const download = (name: string, text: string, type: string) => {
-  const url = URL.createObjectURL(new Blob([text], { type }));
-  const a = Object.assign(document.createElement('a'), { href: url, download: name });
-  a.click();
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
-};
-
 /** Снимок страницы: разметка с текущим состоянием и стили приложения (без скриптов). */
 const savePage = () => {
   const doc = document.documentElement.cloneNode(true) as HTMLElement;
@@ -52,7 +46,7 @@ const savePage = () => {
   doc.querySelectorAll('link[rel="stylesheet"], style').forEach((n) => n.remove());
   doc.querySelector('head')?.insertAdjacentHTML('beforeend', `<style>${css.join('\n')}</style>`);
   const name = (document.title || 'energy-launch').replace(/[\\/:*?"<>|]+/g, ' ').trim();
-  download(`${name}.html`, `<!doctype html>\n${doc.outerHTML}`, 'text/html');
+  downloadFile(`${name}.html`, `<!doctype html>\n${doc.outerHTML}`, 'text/html');
 };
 
 const toggleFullscreen = () => void (document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen()).catch(() => {});
@@ -150,7 +144,7 @@ export function AppContextMenu() {
       { id: 'audit', label: 'Журнал объекта', icon: ClipboardList, run: () => go(ROUTES.objectSection(entry.id, 'audit')) },
       { id: 'copy-code', label: `Копировать код ${entry.code}`, icon: Copy, run: () => copy(entry.code, 'Код объекта') },
       ...(entry.inputs?.passport || entry.ean.offtake
-        ? [{ id: 'export-passport', label: 'Сохранить паспорт (JSON)', icon: Download, run: () => download(`${entry.code}.passport.json`, JSON.stringify({ id: entry.id, code: entry.code, name: entry.name, address: entry.address, kind: entry.kind, responsible: entry.responsible, ean: entry.ean, equipment: entry.equipment, passport: entry.inputs?.passport ?? null }, null, 2), 'application/json') }]
+        ? [{ id: 'export-passport', label: 'Сохранить паспорт (JSON)', icon: Download, run: () => downloadFile(`${entry.code}.passport.json`, JSON.stringify({ id: entry.id, code: entry.code, name: entry.name, address: entry.address, kind: entry.kind, responsible: entry.responsible, ean: entry.ean, equipment: entry.equipment, passport: entry.inputs?.passport ?? null }, null, 2), 'application/json') }]
         : []),
     ]);
   }

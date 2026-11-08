@@ -1,16 +1,11 @@
 import { getRuleset } from '@/config/rules';
 import { getRulesForStage } from '@/engine/rules/catalog';
+import { median } from '@/engine/validators/helpers';
 import { STAGE_IDS, type StageId } from '@/types';
+import { toCsv } from '@/utils/csv';
 
 /** Цель ТЗ 6.1 п. 5: сокращение медианного времени проверки не менее 30 %. */
 export const TIME_REDUCTION_TARGET_PCT = 30;
-
-export function median(xs: readonly number[]): number | null {
-  if (!xs.length) return null;
-  const s = [...xs].sort((a, b) => a - b);
-  const mid = Math.floor(s.length / 2);
-  return s.length % 2 ? s[mid]! : (s[mid - 1]! + s[mid]!) / 2;
-}
 
 export interface TimeRow {
   /** Ручная проверка по чек-листу, мин (фактический замер). */
@@ -51,7 +46,6 @@ export function parseMinutes(v: string | undefined): number | undefined {
 }
 
 const STAGE_TITLE: Record<StageId, string> = { METER_HISTORY: '1. История счётчиков', REALTIME_TELEMETRY: '2. Телеметрия', ASSET_CONTROL: '3. Управление активами', FINAL_DASHBOARDS: '4. Финальные дашборды' };
-const cell = (v: string) => `"${v.replace(/"/g, '""')}"`;
 
 /**
  * Ручной чек-лист baseline (ТЗ 6.2): те же правила и подтверждения, что у прототипа, для выбранной версии набора.
@@ -66,5 +60,5 @@ export function manualChecklistCsv(rulesetVersion?: string): string {
     for (const c of ruleset.confirmations[stage]) rows.push([STAGE_TITLE[stage], `Подтверждение: ${c.id}`, `${c.title} – подтверждает роль ${c.role}`, 'да', '', '']);
     rows.push([STAGE_TITLE[stage], 'Статус этапа', 'Итог этапа: не начат / в работе / заблокирован / завершён; этап не завершается при незакрытом предыдущем', 'да', '', '']);
   }
-  return `\uFEFF${[`${cell(`Ручной чек-лист ENERGY LAUNCH · набор правил ${ruleset.version}`)}`, head.map(cell).join(';'), ...rows.map((r) => r.map(cell).join(';'))].join('\n')}\n`;
+  return toCsv([[`Ручной чек-лист ENERGY LAUNCH · набор правил ${ruleset.version}`], head, ...rows]);
 }

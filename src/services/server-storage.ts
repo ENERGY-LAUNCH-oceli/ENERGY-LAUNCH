@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { env } from '@/config/env';
 import { loadStoredObjects, replaceStoredObjects, type StoredUserObject } from '@/data/objects';
 import type { AuditEvent, LaunchInputs, LaunchSession } from '@/types';
+import { localStore } from '@/utils/local-store';
 
 /**
  * Хранение в PostgreSQL через API сервера (server/). Состояние объекта – один документ:
@@ -96,21 +97,12 @@ const MIGRATED_KEY = 'el.objects.server-synced';
 export async function loadServerState(): Promise<ServerState> {
   const state = await apiRequest<ServerState>('/state');
   let objects = state.objects;
-  let migrated = false;
-  try {
-    migrated = localStorage.getItem(MIGRATED_KEY) === '1';
-  } catch {
-    /* хранилище браузера недоступно */
-  }
-  if (!migrated) {
+  if (localStore.get(MIGRATED_KEY) !== '1') {
     const local = loadStoredObjects().filter((o) => !objects.some((s) => s.id === o.id));
     for (const o of local) await saveServerObject(o);
     objects = [...objects, ...local];
-    try {
-      localStorage.setItem(MIGRATED_KEY, '1');
-    } catch {
-      /* без отметки перенос повторится – он идемпотентен */
-    }
+    // Без хранилища отметка не сохранится и перенос повторится – он идемпотентен
+    localStore.set(MIGRATED_KEY, '1');
   }
   replaceStoredObjects(objects);
   return { ...state, objects };

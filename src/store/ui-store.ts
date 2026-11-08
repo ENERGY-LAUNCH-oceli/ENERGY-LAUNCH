@@ -1,33 +1,16 @@
 import { flushSync } from 'react-dom';
 import { create } from 'zustand';
 import type { AccentId } from '@/design/tokens';
+import { localStore } from '@/utils/local-store';
 
 const KEY = 'el.sidebar.collapsed';
-const read = () => {
-  try {
-    return localStorage.getItem(KEY) === '1';
-  } catch {
-    return false;
-  }
-};
+const read = () => localStore.get(KEY) === '1';
 
 export type Theme = 'light' | 'dark';
 const THEME_KEY = 'el.theme';
 const ACCENT_KEY = 'el.accent';
-const readTheme = (): Theme => {
-  try {
-    return localStorage.getItem(THEME_KEY) === 'dark' ? 'dark' : 'light';
-  } catch {
-    return 'light';
-  }
-};
-const readAccent = (): AccentId => {
-  try {
-    return localStorage.getItem(ACCENT_KEY) === 'blue' ? 'blue' : 'teal';
-  } catch {
-    return 'teal';
-  }
-};
+const readTheme = (): Theme => (localStore.get(THEME_KEY) === 'dark' ? 'dark' : 'light');
+const readAccent = (): AccentId => (localStore.get(ACCENT_KEY) === 'blue' ? 'blue' : 'teal');
 
 /** Последняя точка нажатия – центр кругового раскрытия новой темы. */
 let lastPointer: { x: number; y: number } | null = null;
@@ -101,11 +84,7 @@ export const useUi = create<UiState>()((set, get) => ({
   accent: readAccent(),
   toggleTheme: () => {
     const theme: Theme = get().theme === 'dark' ? 'light' : 'dark';
-    try {
-      localStorage.setItem(THEME_KEY, theme);
-    } catch {
-      /* хранилище недоступно – тема живёт до перезагрузки */
-    }
+    localStore.set(THEME_KEY, theme);
     // Состояние обновляется внутри перехода: снимок новой темы включает и элементы, окрашенные из JS
     if (typeof document === 'undefined') return set({ theme });
     transitionAppearance(() => {
@@ -114,12 +93,8 @@ export const useUi = create<UiState>()((set, get) => ({
     });
   },
   setAppearance: (theme, accent) => {
-    try {
-      localStorage.setItem(THEME_KEY, theme);
-      localStorage.setItem(ACCENT_KEY, accent);
-    } catch {
-      // Appearance remains active for the current page if storage is unavailable.
-    }
+    localStore.set(THEME_KEY, theme);
+    localStore.set(ACCENT_KEY, accent);
     if (theme === get().theme && accent === get().accent) return;
     if (typeof document === 'undefined') return set({ theme, accent });
     transitionAppearance(() => {
@@ -131,11 +106,7 @@ export const useUi = create<UiState>()((set, get) => ({
   sidebarCollapsed: read(),
   toggleSidebar: () => {
     const v = !get().sidebarCollapsed;
-    try {
-      localStorage.setItem(KEY, v ? '1' : '0');
-    } catch {
-      /* хранилище недоступно – состояние живёт до перезагрузки */
-    }
+    localStore.set(KEY, v ? '1' : '0');
     set({ sidebarCollapsed: v });
   },
   overviewSearch: '',
