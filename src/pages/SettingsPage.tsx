@@ -42,6 +42,7 @@ const RULE_LABELS: Record<string, string> = {
   toleranceKw: 'Допуск по мощности',
   tolerancePct: 'Допуск по мощности',
   minStepKw: 'Минимальное изменение мощности для теста',
+  minCommandIntervalSec: 'Пауза между командами одному активу',
   requireBatterySetpoint: 'Проверять управление батареей',
   requirePvCurtailment: 'Проверять ограничение солнечных панелей',
   requiredWidgets: 'Обязательные показатели на панели',

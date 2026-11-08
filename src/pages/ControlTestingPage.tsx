@@ -5,6 +5,7 @@ import { compareVersions, controlAssets, getNextAction, latestByAsset, requiredT
 import { CheckBlocks } from '@/features/invoice-validation';
 import { StageActionBar } from '@/features/launch-card';
 import { AssetsTable, CommandDetail, CommandTimeline, ControlRuns, TestForm } from '@/features/control-testing';
+import { FixAssistant } from '@/features/fix/FixAssistant';
 import { StagePage } from '@/pages/StagePage';
 import { createSimulatorTransport } from '@/simulator/control';
 import { ANCHORS } from '@/config/blocker-links';
@@ -12,7 +13,7 @@ import { useLaunchStore } from '@/store';
 
 const BLOCKS = [
   { id: 'assets', title: 'Isolation', rules: ['CT-010'] },
-  { id: 'timeline', title: 'Sent', rules: ['CT-011', 'CT-016'] },
+  { id: 'timeline', title: 'Sent', rules: ['CT-011', 'CT-016', 'CT-017'] },
   { id: 'timeline', title: 'Received', rules: ['CT-012'] },
   { id: 'timeline', title: 'Responded', rules: ['CT-013'] },
   { id: 'assets', title: 'Battery', rules: ['CT-014'] },
@@ -92,7 +93,7 @@ export function ControlTestingPage() {
           После последней проверки выполнено новых тестов: {commands.length - lastRun!.commandsCount}. Запустите проверки этапа повторно.
         </Alert>
       )}
-      {next && stage.status !== 'COMPLETED' && <NextActionCard stageLabel="Управление" title={next.title} {...(next.reason ? { reason: next.reason } : {})} />}
+      {next && stage.status !== 'COMPLETED' && <NextActionCard stageLabel="Управление" title={next.title} {...(next.reason ? { reason: next.reason } : {})} action={<FixAssistant stageId="ASSET_CONTROL" ruleId={next.ruleId} />} />}
 
       <CheckBlocks results={stage.validationResults} stale={stale} blocks={BLOCKS} metrics={metrics} />
 
@@ -108,6 +109,7 @@ export function ControlTestingPage() {
             assets={assets}
             rules={rules}
             disabledReason={disabledReason}
+            commands={commands}
             onRun={(input) => {
               const cmd = runControlTest(input);
               if (cmd) setSelectedId(cmd.commandId);

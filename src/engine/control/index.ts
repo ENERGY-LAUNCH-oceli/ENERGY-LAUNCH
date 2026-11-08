@@ -12,5 +12,5 @@ export {
   UnsafeTransportError,
   type ControlTestRequest,
 } from './commands';
-export { latestByAsset, requiredTargets, validateControlTesting } from './rules';
+export { commandIntervalViolations, latestByAsset, nextCommandAllowedAt, requiredTargets, settledAt, validateControlTesting, type IntervalViolation } from './rules';
 export { makeControlRun } from './run';

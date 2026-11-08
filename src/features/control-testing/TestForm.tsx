@@ -3,8 +3,8 @@ import * as React from 'react';
 import { Button } from '@/components/ui/button';
 import { Field, Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
-import { checkCommandValue, expectedBand, suggestedValue } from '@/engine/control';
-import { SIM_SCENARIOS, type ControlAsset, type ControlTestingRules, type SimScenario } from '@/types';
+import { checkCommandValue, expectedBand, nextCommandAllowedAt, suggestedValue } from '@/engine/control';
+import { SIM_SCENARIOS, type ControlAsset, type ControlTestCommand, type ControlTestingRules, type SimScenario } from '@/types';
 import { cn } from '@/utils/cn';
 import { KIND_LABEL, SCENARIO_LABEL } from './labels';
 
@@ -12,16 +12,27 @@ export interface TestFormProps {
   assets: ControlAsset[];
   rules: ControlTestingRules;
   disabledReason: string | null;
+  /** Журнал команд – для паузы между командами одному активу (CT-017). */
+  commands?: readonly ControlTestCommand[];
   onRun: (input: { assetId: string; valueKw: number; scenario: SimScenario }) => void;
 }
 
 /** Тестовая команда: актив, значение мощности, сценарий имитатора. */
-export function TestForm({ assets, rules, disabledReason, onRun }: TestFormProps) {
+export function TestForm({ assets, rules, disabledReason, commands = [], onRun }: TestFormProps) {
   const testable = assets.filter((a) => a.supported);
   const [assetId, setAssetId] = React.useState(testable[0]?.assetId ?? '');
   const [scenario, setScenario] = React.useState<SimScenario>('NOMINAL');
   const asset = testable.find((a) => a.assetId === assetId) ?? testable[0];
   const [value, setValue] = React.useState(() => (asset ? String(suggestedValue(asset, 'NOMINAL')) : ''));
+  const allowedAt = asset ? nextCommandAllowedAt(commands, asset.assetId, rules) : null;
+  const waitMs = allowedAt ? Date.parse(allowedAt) - Date.now() : 0;
+  const [, rerender] = React.useReducer((n: number) => n + 1, 0);
+  // Пауза истекла – убрать подсказку
+  React.useEffect(() => {
+    if (waitMs <= 0) return;
+    const t = setTimeout(rerender, waitMs + 50);
+    return () => clearTimeout(t);
+  }, [waitMs]);
 
   const pick = (nextAsset: ControlAsset | undefined, nextScenario: SimScenario) => {
     if (nextAsset) setValue(String(suggestedValue(nextAsset, nextScenario)));
@@ -122,6 +133,12 @@ export function TestForm({ assets, rules, disabledReason, onRun }: TestFormProps
               Ожидание: приём ≤ {rules.ackTimeoutSec} с, фактическая мощность {asset.type === 'PV' ? `≤ ${band.upperKw}` : `${band.lowerKw} … ${band.upperKw}`} кВт не позже {rules.responseWindowSec} с после приёма.
             </p>
           )
+        )}
+
+        {waitMs > 0 && (
+          <p className="text-caption text-text-muted" role="status" data-testid="ct-interval-hint">
+            Пауза между командами {asset.assetId}: следующую – не раньше {new Date(allowedAt!).toLocaleTimeString('ru-RU')} ({rules.minCommandIntervalSec} с после результата предыдущей). Раньше – предупреждение CT-017: отклик нельзя однозначно отнести к команде.
+          </p>
         )}
 
         <Button type="submit" variant="accent" disabled={!!disabledReason || value.trim() === ''} title={disabledReason ?? undefined}>

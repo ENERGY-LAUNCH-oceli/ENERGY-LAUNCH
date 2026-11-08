@@ -71,6 +71,7 @@ const RULE_TARGET: Record<string, Target> = {
   'CT-014': { section: 'control', anchor: A.ctTest },
   'CT-015': { section: 'control', anchor: A.ctTest },
   'CT-016': { section: 'control', anchor: A.ctCommands },
+  'CT-017': { section: 'control', anchor: A.ctCommands },
   'DB-004': { section: 'dashboards', anchor: A.dbTabs, tab: 'builder' },
   'DB-015': { section: 'dashboards', anchor: A.dbTabs, tab: 'builder' },
   'DB-016': { section: 'dashboards', anchor: A.dbTabs, tab: 'acceptance' },

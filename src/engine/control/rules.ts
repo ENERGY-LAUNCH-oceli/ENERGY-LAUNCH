@@ -15,6 +15,66 @@ export function requiredTargets(passport: SitePassport | undefined, rules: Contr
 }
 
 const ids = (xs: readonly { assetId: string }[]) => xs.map((x) => x.assetId);
+
+/** Момент, когда результат команды установлен (последнее событие: пройдена, отказ или таймаут). */
+export const settledAt = (c: ControlTestCommand) => c.history.at(-1)?.at ?? c.createdAt;
+
+/** Не раньше какого момента можно отправлять следующую команду активу (CT-017); null – ограничения нет. */
+export function nextCommandAllowedAt(commands: readonly ControlTestCommand[], assetId: string, rules: ControlTestingRules): string | null {
+  if (rules.minCommandIntervalSec === undefined) return null;
+  const last = commands.filter((c) => c.assetId === assetId && c.sentAt).at(-1);
+  return last ? new Date(Date.parse(settledAt(last)) + rules.minCommandIntervalSec * 1000).toISOString() : null;
+}
+
+export interface IntervalViolation {
+  assetId: string;
+  commandId: string;
+  previousId: string;
+  /** Секунды от результата предыдущей команды до отправки этой; отрицательные – отправлена до результата. */
+  gapSec: number;
+}
+
+/** CT-017: команды одному активу с паузой меньше допустимой после результата предыдущей. */
+export function commandIntervalViolations(commands: readonly ControlTestCommand[], minSec: number): IntervalViolation[] {
+  const byAsset = new Map<string, ControlTestCommand[]>();
+  for (const c of commands) if (c.sentAt) byAsset.set(c.assetId, [...(byAsset.get(c.assetId) ?? []), c]);
+  const out: IntervalViolation[] = [];
+  for (const [assetId, list] of byAsset) {
+    const sorted = [...list].sort((a, b) => Date.parse(a.sentAt!) - Date.parse(b.sentAt!));
+    for (let i = 1; i < sorted.length; i++) {
+      const prev = sorted[i - 1]!;
+      const cur = sorted[i]!;
+      const gapSec = Math.round((Date.parse(cur.sentAt!) - Date.parse(settledAt(prev))) / 100) / 10;
+      if (gapSec < minSec) out.push({ assetId, commandId: cur.commandId, previousId: prev.commandId, gapSec });
+    }
+  }
+  return out;
+}
+
+function intervalsResult(commands: readonly ControlTestCommand[], rules: ControlTestingRules, env: ValidatorEnv): ValidationResult[] {
+  const min = rules.minCommandIntervalSec;
+  if (min === undefined) return [];
+  const sent = commands.filter((c) => c.sentAt);
+  const v = commandIntervalViolations(commands, min);
+  const describe = (x: IntervalViolation) => `${x.commandId} (${x.assetId}) – ${x.gapSec < 0 ? `отправлена до результата ${x.previousId}` : `через ${x.gapSec} с после результата ${x.previousId}`}`;
+  return [
+    makeResult(
+      'CT-017',
+      v.length === 0,
+      {
+        message: v.length
+          ? `Пауза между командами меньше ${min} с: ${v.map(describe).join(', ')}. Отклик таких команд нельзя однозначно отнести к ним – повторите тест после паузы`
+          : sent.length > 1
+            ? `Между командами одному активу не меньше ${min} с после результата предыдущей`
+            : 'Повторных команд одному активу нет',
+        actual: v.length,
+        expected: 0,
+        details: { assets: [...new Set(v.map((x) => x.assetId))], commands: v.map((x) => x.commandId), violations: v.map((x) => ({ ...x })) },
+      },
+      env,
+    ),
+  ];
+}
 const cmdLabel = (c: ControlTestCommand) => `${c.commandId} (${c.assetId}, ${c.state})`;
 
 /**
@@ -38,7 +98,7 @@ export function validateControlTesting(passport: SitePassport | undefined, comma
 
   if (!passport) {
     const skip = (['CT-011', 'CT-012', 'CT-013', 'CT-014', 'CT-015'] as const).map((id) => makeResult(id, 'SKIPPED', { message: 'Нет паспорта object.json – управляемые активы не определены' }, env));
-    return [ct10, ...skip, makeResult('CT-016', true, { message: 'Нет команд для анализа' }, env)];
+    return [ct10, ...skip, makeResult('CT-016', true, { message: 'Нет команд для анализа' }, env), ...intervalsResult(commands, rules, env)];
   }
 
   // Нет ни PV, ни батарей (ТЗ: «Не применимо» – при подтверждённом отсутствии актива): проверки управления не применимы,
@@ -46,7 +106,7 @@ export function validateControlTesting(passport: SitePassport | undefined, comma
   if (!passport.assets.some((a) => a.type === 'PV' || a.type === 'BATTERY')) {
     const na = (id: 'CT-011' | 'CT-012' | 'CT-013' | 'CT-014' | 'CT-015') =>
       makeResult(id, 'NOT_APPLICABLE', { message: 'В паспорте object.json нет управляемых активов (PV, батарей) – тест управления не применим; отсутствие подтверждает инженер ПНР в требованиях этапа' }, env);
-    return [ct10, na('CT-011'), na('CT-012'), na('CT-013'), na('CT-014'), na('CT-015'), makeResult('CT-016', true, { message: 'Нет команд для анализа' }, env)];
+    return [ct10, na('CT-011'), na('CT-012'), na('CT-013'), na('CT-014'), na('CT-015'), makeResult('CT-016', true, { message: 'Нет команд для анализа' }, env), ...intervalsResult(commands, rules, env)];
   }
 
   const targets = requiredTargets(passport, rules);
@@ -145,5 +205,5 @@ export function validateControlTesting(passport: SitePassport | undefined, comma
     env,
   );
 
-  return [ct10, ct11, ct12, ct13, ct14, ct15, ct16];
+  return [ct10, ct11, ct12, ct13, ct14, ct15, ct16, ...intervalsResult(commands, rules, env)];
 }

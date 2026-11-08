@@ -370,6 +370,17 @@ const RULES = [
     blocking: false,
     configRef: 'controlTesting.minStepKw',
   },
+  {
+    id: 'CT-017',
+    sinceRuleset: '1.6.0',
+    stageId: 'ASSET_CONTROL',
+    dimension: 'QUALITY',
+    title: 'Интервалы между командами',
+    description: 'Следующая команда активу отправлена не раньше заданной паузы после результата предыдущей – отклик однозначно относится к своей команде.',
+    severity: 'WARNING',
+    blocking: false,
+    configRef: 'controlTesting.minCommandIntervalSec',
+  },
   // ── Этап 4. Final Dashboards ──────────────────────────────────────────
   {
     id: 'DB-001',

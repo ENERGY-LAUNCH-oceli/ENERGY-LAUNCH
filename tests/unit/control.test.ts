@@ -1,7 +1,7 @@
 import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { ACTIVE_RULESET, RULESET_V1_2 } from '@/config/rules';
+import { ACTIVE_RULESET, RULESET_V1_2, RULESET_V1_5 } from '@/config/rules';
 import { buildControlCommands, demoPassport, type DemoPassportSpec } from '@/data/mock';
 import {
   checkCommandValue,
@@ -163,6 +163,49 @@ describe('правила этапа 3 (v1.3.0)', () => {
 
   it('правила зависят от версии набора: сессии v1.2 остаются на программе испытаний', () => {
     expect(getRulesForStage('ASSET_CONTROL', RULESET_V1_2.version).map((r) => r.id)).toEqual(['CT-001', 'CT-002', 'CT-003', 'CT-004', 'CT-005', 'CT-006']);
-    expect(getRulesForStage('ASSET_CONTROL', ACTIVE_RULESET.version).map((r) => r.id)).toEqual(['CT-010', 'CT-011', 'CT-012', 'CT-013', 'CT-014', 'CT-015', 'CT-016']);
+    expect(getRulesForStage('ASSET_CONTROL', RULESET_V1_5.version).map((r) => r.id)).toEqual(['CT-010', 'CT-011', 'CT-012', 'CT-013', 'CT-014', 'CT-015', 'CT-016']);
+    expect(getRulesForStage('ASSET_CONTROL', ACTIVE_RULESET.version).map((r) => r.id)).toEqual(['CT-010', 'CT-011', 'CT-012', 'CT-013', 'CT-014', 'CT-015', 'CT-016', 'CT-017']);
+  });
+});
+
+describe('интервалы команд (CT-017, v1.6.0)', () => {
+  const battery = asset('battery-1');
+  const at = (sec: number) => new Date(Date.parse('2026-11-05T09:00:00.000Z') + sec * 1000).toISOString();
+  const cmd = (n: number, startSec: number, value = n % 2 ? 50 : -50) => executeControlTest({ ...req(battery, value, 'NOMINAL', n), createdAt: at(startSec) }, rules, transport);
+  const ct17 = (commands: ReturnType<typeof cmd>[], r = rules) => validateControlTesting(passport, commands, r, env).find((x) => x.ruleId === 'CT-017');
+
+  it('пауза задана в действующем наборе, в 1.5.0 правила нет', () => {
+    expect(rules.minCommandIntervalSec).toBe(10);
+    expect(ct17([cmd(1, 0), cmd(2, 1)], RULESET_V1_5.controlTesting!)).toBeUndefined();
+  });
+
+  it('одна команда или команды разным активам – нарушений нет', () => {
+    expect(ct17([cmd(1, 0)])).toMatchObject({ status: 'PASSED', message: 'Повторных команд одному активу нет' });
+    const pv = executeControlTest({ ...req(asset('pv-1'), 10, 'NOMINAL', 2), createdAt: at(1) }, rules, transport);
+    expect(ct17([cmd(1, 0), pv])?.status).toBe('PASSED');
+  });
+
+  it('следующая команда до результата предыдущей – предупреждение с активом и командами, этап не блокируется', () => {
+    const first = cmd(1, 0);
+    const r = ct17([first, cmd(2, 1)])!;
+    expect(r).toMatchObject({ status: 'WARNING', blocking: false, actual: 1 });
+    expect(r.details).toMatchObject({ assets: ['battery-1'], commands: ['CMD-X-002'] });
+    expect(r.message).toContain('отправлена до результата CMD-X-001');
+  });
+
+  it('пауза после результата не меньше заданной – проходит; меньше – предупреждение с числом секунд', () => {
+    const first = cmd(1, 0);
+    const settled = (Date.parse(first.history.at(-1)!.at) - Date.parse(at(0))) / 1000;
+    // Отправка через 0,1 с после создания
+    expect(ct17([first, cmd(2, settled + 10)])?.status).toBe('PASSED');
+    const r = ct17([first, cmd(2, settled + 4.9)])!;
+    expect(r.status).toBe('WARNING');
+    expect(r.message).toContain('через 5 с после результата CMD-X-001');
+  });
+
+  it('отклонённые до отправки команды в интервалах не участвуют', () => {
+    const invalid = executeControlTest({ ...req(battery, 1000, 'INVALID_VALUE', 2), createdAt: at(1) }, rules, transport);
+    expect(invalid.sentAt).toBeNull();
+    expect(ct17([cmd(1, 0), invalid])?.status).toBe('PASSED');
   });
 });

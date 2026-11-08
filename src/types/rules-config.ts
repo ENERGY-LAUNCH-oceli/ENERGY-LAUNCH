@@ -114,6 +114,11 @@ export interface ControlTestingRules {
   tolerancePct: number;
   /** Минимальный шаг теста: уставка должна отличаться от текущей мощности, иначе отклик не наблюдаем. */
   minStepKw: number;
+  /**
+   * С версии 1.6.0 (CT-017): пауза между командами одному активу – следующая отправляется не раньше чем через N с
+   * после результата предыдущей, иначе отклик нельзя однозначно отнести к команде. В наборах до 1.6.0 нет.
+   */
+  minCommandIntervalSec?: number;
   /** Обязательные тесты. */
   requireBatterySetpoint: boolean;
   requirePvCurtailment: boolean;

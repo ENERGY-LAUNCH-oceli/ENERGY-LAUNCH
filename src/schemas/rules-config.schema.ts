@@ -75,6 +75,7 @@ export const rulesConfigSchema = z
         toleranceKw: z.number().min(0),
         tolerancePct: percentSchema,
         minStepKw: z.number().min(0),
+        minCommandIntervalSec: z.number().min(0).optional(),
         requireBatterySetpoint: z.boolean(),
         requirePvCurtailment: z.boolean(),
       })
