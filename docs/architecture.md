@@ -17,8 +17,9 @@ components, store  (без React/сети)    src/simulator
 | --- | --- | --- |
 | Интерфейс | `app/`, `pages/`, `layouts/`, `components/`, `features/`, `hooks/` | Без порогов и проверок в компонентах |
 | Загрузка «куда угодно» | `services/file-route.ts`, `features/drop` | Тип файла и объект определяются по содержимому; порядок паспорт → история → телеметрия |
-| Страницы состояния | `errors/` (коды, анимации, статические страницы), `components/errors` | Коды HTTP, «Нет подключения», `/status/<код>.html` для nginx, `sw.js` – [status-pages.md](status-pages.md) |
-| Хранилище | `store/launch-store.ts`, `services/server-storage.ts` | Тонкий адаптер: вызывает движок, кладёт результат в состояние, сохраняет в PostgreSQL (или IndexedDB без сервера) с ревизией объекта; подтягивает изменения других вкладок; проверяет права роли |
+| Страницы состояния | `errors/` (коды, статические страницы), `components/errors` | Коды HTTP, «Нет подключения», `/status/<код>.html` для nginx, `sw.js` – [status-pages.md](status-pages.md) |
+| Хранилище | `store/launch-store.ts` (действия), `store/persistence.ts` (контракт `LaunchPersistence` и адаптеры: PostgreSQL, IndexedDB, без сохранения), `store/remote-sync.ts` (ревизии, другие вкладки, конфликты), `services/server-storage.ts` | Тонкий адаптер: вызывает движок, кладёт результат в состояние, пишет события журнала одной функцией `record()` (фабрика событий – `engine/state-machine/audit-event.ts`), сохраняет через `LaunchPersistence`; проверяет права роли |
+| Общие утилиты | `utils/download.ts`, `utils/csv.ts`, `utils/local-store.ts` | Скачивание файла, CSV в формате кейса (BOM, «;»), безопасный `localStorage` для удобств интерфейса |
 | Сервер | `server/` | HTTP API хранилища: объекты, состояния запуска, журнал аудита только на добавление; решений о запуске не принимает |
 | Движок | `engine/state-machine`, `engine/validators`, `engine/invoice`, `engine/telemetry`, `engine/control`, `engine/dashboards`, `engine/trail` | Чистые функции; время и ID – через `EngineContext`, поэтому прогоны воспроизводимы |
 | Данные | `data/case4` (набор кейса), `data/mock` (генераторы), `data/objects` (каталог), `services` (Dexie, импорт CSV) | Валидация входа – Zod |
