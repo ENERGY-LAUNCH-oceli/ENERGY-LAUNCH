@@ -4,29 +4,20 @@ import { useNavigate } from 'react-router-dom';
 import { ROUTES } from '@/app/routes';
 import { Button } from '@/components/ui/button';
 import { StatusBadge } from '@/components/ui/status-badge';
+import { BaselineComparison } from '@/features/scenarios/BaselineComparison';
 import { STAGE_SHORT, Stat } from '@/features/trail/shared';
-import { qualityMetrics, runScenario, sandboxId, SCENARIOS, type ScenarioDef, type ScenarioRun } from '@/scenarios';
+import { qualityMetrics, runScenario, sandboxId, SCENARIO_RULESET, SCENARIOS, type ScenarioDef, type ScenarioRun } from '@/scenarios';
 import { useLaunchStore } from '@/store';
 import { STAGE_IDS } from '@/types';
 import { cn } from '@/utils/cn';
 
-const BASELINE_KEY = 'el.scenarios.baseline';
 const pct = (a: number, b: number) => (b ? `${Math.round((a / b) * 100)} %` : '–');
-
-function loadBaseline(): Record<number, string> {
-  try {
-    return JSON.parse(localStorage.getItem(BASELINE_KEY) ?? '{}') as Record<number, string>;
-  } catch {
-    return {};
-  }
-}
 
 /** Demo Scenarios: 11 сценариев ТЗ, каждый – в своей песочнице на собственном воспроизводимом наборе. */
 export function ScenariosPage() {
   const [runs, setRuns] = React.useState<Record<number, ScenarioRun>>({});
   const [busy, setBusy] = React.useState<number | 'all' | null>(null);
   const [open, setOpen] = React.useState<number | null>(null);
-  const [baseline, setBaseline] = React.useState<Record<number, string>>(loadBaseline);
   const navigate = useNavigate();
 
   const run = (def: ScenarioDef) =>
@@ -55,16 +46,6 @@ export function ScenariosPage() {
     });
     setRuns(({ [n]: _r, ...rest }) => rest);
   };
-  const saveBaseline = (n: number, v: string) => {
-    const next = { ...baseline, [n]: v };
-    setBaseline(next);
-    try {
-      localStorage.setItem(BASELINE_KEY, JSON.stringify(next));
-    } catch {
-      /* хранилище недоступно – значение живёт до перезагрузки */
-    }
-  };
-
   const done = Object.values(runs);
   const evalRuns = done.filter((r) => r.def.evaluation);
   const m = qualityMetrics(done);
@@ -177,51 +158,7 @@ export function ScenariosPage() {
         })}
       </ol>
 
-      <section className="flex flex-col gap-3">
-        <div className="flex flex-col gap-1">
-          <h2 className="text-h3">Сравнение с ручной проверкой</h2>
-          <p className="max-w-3xl text-body-sm text-text-muted">Время ручной проверки вводится по фактическому замеру. Без замера показывается «не измерено» – значения не подставляются.</p>
-        </div>
-        <div className="overflow-x-auto rounded-lg border border-border bg-surface">
-          <table className="w-full min-w-[640px] text-body-sm" data-testid="baseline-table">
-            <thead className="border-b border-border">
-              <tr>
-                {['Сценарий', 'Прототип', 'Ручная проверка, мин', 'Разница'].map((h) => (
-                  <th key={h} className="whitespace-nowrap px-3 py-2.5 text-left font-mono text-[11px] font-normal uppercase tracking-[0.06em] text-text-muted first:pl-5 last:pr-5">
-                    {h}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {SCENARIOS.map((def) => {
-                const ms = runs[def.n]?.outcome.workspace.durationMs;
-                const manual = Number.parseFloat((baseline[def.n] ?? '').replace(',', '.'));
-                const measured = Number.isFinite(manual) && manual > 0;
-                return (
-                  <tr key={def.n} className="border-b border-border last:border-0">
-                    <td className="px-3 py-2.5 first:pl-5">
-                      {def.n}. {def.title}
-                    </td>
-                    <td className="tabular px-3 py-2.5">{ms === undefined ? 'не запускался' : `${(ms / 1000).toFixed(2)} с`}</td>
-                    <td className="px-3 py-2.5">
-                      <input
-                        inputMode="decimal"
-                        aria-label={`Ручная проверка, сценарий ${def.n}`}
-                        placeholder="не измерено"
-                        value={baseline[def.n] ?? ''}
-                        onChange={(e) => saveBaseline(def.n, e.target.value)}
-                        className="h-8 w-32 rounded-md border border-border bg-surface px-2 text-body-sm placeholder:text-text-muted focus:border-accent focus:outline-none"
-                      />
-                    </td>
-                    <td className="tabular px-3 py-2.5 last:pr-5 text-text-muted">{measured && ms !== undefined ? `в ${Math.round((manual * 60000) / Math.max(ms, 1)).toLocaleString('ru-RU')} раз быстрее` : 'не измерено'}</td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      </section>
+      <BaselineComparison runs={runs} rulesetVersion={SCENARIO_RULESET.version} />
     </div>
   );
 }
