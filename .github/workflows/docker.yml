@@ -1,0 +1,42 @@
+# Сборка и запуск Docker-образов (docker compose): приложение, API, PostgreSQL. Пароль базы создаётся на время прогона
+# и в журнал не выводится; данные кейса 4 в образ не входят (ТЗ 4.3).
+name: Docker
+
+on:
+  push:
+    branches: [claude/energy-launch-phase-01-ss2k8x]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  compose:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Пароль базы только для прогона
+        run: umask 077 && echo "POSTGRES_PASSWORD=$(openssl rand -hex 24)" > .env
+
+      - name: Сборка образов
+        run: docker compose build
+
+      - name: Запуск и ожидание healthcheck
+        run: docker compose up -d --wait --wait-timeout 240
+
+      - name: Проверки
+        run: bash scripts/docker-smoke.sh http://127.0.0.1:8080
+
+      - name: Размер образов
+        run: docker image ls --format '{{.Repository}}:{{.Tag}} {{.Size}}' | grep energy-launch
+
+      - name: Журналы контейнеров
+        if: failure()
+        run: docker compose logs --no-color
+
+      - name: Остановка
+        if: always()
+        run: docker compose down -v
