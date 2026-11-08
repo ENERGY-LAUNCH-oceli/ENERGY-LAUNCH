@@ -54,10 +54,6 @@ export function isUsable(m: Measurement): boolean {
   return m.value !== null && m.quality !== 'MISSING';
 }
 
-export function sortByTime(measurements: readonly Measurement[]): Measurement[] {
-  return [...measurements].sort((a, b) => toMs(a.timestamp) - toMs(b.timestamp));
-}
-
 export function median(values: readonly number[]): number | null {
   if (values.length === 0) return null;
   const s = [...values].sort((a, b) => a - b);

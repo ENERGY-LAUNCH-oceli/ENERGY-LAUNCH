@@ -171,7 +171,6 @@ export const stageStatusThemes: Record<ThemeId, Record<'NOT_STARTED' | 'IN_PROGR
     COMPLETED: { fg: dark.success, bg: dark.successSubtle, border: dark.successBorder, solid: '#3DB07A' },
   },
 };
-export const stageStatusColors = stageStatusThemes.light;
 
 /** Шрифты: Inter – текст, Inter Tight – заголовки и крупные числа, JetBrains Mono – коды, ID, даты. */
 export const fontFamily = {
@@ -232,9 +231,6 @@ export const motion = {
   slow: '400ms',
   easing: 'cubic-bezier(0.16, 1, 0.3, 1)',
 } as const;
-
-/** Цвета рядов для графиков (порядок важен). */
-export const chartSeries = [palette.teal500, palette.blue600, palette.navy900, palette.teal300] as const;
 
 /** Преобразование HEX → "r g b" для CSS-переменных с поддержкой прозрачности. */
 export function hexToRgbChannels(hex: string): string {
