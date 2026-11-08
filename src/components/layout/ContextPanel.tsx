@@ -1,4 +1,4 @@
-import { ArrowRight, PanelRightClose, PanelRightOpen } from 'lucide-react';
+import { ArrowRight, PanelRightClose } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { ROUTES } from '@/app/routes';
 import { AuditTimeline } from '@/components/launch';
@@ -20,24 +20,27 @@ export function ContextPanel({ objectId }: { objectId: string }) {
   const audit = useLaunchStore((s) => s.auditLog);
   if (!session) return null;
 
-  if (!open)
-    return (
-      <div className="hidden 2xl:block">
-        <Button variant="secondary" size="icon" aria-label="Показать контекстную панель" onClick={() => setOpen(true)} className="sticky top-24">
-          <PanelRightOpen />
-        </Button>
-      </div>
-    );
-
   const next = getNextAction(session, session.currentStageId, ruleset);
+  // Панель не исчезает, а плавно сужается до кнопки: ширина меняется, содержимое гаснет и уезжает вправо,
+  // колонка слева расширяется вместе с ней. Внутренний блок прижат к правому краю – кнопка всегда на месте.
   return (
-    <aside aria-label="Контекст объекта" className="sticky top-24 hidden h-fit w-80 shrink-0 flex-col gap-4 2xl:flex">
+    <aside
+      aria-label="Контекст объекта"
+      data-open={open}
+      className="sticky top-24 hidden h-fit shrink-0 justify-end overflow-hidden transition-[width] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none 2xl:flex"
+      style={{ width: open ? 320 : 36 }}
+    >
+      <div className="flex w-80 shrink-0 flex-col gap-4">
       <div className="flex items-center justify-between">
-        <span className="text-label text-text-muted">Контекст</span>
-        <Button variant="ghost" size="icon-sm" aria-label="Скрыть контекстную панель" onClick={() => setOpen(false)}>
-          <PanelRightClose />
+        <span className={cn('text-label text-text-muted transition-opacity duration-200', open ? 'opacity-100 delay-100' : 'opacity-0')}>Контекст</span>
+        <Button variant={open ? 'ghost' : 'secondary'} size="icon-sm" aria-label={open ? 'Скрыть контекстную панель' : 'Показать контекстную панель'} aria-expanded={open} onClick={() => setOpen(!open)}>
+          <PanelRightClose className={cn('transition-transform duration-300', !open && 'rotate-180')} />
         </Button>
       </div>
+      <div
+        inert={!open}
+        className={cn('flex flex-col gap-4 transition-[opacity,transform] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none', open ? 'translate-x-0 opacity-100 delay-75' : 'pointer-events-none translate-x-6 opacity-0')}
+      >
       {next && (
         <div className="rounded-lg border border-accent/35 bg-accent-subtle p-4">
           <span className="flex items-center gap-2 text-label text-accent-strong">
@@ -74,6 +77,8 @@ export function ContextPanel({ objectId }: { objectId: string }) {
           </Link>
         </div>
         <AuditTimeline events={audit} limit={4} />
+      </div>
+      </div>
       </div>
     </aside>
   );
