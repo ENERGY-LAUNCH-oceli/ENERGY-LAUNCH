@@ -40,11 +40,19 @@ const files = walk(ROOT)
     return entry;
   });
 
+// Версия действующего набора правил: из src/config/rules (index.ts → ruleset.vX_Y.ts)
+const rulesDir = join(ROOT, '..', '..', 'src', 'config', 'rules');
+const active = /ACTIVE_RULESET\s*=\s*RULESET_V(\d+)(?:_(\d+))?/.exec(readFileSync(join(rulesDir, 'index.ts'), 'utf8'));
+const rulesFile = active ? `ruleset.v${active[1]}${active[2] ? `_${active[2]}` : ''}.ts` : null;
+const rulesetVersion = rulesFile ? (/version:\s*'([^']+)'/.exec(readFileSync(join(rulesDir, rulesFile), 'utf8'))?.[1] ?? null) : null;
+
 const objects = [...new Set(files.map((f) => f.path.split('/')[0]).filter((d) => d.startsWith('Building')))];
 const manifest = {
   dataset: 'Кейс 4. Запуск энергетического объекта на платформе – набор участника',
   source: 'Кейсодержатели хакатона (выдан для чтения)',
   synthetic: 'не указано в наборе; данные обезличены или синтетические (ТЗ 4.3 п. 5)',
+  rulesetVersion,
+  createdAt: new Date().toISOString(),
   schema: { csv: { delimiter: ';', decimal: ',', encoding: 'UTF-8 BOM', timestamp: 'ISO 8601 UTC, начало 15-минутного интервала', unitInHeader: true } },
   objects,
   files,

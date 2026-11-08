@@ -113,18 +113,18 @@ describe('точные сообщения вместо абстрактных', 
   it('EAN: указан конкретный код и причина', () => {
     const i = loadScenario('happy-path').inputs;
     // EAN берётся из паспорта object.json (ТЗ) – ошибка в паспорте видна в MH-011
-    const object = { ...i.object, gridConnection: { ...i.object.gridConnection, eanOfftake: '54144886001127394' } };
-    const passport = i.passport ? { ...i.passport, ean: { ...i.passport.ean, offtake: '54144886001127394' } } : undefined;
+    const object = { ...i.object, gridConnection: { ...i.object.gridConnection, eanOfftake: '54144889900000007' } };
+    const passport = i.passport ? { ...i.passport, ean: { ...i.passport.ean, offtake: '54144889900000007' } } : undefined;
     const s0 = unwrap(startStage(createLaunchSession(DEMO_OBJECT_ID, cfg.version, ctx), 'METER_HISTORY', ctx));
     const s = unwrap(validateStage(s0, 'METER_HISTORY', { ...i, object, ...(passport ? { passport } : {}) }, cfg, ctx));
-    expect(s.stages.METER_HISTORY.validationResults.find((r) => r.ruleId === 'MH-011')!.message).toBe('EAN offtake 54144886001127394: 17 цифр вместо 18');
+    expect(s.stages.METER_HISTORY.validationResults.find((r) => r.ruleId === 'MH-011')!.message).toBe('EAN offtake 54144889900000007: 17 цифр вместо 18');
   });
 });
 
 describe('исправленный паспорт снимает препятствие EAN', () => {
   it('EAN описания объекта неверный, а в загруженном паспорте – верный: MH-011 проходит', () => {
     const i = loadScenario('happy-path').inputs;
-    const object = { ...i.object, gridConnection: { ...i.object.gridConnection, eanInjection: '541448860011140653' } };
+    const object = { ...i.object, gridConnection: { ...i.object.gridConnection, eanInjection: '541448899000000143' } };
     const s0 = unwrap(startStage(createLaunchSession(DEMO_OBJECT_ID, cfg.version, ctx), 'METER_HISTORY', ctx));
     const s = unwrap(validateStage(s0, 'METER_HISTORY', { ...i, object }, cfg, ctx));
     expect(s.stages.METER_HISTORY.validationResults.find((r) => r.ruleId === 'MH-011')!.status).toBe('PASSED');
