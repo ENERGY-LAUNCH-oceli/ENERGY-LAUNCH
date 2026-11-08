@@ -1,7 +1,8 @@
 import { ANCHORS } from '@/config/blocker-links';
+import { suggestedValue } from '@/engine/control/commands';
 import { gs1CheckDigit } from '@/engine/invoice/format';
 import type { TourStep } from '@/features/tour/tours';
-import type { SitePassport, ValidationResult } from '@/types';
+import type { ControlAsset, SitePassport, ValidationResult } from '@/types';
 
 /**
  * «Помочь исправить»: по проваленной проверке – данные объекта, которые её вызвали, варианты исправления
@@ -24,6 +25,8 @@ export interface FixOption {
   passport?: (p: SitePassport) => SitePassport;
   /** Что изменится – для показа «было → станет». */
   change?: { from: string; to: string };
+  /** Тесты управления: номинальная команда каждому активу (только локальный имитатор). */
+  control?: { assetId: string; valueKw: number }[];
 }
 
 export interface FixPlan {
@@ -177,12 +180,50 @@ function dataPlan(result: ValidationResult, passport: SitePassport | undefined):
   };
 }
 
+/* ---------- Управление: тест каждому активу без успешного результата ---------- */
+
+const CONTROL_RULES = /^CT-01[1-5]$/;
+const controlPage = (c: { objectId: string }) => `/objects/${encodeURIComponent(c.objectId)}/control`;
+
+function controlPlan(result: ValidationResult, assets: readonly ControlAsset[]): FixPlan {
+  const listed = list(result.details?.assets);
+  const targets = assets.filter((a) => a.supported && (listed.length ? listed.includes(a.assetId) : true));
+  const tests = targets.map((a) => ({ asset: a, valueKw: suggestedValue(a, 'NOMINAL') }));
+  const kind = (a: ControlAsset) => (a.type === 'BATTERY' ? 'уставка мощности батареи' : 'ограничение выработки PV');
+  return {
+    title: 'Тесты управления',
+    summary: result.message,
+    facts: tests.map(({ asset, valueKw }) => ({
+      label: `${asset.assetId} · ${kind(asset)}`,
+      value: `сейчас ${asset.bench.currentPowerKw} кВт · команда ${valueKw} кВт${asset.bench.controller !== 'ONLINE' ? ` · контроллер ${asset.bench.controller}` : ''}`,
+      tone: 'bad' as const,
+    })),
+    options: tests.length
+      ? [
+          {
+            id: 'control',
+            title: `Отправить тестовые команды: ${short(tests.map((t) => t.asset.assetId))}`,
+            text: 'Каждому активу – номинальная команда с допустимым значением (половина номинала батареи, ниже текущей выработки PV). Команды уходят только в локальный имитатор контроллера – реальное оборудование не управляется. После тестов проверки этапа повторятся.',
+            control: tests.map((t) => ({ assetId: t.asset.assetId, valueKw: t.valueKw })),
+          },
+        ]
+      : [],
+    tour: [
+      { title: 'Управляемые активы', text: 'Активы объекта с текущей мощностью на стенде имитатора и результатом последнего теста.', route: controlPage, target: `#${ANCHORS.ctAssets}` },
+      { title: 'Тестовая команда', text: 'Выберите актив, оставьте сценарий «Номинальный» и значение по умолчанию – оно уже в допустимом диапазоне – и нажмите «Отправить тестовую команду». Повторите для каждого актива.', route: controlPage, target: `#${ANCHORS.ctTest}` },
+      { title: 'Журнал команд', text: 'Каждая команда – три события: отправлена, принята контроллером, актив изменил мощность. Тест засчитан, когда есть все три.', route: controlPage, target: `#${ANCHORS.ctCommands}` },
+      { title: 'Повторная проверка', text: 'Когда все активы протестированы, нажмите «Повторить проверки» – этап разблокируется.', route: controlPage, target: '[data-tour="stage-actions"]' },
+    ],
+  };
+}
+
 const PASSPORT_RULES: Record<string, (r: ValidationResult, p: SitePassport | undefined) => FixPlan> = { 'MH-011': eanPlan, 'TM-002': signalMapPlan };
 const DATA_RULES = /^(MH-00[1-9]|MH-01[02]|TM-00[3-9]|TM-01[01])$/;
 
-/** План исправления для проверки; null – помощника для неё нет (управление и дашборды исправляются на своих страницах). */
-export function buildFixPlan(result: ValidationResult | undefined, passport: SitePassport | undefined): FixPlan | null {
+/** План исправления для проверки; null – помощника для неё нет (дашборды исправляются в конструкторе и приёмке). */
+export function buildFixPlan(result: ValidationResult | undefined, passport: SitePassport | undefined, assets: readonly ControlAsset[] = []): FixPlan | null {
   if (!result || result.status !== 'FAILED') return null;
+  if (CONTROL_RULES.test(result.ruleId)) return assets.length ? controlPlan(result, assets) : null;
   const special = PASSPORT_RULES[result.ruleId];
   if (special) return special(result, passport);
   return DATA_RULES.test(result.ruleId) ? dataPlan(result, passport) : null;
