@@ -277,7 +277,7 @@ async function statsFor(db: Db, user: AuthUser) {
 /** Есть сотрудники – API данных только для вошедших. Возвращает сотрудника (или null, если вход не настроен). */
 export async function guard(db: Db, req: IncomingMessage, path: string): Promise<AuthUser | null> {
   if (path === '/api/health' || path.startsWith('/api/help/')) return null;
-  if (!(await usersExist(db))) return null;
+  if (!(await usersExist(db))) throw new AuthError(401, 'сначала создайте учётную запись администратора');
   const user = await currentUser(db, req);
   if (!user) throw new AuthError(401, 'нужно войти');
   return user;
