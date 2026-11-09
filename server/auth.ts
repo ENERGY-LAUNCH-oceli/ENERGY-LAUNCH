@@ -85,6 +85,19 @@ function loginKey(req: IncomingMessage, login: string): string {
   return `${clientAddress(req)}:${login}`;
 }
 
+function checkLoginRate(req: IncomingMessage, login: string): number | null {
+  const now = Date.now();
+  pruneLoginAttempts(now);
+  const key = loginKey(req, login);
+  const current = loginAttempts.get(key);
+  if (!current || current.resetAt <= now) {
+    loginAttempts.set(key, { count: 0, resetAt: now + LOGIN_WINDOW_MS });
+    return null;
+  }
+  if (current.count >= LOGIN_MAX_ATTEMPTS) return Math.ceil((current.resetAt - now) / 1000);
+  return null;
+}
+
 }
 
 const usersExist = async (db: Db) => (await db.query<{ n: number }>('select count(*)::int as n from users'))[0]!.n > 0;
