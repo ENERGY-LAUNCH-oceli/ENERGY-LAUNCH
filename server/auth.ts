@@ -64,7 +64,7 @@ function cookieToken(req: IncomingMessage): string | null {
 }
 
 function setCookie(req: IncomingMessage, res: ServerResponse, token: string | null) {
-  const secure = req.headers['x-forwarded-proto'] === 'https' ? '; Secure' : '';
+  const secure = process.env.NODE_ENV === 'production' || req.headers['x-forwarded-proto'] === 'https' ? '; Secure' : '';
   res.setHeader('Set-Cookie', token ? `${COOKIE}=${token}; HttpOnly; SameSite=Strict; Path=/; Max-Age=${SESSION_DAYS * 86400}${secure}` : `${COOKIE}=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0${secure}`);
 }
 
