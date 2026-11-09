@@ -9,6 +9,7 @@ Wants=network-online.target postgresql.service
 Type=simple
 User=elaunch
 Group=elaunch
+Environment=NODE_ENV=production
 WorkingDirectory=/opt/energy-launch/app
 EnvironmentFile=/etc/energy-launch/api.env
 ExecStart=/usr/bin/node --disable-warning=ExperimentalWarning server/index.ts
