@@ -12,6 +12,12 @@ import type { Db } from './db.ts';
 const scrypt = promisify(scryptCb) as (pw: string, salt: Buffer, len: number) => Promise<Buffer>;
 const COOKIE = 'el_session';
 const SESSION_DAYS = 14;
+const LOGIN_WINDOW_MS = 15 * 60_000;
+const LOGIN_MAX_ATTEMPTS = 5;
+const LOGIN_ATTEMPTS_MAX_KEYS = 10_000;
+
+type LoginAttempt = { count: number; resetAt: number };
+const loginAttempts = new Map<string, LoginAttempt>();
 
 export const ROLES = ['ADMIN', 'LAUNCH_ENGINEER', 'OPERATOR', 'ACCEPTANCE_OFFICER'] as const;
 export type Role = (typeof ROLES)[number];
