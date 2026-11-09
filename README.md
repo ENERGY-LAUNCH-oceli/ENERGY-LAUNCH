@@ -1,10 +1,19 @@
-# ENERGY LAUNCH
+<div align="center">
 
-| | |
-| --- | --- |
-| **Команда** | DigitalRevision · код **T004** |
-| **Кейс** | Кейс 4. Запуск энергетического объекта на платформе (паспорт OE-04) |
-| **Демо-стенд** | https://elaunch.xroyse.ru |
+<a href="https://elaunch.xroyse.ru"><img src="docs/assets/banner.png" width="100%" alt="ENERGY LAUNCH – запуск энергетического объекта на платформе"></a>
+
+<a href="https://elaunch.xroyse.ru"><img src="https://img.shields.io/badge/elaunch.xroyse.ru-%D0%BE%D1%82%D0%BA%D1%80%D1%8B%D1%82%D1%8C-018A98?style=for-the-badge&labelColor=031A30" alt="Демо-стенд: elaunch.xroyse.ru"></a>
+<img src="https://img.shields.io/badge/%D0%BA%D0%BE%D0%BC%D0%B0%D0%BD%D0%B4%D0%B0-DigitalRevision_%C2%B7_T004-015BB0?style=for-the-badge&labelColor=031A30" alt="Команда: DigitalRevision, код T004">
+<img src="https://img.shields.io/badge/%D0%BA%D0%B5%D0%B9%D1%81_4-%D0%B7%D0%B0%D0%BF%D1%83%D1%81%D0%BA_%D1%8D%D0%BD%D0%B5%D1%80%D0%B3%D0%BE%D0%BE%D0%B1%D1%8A%D0%B5%D0%BA%D1%82%D0%B0-015BB0?style=for-the-badge&labelColor=031A30" alt="Кейс 4: запуск энергообъекта">
+<br>
+<a href="#docker"><img src="https://img.shields.io/badge/docker_compose-nginx_%C2%B7_api_%C2%B7_postgresql-018A98?style=for-the-badge&labelColor=031A30&logo=docker&logoColor=white" alt="Docker Compose: nginx, API, PostgreSQL"></a>
+<img src="https://img.shields.io/badge/react_19-typescript_%C2%B7_node.js_22-018A98?style=for-the-badge&labelColor=031A30&logo=react&logoColor=white" alt="React 19, TypeScript, Node.js 22">
+<a href="#выполненные-тесты"><img src="https://img.shields.io/badge/%D1%82%D0%B5%D1%81%D1%82%D1%8B-268_unit_%C2%B7_33_e2e-2E9E6B?style=for-the-badge&labelColor=031A30" alt="Тесты: 268 unit, 33 e2e"></a>
+
+<sub>Команда <b>DigitalRevision</b> · код <b>T004</b> · Кейс 4. Запуск энергетического объекта на платформе (паспорт OE-04)</sub><br>
+<sub><a href="#основной-сценарий-проверки">Как проверить</a> · <a href="docs/architecture.md">Документация</a> · <a href="docs/requirements-checklist.md">Чек-лист требований ТЗ</a> · <a href="#известные-ограничения">Ограничения</a></sub>
+
+</div>
 
 ## Какую задачу решает
 
@@ -34,7 +43,14 @@
 - **Загрузка данных**: `invoice.csv`, `telemetry.csv`, `object.json` по этапам или «брось файл куда угодно» –
   тип и объект определяются по содержимому. Реальный набор кейса (Building1–6) разбирается в Web Worker потоково.
 - **Роли и права** – инженер запуска, оператор, ответственный за приёмку; права проверяются в движке, отказ пишется
-  в журнал. Вход по логину и паролю, личный кабинет и админ-панель – при работе с сервером.
+  в журнал. Демо-роли переключаются в меню профиля и работают вместе со входом.
+- **Вход и сеансы** (при работе с сервером): окно входа, первый вход создаёт администратора; пароли – хэш scrypt,
+  сеанс – случайный токен в HttpOnly-cookie (в базе – только его хэш). С `AUTH_REQUIRED=1` вход обязателен для всего сайта.
+- **Личный кабинет** (`/me`): профиль и роль, метрики сотрудника (действий всего и за 7 дней, объектов в работе,
+  входов и последний вход), последние действия из журнала аудита, смена пароля.
+- **Админ-панель** (`/admin`, только роль «Администратор», проверка на сервере): метрики (сотрудники, активные за 7 дней,
+  действия за 24 ч, открытые сеансы, отключённые), создание сотрудника с генерацией пароля, смена роли, сброс пароля
+  и отключение – сеансы сотрудника при этом закрываются; отключить себя или снять с себя роль администратора нельзя.
 - **Журнал и протокол**: сквозной журнал с воспроизведением статуса на момент записи, выгрузка журнала объекта
   в JSON и CSV, протокол готовности с экспортом в PDF.
 - **11 сценариев ТЗ** (`/scenarios`) – каждый в своей песочнице через настоящие проверки и переходы; метрики
@@ -45,9 +61,34 @@
 - **Обучение** (`/help`): уроки и туры по каждому блоку, FAQ, помощник по сайту без внешних ИИ-сервисов.
 - **Хранилище**: PostgreSQL через API сервера (без `DATABASE_URL` – встроенный PGlite); несколько вкладок и
   пользователей – ревизии, устаревшая запись отклоняется (409). Без сервера – работа в браузере.
-- **Эксплуатация**: Docker (nginx со строгой CSP, API, PostgreSQL), страницы состояния HTTP и «Нет подключения».
+- **Страницы ошибок и «Нет подключения»** – одна страница для всех 63 кодов HTTP из реестра IANA (1xx–5xx) и для
+  отсутствия сети, в стиле окна входа: что произошло, что делать, кнопки. Где работают:
+  - `/errors` – справочник всех кодов; `/errors/<код>` – страница кода; любой несуществующий адрес – 404 сразу, без прелоадера;
+  - `/status/<код>.html` – статические страницы, которые nginx отдаёт, когда приложение не загрузилось или API не отвечает (502, 504…);
+  - связь пропала в открытой вкладке – экран «Нет подключения» поверх приложения (данные остаются, можно продолжить
+    без сети), при возврате связи экран закрывается сам;
+  - страницу открыли или обновили без сети – service worker показывает `/offline.html`; приложение и API не кешируются.
+- **Эксплуатация**: Docker (nginx со строгой CSP, API, PostgreSQL), развёртывание на сервере с HTTPS ([docs/deploy.md](docs/deploy.md)).
+
+## Стек технологий
+
+| Слой | Технологии |
+| --- | --- |
+| **Интерфейс** | <img src="https://img.shields.io/badge/React_19-0B2236?style=for-the-badge&logo=react&logoColor=61DAFB" alt="React 19"> <img src="https://img.shields.io/badge/TypeScript_5.9-0B2236?style=for-the-badge&logo=typescript&logoColor=3178C6" alt="TypeScript 5.9"> <img src="https://img.shields.io/badge/Vite_7-0B2236?style=for-the-badge&logo=vite&logoColor=A855F7" alt="Vite 7"> <img src="https://img.shields.io/badge/Tailwind_CSS_3-0B2236?style=for-the-badge&logo=tailwindcss&logoColor=38BDF8" alt="Tailwind CSS 3"> <img src="https://img.shields.io/badge/Radix_UI-0B2236?style=for-the-badge&logo=radixui&logoColor=white" alt="Radix UI"> <img src="https://img.shields.io/badge/React_Router_7-0B2236?style=for-the-badge&logo=reactrouter&logoColor=F44250" alt="React Router 7"> <img src="https://img.shields.io/badge/Zustand_5-0B2236?style=for-the-badge" alt="Zustand 5"> <img src="https://img.shields.io/badge/TanStack_Table-0B2236?style=for-the-badge&logo=reacttable&logoColor=FF4154" alt="TanStack Table"> <img src="https://img.shields.io/badge/Lucide-0B2236?style=for-the-badge&logo=lucide&logoColor=F56565" alt="Lucide"> |
+| **Данные и проверки** | <img src="https://img.shields.io/badge/Zod_4-0B2236?style=for-the-badge&logo=zod&logoColor=3E67B1" alt="Zod 4"> <img src="https://img.shields.io/badge/PapaParse_%C2%B7_Web_Worker-0B2236?style=for-the-badge" alt="PapaParse · Web Worker"> <img src="https://img.shields.io/badge/date--fns_4-0B2236?style=for-the-badge" alt="date-fns 4"> <img src="https://img.shields.io/badge/Dexie_%C2%B7_IndexedDB-0B2236?style=for-the-badge" alt="Dexie · IndexedDB"> <img src="https://img.shields.io/badge/html2pdf.js-0B2236?style=for-the-badge" alt="html2pdf.js"> |
+| **Сервер и хранилище** | <img src="https://img.shields.io/badge/Node.js_22-0B2236?style=for-the-badge&logo=nodedotjs&logoColor=5FA04E" alt="Node.js 22"> <img src="https://img.shields.io/badge/PostgreSQL_17-0B2236?style=for-the-badge&logo=postgresql&logoColor=4169E1" alt="PostgreSQL 17"> <img src="https://img.shields.io/badge/PGlite-0B2236?style=for-the-badge&logo=postgresql&logoColor=4169E1" alt="PGlite"> <img src="https://img.shields.io/badge/node--postgres-0B2236?style=for-the-badge" alt="node-postgres"> |
+| **Тесты и качество** | <img src="https://img.shields.io/badge/Vitest_3-0B2236?style=for-the-badge&logo=vitest&logoColor=6E9F18" alt="Vitest 3"> <img src="https://img.shields.io/badge/Playwright-0B2236?style=for-the-badge&logo=playwright&logoColor=2EAD33" alt="Playwright"> <img src="https://img.shields.io/badge/ESLint_9-0B2236?style=for-the-badge&logo=eslint&logoColor=8080F2" alt="ESLint 9"> <img src="https://img.shields.io/badge/typescript--eslint-0B2236?style=for-the-badge&logo=typescript&logoColor=3178C6" alt="typescript-eslint"> |
+| **Инфраструктура** | <img src="https://img.shields.io/badge/Docker_Compose-0B2236?style=for-the-badge&logo=docker&logoColor=2496ED" alt="Docker Compose"> <img src="https://img.shields.io/badge/nginx_%C2%B7_CSP-0B2236?style=for-the-badge&logo=nginx&logoColor=009639" alt="nginx · CSP"> <img src="https://img.shields.io/badge/GitHub_Actions-0B2236?style=for-the-badge&logo=githubactions&logoColor=2088FF" alt="GitHub Actions"> <img src="https://img.shields.io/badge/systemd-0B2236?style=for-the-badge&logo=linux&logoColor=FCC624" alt="systemd"> |
+
+Сервер выполняет TypeScript средствами Node.js 22 без отдельной сборки и делит с приложением базу знаний помощника
+(`src/help`). Движок проверок – чистые функции без React, хранилища и сети. Внешние ИИ-сервисы не используются.
 
 ## Как запустить
+
+> [!WARNING]
+> Это прототип для хакатона. Команды управления уходят только в локальный имитатор – реальное оборудование не
+> управляется. Данные кейса 4 в репозиторий не входят: без них приложение запускается на синтетическом портфеле.
+> Пороги проверок – параметры демонстрации из ТЗ и паспорта OE-04.
 
 Требуется Node.js ≥ 20.19 (проверено на 22).
 
@@ -151,7 +192,7 @@ docker compose up --build   # http://127.0.0.1:8080
 | `/help` | Обучение: уроки и туры по каждому блоку, вопросы и ответы, помощник по сайту ([docs/help.md](docs/help.md)) |
 | `/settings` | Действующие правила проверок и интерфейс |
 | `/me`, `/admin` | Личный кабинет сотрудника; админ-панель: сотрудники, роли, отключение, метрики. Окно входа – при работе с сервером; первый вход создаёт администратора |
-| `/errors`, `/errors/:code` | Коды состояния HTTP и «Нет подключения» ([docs/status-pages.md](docs/status-pages.md)) |
+| `/errors`, `/errors/:code` | Справочник 63 кодов HTTP и «Нет подключения»; статические `/status/<код>.html` и `/offline.html` ([docs/status-pages.md](docs/status-pages.md)) |
 
 Тема по умолчанию светлая, переключатель – внизу боковой панели. Роль – в меню профиля.
 
@@ -185,3 +226,22 @@ docker compose up --build   # http://127.0.0.1:8080
 - Вкладка с устаревшим состоянием не затирает свежее: запись несёт ревизию, сервер отклоняет чужую (409).
 - Текст во входных данных – только данные: он не влияет на статусы и не исполняется (сценарий 10).
 - Локальные копии данных кейса удаляются в течение 7 дней после хакатона (ТЗ 4.3 п. 8).
+
+## Безопасность: следующий этап
+
+Прототип закрывает требования ТЗ к безопасности (раздел выше). Для промышленной эксплуатации запланирован
+отдельный этап – **ещё не реализовано**:
+
+| Направление | Что предусмотреть |
+| --- | --- |
+| Внешний периметр | WAF, межсетевой экран, Anti-DDoS, CDN, защита от ботов |
+| Сетевая безопасность | DMZ, сегментация сети, IDS/IPS, архитектура Zero Trust |
+| Приложение | Аудит безопасности frontend (React 19), backend (Node.js 22) и кода TypeScript; полная защита API |
+| Доступ | Защита входа, учётных записей, сеансов и админ-панели; MFA, RBAC, ABAC, PAM |
+| Данные | Защита баз данных и конфиденциальной информации, шифрование, управление криптографическими ключами, DLP и защита от утечек |
+| Инфраструктура | Защита серверов, резервное копирование и Disaster Recovery, защита от ransomware |
+| Внутренние угрозы | Контроль действий привилегированных пользователей, защита от внутреннего нарушителя |
+| Мониторинг | SOC 24/7, SIEM, SOAR, EDR/XDR, постоянное обнаружение подозрительной активности |
+| Разработка | DevSecOps, автоматизированное тестирование безопасности, защита npm-зависимостей и цепочки поставки ПО |
+| Проверка и реагирование | Тесты на проникновение, Red Team, независимый аудит, план реагирования на кибератаки |
+| Соответствие | Международные стандарты безопасности; документация, архитектурные схемы и технические требования |
