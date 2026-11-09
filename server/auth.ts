@@ -98,6 +98,15 @@ function checkLoginRate(req: IncomingMessage, login: string): number | null {
   return null;
 }
 
+function recordLoginFailure(req: IncomingMessage, login: string): void {
+  const now = Date.now();
+  pruneLoginAttempts(now);
+  const key = loginKey(req, login);
+  const current = loginAttempts.get(key);
+  if (!current || current.resetAt <= now) loginAttempts.set(key, { count: 1, resetAt: now + LOGIN_WINDOW_MS });
+  else current.count += 1;
+}
+
 }
 
 const usersExist = async (db: Db) => (await db.query<{ n: number }>('select count(*)::int as n from users'))[0]!.n > 0;
