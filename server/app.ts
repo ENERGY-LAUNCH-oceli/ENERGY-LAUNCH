@@ -131,7 +131,7 @@ function sameOrigin(req: IncomingMessage, origin: string): boolean {
 }
 
 /** Запись событий журнала: повторная отправка того же события игнорируется (идемпотентность по id). */
-async function appendAudit(q: Db['query'], events: readonly AuditEventRow[]): Promise<number> {
+async function appendAudit(q: Db['query'], events: readonly AuditEventRow[], actor?: string): Promise<number> {
   let inserted = 0;
   for (const e of events) {
     const rows = await q<{ id: string }>(
