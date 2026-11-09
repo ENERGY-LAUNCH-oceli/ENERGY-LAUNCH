@@ -265,7 +265,7 @@ export function createHandler(db: Db, opts: AppOptions = {}) {
 
     if (path === '/api/audit' && method === 'POST') {
       const body = parse(z.object({ events: z.array(auditEvent).max(50_000) }), await readJson(req, limit));
-      const inserted = await db.transaction((tx) => appendAudit(tx.query, body.events));
+      const inserted = await db.transaction((tx) => appendAudit(tx.query, body.events, user?.name));
       return send(res, 200, { inserted });
     }
 
