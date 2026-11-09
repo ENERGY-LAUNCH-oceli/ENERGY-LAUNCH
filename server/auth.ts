@@ -107,6 +107,8 @@ function recordLoginFailure(req: IncomingMessage, login: string): void {
   else current.count += 1;
 }
 
+function clearLoginFailures(req: IncomingMessage, login: string): void {
+  loginAttempts.delete(loginKey(req, login));
 }
 
 const usersExist = async (db: Db) => (await db.query<{ n: number }>('select count(*)::int as n from users'))[0]!.n > 0;
