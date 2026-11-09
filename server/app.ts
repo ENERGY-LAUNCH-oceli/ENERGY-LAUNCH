@@ -175,6 +175,8 @@ export function createHandler(db: Db, opts: AppOptions = {}) {
     const method = req.method ?? 'GET';
     // Запросы со сторонних сайтов отклоняются (браузер помечает их Sec-Fetch-Site)
     if (req.headers['sec-fetch-site'] === 'cross-site') throw new HttpError(403, 'запрос с другого сайта отклонён');
+    const origin = req.headers.origin;
+    if (origin && !sameOrigin(req, origin)) throw new HttpError(403, 'запрос с другого источника отклонён');
 
     if (path === '/api/health' && method === 'GET') {
       await db.query('select 1');
