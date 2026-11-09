@@ -58,6 +58,11 @@ describe('API хранилища', () => {
     expect(r.status).toBe(200);
     expect(await r.json()).toEqual({ ok: true, storage: 'pglite', version: 'test' });
     expect(r.headers.get('cache-control')).toBe('no-store');
+    expect(r.headers.get('x-content-type-options')).toBe('nosniff');
+    expect(r.headers.get('x-frame-options')).toBe('DENY');
+    expect(r.headers.get('permissions-policy')).toContain('camera=()');
+  });
+
   });
 
   it('миграции идемпотентны', async () => {
