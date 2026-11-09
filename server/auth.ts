@@ -179,6 +179,7 @@ export async function authRoutes(db: Db, req: IncomingMessage, res: ServerRespon
       throw new AuthError(401, 'неверный логин или пароль');
     }
     if (u.disabled) throw new AuthError(403, 'учётная запись отключена администратором');
+    clearLoginFailures(req, b.login);
     await startSession(db, req, res, u.id);
     return send(res, 200, { user: await userById(db, u.id) }), true;
   }
