@@ -81,6 +81,10 @@ function pruneLoginAttempts(now: number): void {
   }
 }
 
+function loginKey(req: IncomingMessage, login: string): string {
+  return `${clientAddress(req)}:${login}`;
+}
+
 }
 
 const usersExist = async (db: Db) => (await db.query<{ n: number }>('select count(*)::int as n from users'))[0]!.n > 0;
