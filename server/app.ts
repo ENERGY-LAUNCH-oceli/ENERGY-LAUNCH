@@ -138,7 +138,7 @@ async function appendAudit(q: Db['query'], events: readonly AuditEventRow[], act
     const rows = await q<{ id: string }>(
       `insert into audit_events (id, session_id, object_id, stage_id, action, actor, ts, ruleset_version, event)
        values ($1, $2, $3, $4, $5, $6, $7, $8, $9::json) on conflict (id) do nothing returning id`,
-      [e.id, e.sessionId ?? null, e.objectId ?? null, e.stageId ?? null, e.action, e.actor, e.timestamp, e.rulesetVersion ?? null, JSON.stringify(e)],
+      [recorded.id, recorded.sessionId ?? null, recorded.objectId ?? null, recorded.stageId ?? null, recorded.action, recorded.actor, recorded.timestamp, recorded.rulesetVersion ?? null, JSON.stringify(recorded)],
     );
     inserted += rows.length;
   }
