@@ -257,7 +257,7 @@ export function createHandler(db: Db, opts: AppOptions = {}) {
         );
         // Параллельная запись успела раньше (строка появилась между проверкой и вставкой)
         if (!rows[0]) throw conflict(-1);
-        const inserted = await appendAudit(tx.query, body.auditLog);
+        const inserted = await appendAudit(tx.query, body.auditLog, user?.name);
         return { revision: Number(rows[0]!.revision), updatedAt: iso(rows[0]!.updated_at), auditInserted: inserted };
       });
       return send(res, 200, result);
