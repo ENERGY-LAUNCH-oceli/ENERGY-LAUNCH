@@ -166,6 +166,11 @@ export async function authRoutes(db: Db, req: IncomingMessage, res: ServerRespon
 
   if (path === '/api/auth/login' && method === 'POST') {
     const b = parse(z.object({ login: z.string().trim().toLowerCase().max(40), password: z.string().max(200) }), await body());
+    const retryAfter = checkLoginRate(req, b.login);
+    if (retryAfter !== null) {
+      res.setHeader('Retry-After', String(retryAfter));
+      throw new AuthError(429, 'слишком много попыток входа');
+    }
     const [u] = await db.query<{ id: number; password_hash: string; disabled: boolean }>('select id::int as id, password_hash, disabled from users where login = $1', [b.login]);
     // Одинаковый ответ для неизвестного логина и неверного пароля
     const ok = u ? await verifyPassword(b.password, u.password_hash) : await verifyPassword(b.password, 'scrypt$00$00').then(() => false);
