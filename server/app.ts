@@ -120,6 +120,16 @@ function send(res: ServerResponse, status: number, body?: unknown): void {
   res.end(text);
 }
 
+function sameOrigin(req: IncomingMessage, origin: string): boolean {
+  try {
+    const forwardedProto = req.headers['x-forwarded-proto'];
+    const protocol = typeof forwardedProto === 'string' && forwardedProto.split(',')[0] ? forwardedProto.split(',')[0]!.trim() : 'http';
+    return new URL(origin).origin === `${protocol}://${req.headers.host ?? ''}`;
+  } catch {
+    return false;
+  }
+}
+
 /** Запись событий журнала: повторная отправка того же события игнорируется (идемпотентность по id). */
 async function appendAudit(q: Db['query'], events: readonly AuditEventRow[]): Promise<number> {
   let inserted = 0;
