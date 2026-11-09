@@ -64,7 +64,10 @@ function cookieToken(req: IncomingMessage): string | null {
 }
 
 function setCookie(req: IncomingMessage, res: ServerResponse, token: string | null) {
-  const secure = process.env.NODE_ENV === 'production' || req.headers['x-forwarded-proto'] === 'https' ? '; Secure' : '';
+  // В production – Secure, кроме случая, когда прокси прямо сообщает о http (Docker на http://адрес:8080):
+  // браузер отбросил бы такую cookie на не-loopback адресе, и вход зациклился бы
+  const proto = req.headers['x-forwarded-proto'];
+  const secure = proto === 'https' || (process.env.NODE_ENV === 'production' && proto !== 'http') ? '; Secure' : '';
   res.setHeader('Set-Cookie', token ? `${COOKIE}=${token}; HttpOnly; SameSite=Strict; Path=/; Max-Age=${SESSION_DAYS * 86400}${secure}` : `${COOKIE}=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0${secure}`);
 }
 
