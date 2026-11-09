@@ -50,7 +50,7 @@ export function RuleValues({ values }: { values: Record<string, unknown> }) {
           </div>
         ) : (
           <div key={k} className="flex min-w-0 flex-col justify-between gap-1 py-2 sm:flex-row sm:gap-4">
-            <dt className="min-w-0 text-caption text-text-secondary">
+            <dt className="min-w-0 text-caption text-text-secondary [overflow-wrap:anywhere]">
               {formatRuleLabel(k)}
               {RULE_HINTS[k] && <span className="mt-0.5 block text-text-muted">{RULE_HINTS[k]}</span>}
             </dt>

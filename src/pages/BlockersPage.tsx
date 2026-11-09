@@ -144,9 +144,9 @@ export function BlockersPage() {
                     <span className="font-medium">{r.blocker.title}</span>
                     <span className="line-clamp-2 block text-caption text-text-secondary">{r.description}</span>
                   </td>
-                  <td className={cn(TD, 'font-mono text-[11px]')}>{r.source}</td>
-                  <td className={cn(TD, 'max-w-[160px] font-mono text-[11px]')}>{r.fields.join(', ') || '–'}</td>
-                  <td className={cn(TD, 'max-w-[200px] font-mono text-[11px]')}>
+                  <td className={cn(TD, 'max-w-[180px] font-mono text-[11px] [overflow-wrap:anywhere]')}>{r.source}</td>
+                  <td className={cn(TD, 'max-w-[160px] font-mono text-[11px] [overflow-wrap:anywhere]')}>{r.fields.join(', ') || '–'}</td>
+                  <td className={cn(TD, 'max-w-[200px] font-mono text-[11px] [overflow-wrap:anywhere]')}>
                     <span className="line-clamp-3">{[r.signals.slice(0, 4).join(', ') + (r.signals.length > 4 ? '…' : ''), r.interval].filter(Boolean).join(' · ') || '–'}</span>
                   </td>
                   <td className={cn(TD, 'whitespace-nowrap font-mono text-caption')}>{utc(r.detectedAt)}</td>

@@ -10,7 +10,7 @@ export const STAGE_SHORT: Record<StageId, string> = { METER_HISTORY: '1 · Ис�
 export const utc = (iso: string | null | undefined) => (iso ? `${iso.slice(0, 10).split('-').reverse().join('.')} ${iso.slice(11, 16)}` : '–');
 
 export const TH = 'whitespace-nowrap px-3 py-2.5 text-left font-mono text-[11px] font-normal uppercase tracking-[0.06em] text-text-muted first:pl-5 last:pr-5';
-export const TD = 'px-3 py-3 align-top first:pl-5 last:pr-5';
+export const TD = 'px-3 py-3 align-top first:pl-5 last:pr-5 [overflow-wrap:anywhere]';
 
 /** Фильтр-селект с подписью. */
 export function Filter({ label, value, onChange, options, className }: { label: string; value: string; onChange: (v: string) => void; options: { value: string; label: string }[]; className?: string }) {
