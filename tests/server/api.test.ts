@@ -63,6 +63,11 @@ describe('API хранилища', () => {
     expect(r.headers.get('permissions-policy')).toContain('camera=()');
   });
 
+  it('обязательная аутентификация запрещает anonymous доступ к data API', async () => {
+    const r = await fetch(strictBase + '/api/state');
+    expect(r.status).toBe(401);
+  });
+
   });
 
   it('миграции идемпотентны', async () => {
