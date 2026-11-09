@@ -10,5 +10,5 @@ export async function startDevApi(env: Record<string, string | undefined>) {
   const db = await openDb({ databaseUrl: env.DATABASE_URL || undefined, pgliteDir: env.PGLITE_DIR || undefined });
   const schema = await migrate(db);
   const authRequired = env.AUTH_REQUIRED === '1' || env.NODE_ENV === 'production';
-  return { db, schema, handler: createHandler(db, { version: 'dev', authRequired: process.env.AUTH_REQUIRED === '1' }) };
+  return { db, schema, handler: createHandler(db, { version: 'dev', authRequired }) };
 }
