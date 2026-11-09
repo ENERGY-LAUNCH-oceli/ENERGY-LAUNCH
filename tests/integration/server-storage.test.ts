@@ -21,7 +21,7 @@ const freePort = () =>
 beforeAll(async () => {
   const port = await freePort();
   base = `http://127.0.0.1:${port}/api`;
-  proc = spawn(process.execPath, ['server/index.ts'], { env: { ...process.env, DATABASE_URL: '', PGLITE_DIR: 'memory://', API_PORT: String(port), API_HOST: '127.0.0.1' }, stdio: 'pipe' });
+  proc = spawn(process.execPath, ['server/index.ts'], { env: { ...process.env, AUTH_REQUIRED: '0', DATABASE_URL: '', PGLITE_DIR: 'memory://', API_PORT: String(port), API_HOST: '127.0.0.1' }, stdio: 'pipe' });
   let log = '';
   proc.stderr?.on('data', (d) => (log += d));
   proc.stdout?.on('data', (d) => (log += d));
