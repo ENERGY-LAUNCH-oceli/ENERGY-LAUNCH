@@ -151,7 +151,7 @@ export default defineConfig(({ mode }) => ({
   server: { host: '127.0.0.1', port: 5173, strictPort: false, proxy: { '/api': apiProxy } },
   preview: { host: '127.0.0.1', proxy: { '/api': apiProxy } },
   build: {
-    sourcemap: true,
+    sourcemap: mode !== 'production',
     target: 'es2022',
     // Основной пакет — движок проверок и хранилище, нужны при старте; страницы — отдельными чанками
     chunkSizeWarningLimit: 700,
