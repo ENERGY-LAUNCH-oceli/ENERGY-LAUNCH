@@ -185,7 +185,7 @@ export function createHandler(db: Db, opts: AppOptions = {}) {
 
     // Вход, личный кабинет, админ-панель; остальной API – только для вошедших (если сотрудники заведены)
     if (await authRoutes(db, req, res, path, method, () => readJson(req, limit), send, opts.authRequired)) return;
-    if (opts.authRequired) await guard(db, req, path);
+    const user = opts.authRequired ? await guard(db, req, path) : null;
 
     if (path === '/api/state' && method === 'GET') {
       const objects = await db.query<{ data: unknown }>('select data from user_objects order by created_at, id');
