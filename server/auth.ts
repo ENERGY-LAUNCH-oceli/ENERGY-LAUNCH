@@ -70,6 +70,17 @@ function setCookie(req: IncomingMessage, res: ServerResponse, token: string | nu
 
 const clientAddress = (req: IncomingMessage) => req.socket.remoteAddress ?? 'unknown';
 
+function pruneLoginAttempts(now: number): void {
+  for (const [key, attempt] of loginAttempts) {
+    if (attempt.resetAt <= now) loginAttempts.delete(key);
+  }
+  while (loginAttempts.size >= LOGIN_ATTEMPTS_MAX_KEYS) {
+    const oldest = loginAttempts.keys().next().value as string | undefined;
+    if (!oldest) break;
+    loginAttempts.delete(oldest);
+  }
+}
+
 }
 
 const usersExist = async (db: Db) => (await db.query<{ n: number }>('select count(*)::int as n from users'))[0]!.n > 0;
