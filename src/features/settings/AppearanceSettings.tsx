@@ -1,6 +1,7 @@
 import { Check } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { accentThemes, themes, type AccentId, type ThemeId } from '@/design/tokens';
+import { LANGS, useLang } from '@/i18n';
 import { useUi } from '@/store';
 
 const THEME_OPTIONS: { id: ThemeId; label: string; hint: string }[] = [
@@ -137,7 +138,37 @@ export function AppearanceSettings() {
             <span className="font-medium text-text-primary">{ACCENT_OPTIONS.find((a) => a.id === accent)?.label.toLowerCase()} акцент</span>. Сохраняется в этом браузере.
           </p>
         </div>
+        <LanguageSettings />
       </CardContent>
     </Card>
+  );
+}
+
+/** Язык интерфейса: названия – на самом языке (не переводятся), выбор запоминается в браузере. */
+function LanguageSettings() {
+  const lang = useLang((s) => s.lang);
+  const setLang = useLang((s) => s.setLang);
+  return (
+    <div className="flex min-w-0 flex-col gap-3 border-t border-border pt-6 xl:col-span-2 xl:mt-6">
+      <GroupLabel title="Язык интерфейса" description="Основной – русский. Переключение мгновенное, данные и ход запуска не меняются; выбор сохраняется в этом браузере." />
+      <div role="radiogroup" aria-label="Язык интерфейса" className="grid gap-2 sm:grid-cols-2 xl:max-w-[560px]" data-testid="settings-lang">
+        {LANGS.map((o) => {
+          const on = lang === o.id;
+          return (
+            <button type="button" role="radio" aria-checked={on} key={o.id} onClick={() => void setLang(o.id)} aria-label={o.native} className={`flex items-center gap-3 rounded-lg border p-3 text-left ${optionClass(on)}`}>
+              <RadioDot on={on} />
+              <span className="flex min-w-0 flex-1 flex-col">
+                {/* Название языка – на нём самом и не переводится */}
+                <span className="text-body-sm font-medium" data-i18n-skip>
+                  {o.native}
+                </span>
+                <span className="text-caption text-text-muted">{o.id === 'ru' ? 'Основной язык' : 'Второй язык'}</span>
+              </span>
+              <span aria-hidden className="font-mono text-[11px] font-semibold uppercase tracking-[0.06em] text-text-muted">{o.id}</span>
+            </button>
+          );
+        })}
+      </div>
+    </div>
   );
 }

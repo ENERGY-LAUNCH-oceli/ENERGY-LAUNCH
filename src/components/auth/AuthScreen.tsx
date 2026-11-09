@@ -6,6 +6,7 @@ import { Field, Input } from '@/components/ui/input';
 import { useAuth } from '@/store/auth-store';
 import { cn } from '@/utils/cn';
 import { AuthShowcase } from './AuthShowcase';
+import { LanguageToggle } from '@/components/layout/LanguageToggle';
 
 /** Поле пароля с кнопкой «Показать / скрыть». */
 function PasswordInput({ id, value, onChange, autoComplete }: { id: string; value: string; onChange: (v: string) => void; autoComplete: string }) {
@@ -73,8 +74,11 @@ export function AuthScreen() {
 
       {/* Форма – в стиле интерфейса: плоская панель, тонкая рамка, обычные размеры */}
       <section className="flex min-h-[calc(100dvh-1.5rem)] flex-col rounded-2xl border border-border bg-surface px-6 py-6 sm:px-10">
-        <div className="lg:hidden">
-          <Logo />
+        <div className="flex items-center justify-between">
+          <div className="lg:hidden">
+            <Logo />
+          </div>
+          <LanguageToggle className="ml-auto" />
         </div>
 
         <div className="flex flex-1 items-center justify-center py-8">

@@ -30,7 +30,7 @@ export function SettingsPage() {
         </Alert>
       )}
       <section data-tour="settings-appearance">
-        <SectionHeader eyebrow="Оформление" title="Внешний вид" description="Тема и акцентный цвет интерфейса." />
+        <SectionHeader eyebrow="Оформление" title="Внешний вид" description="Тема, акцентный цвет и язык интерфейса." />
         <AppearanceSettings />
       </section>
       <section>

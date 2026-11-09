@@ -1,4 +1,6 @@
-import { ChevronsLeft, Moon, Sun } from 'lucide-react';
+import { ChevronsLeft, Languages, Moon, Sun } from 'lucide-react';
+import { useLang } from '@/i18n';
+import { nextLangLabel } from './LanguageToggle';
 import { NavLink, useLocation } from 'react-router-dom';
 import { Tooltip } from '@/components/ui/tooltip';
 import { PRIMARY_NAV, sectionOwner, type NavItem } from '@/config/navigation';
@@ -66,6 +68,9 @@ export function Sidebar() {
   const toggleTheme = useUi((s) => s.toggleTheme);
   const themeLabel = theme === 'dark' ? 'Светлая тема' : 'Тёмная тема';
   const ThemeIcon = theme === 'dark' ? Sun : Moon;
+  const lang = useLang((s) => s.lang);
+  const setLang = useLang((s) => s.setLang);
+  const langLabel = nextLangLabel(lang);
   return (
     <aside
       data-collapsed={collapsed}
@@ -85,6 +90,15 @@ export function Sidebar() {
       </div>
       <div className="flex flex-col gap-px px-3 pb-2.5 pt-1">
         <StorageIndicator collapsed={collapsed} />
+        <Tooltip side="right" disabled={!collapsed} content={<span data-i18n-skip>{langLabel}</span>}>
+          <button type="button" onClick={() => void setLang(lang === 'en' ? 'ru' : 'en')} aria-label={langLabel} data-i18n-skip data-testid="sidebar-lang" className={cn(SB_ROW, SB_ROW_SM)}>
+            <Languages className="size-[17px] shrink-0" strokeWidth={1.75} aria-hidden />
+            <span className={cn('flex flex-1 items-center', SB_LABEL)}>
+              {langLabel}
+              <span className="ml-auto font-mono text-[10px] uppercase text-text-muted">{lang === 'en' ? 'ru' : 'en'}</span>
+            </span>
+          </button>
+        </Tooltip>
         <Tooltip side="right" disabled={!collapsed} content={themeLabel}>
           <button type="button" onClick={toggleTheme} aria-label={themeLabel} className={cn(SB_ROW, SB_ROW_SM)}>
             <ThemeIcon className="size-[17px] shrink-0" strokeWidth={1.75} aria-hidden />

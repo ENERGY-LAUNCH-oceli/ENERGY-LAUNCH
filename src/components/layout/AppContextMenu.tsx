@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { ArrowLeft, ArrowRight, CircleHelp, UploadCloud, ClipboardList, Copy, Download, ExternalLink, FileText, GraduationCap, Link2, Maximize, Minimize, Moon, PanelLeft, Printer, RotateCw, Rocket, Settings, Sun } from 'lucide-react';
+import { ArrowLeft, ArrowRight, CircleHelp, Languages, UploadCloud, ClipboardList, Copy, Download, ExternalLink, FileText, GraduationCap, Link2, Maximize, Minimize, Moon, PanelLeft, Printer, RotateCw, Rocket, Settings, Sun } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { ROUTES } from '@/app/routes';
 import { findObject } from '@/data/objects';
@@ -10,6 +10,7 @@ import { tourForPath } from '@/features/tour/tours';
 import { notify, useUi } from '@/store';
 import { cn } from '@/utils/cn';
 import { downloadFile } from '@/utils/download';
+import { useLang } from '@/i18n';
 
 interface MenuItem {
   id: string;
@@ -70,6 +71,7 @@ export function AppContextMenu() {
   const { pathname } = useLocation();
   const theme = useUi((s) => s.theme);
   const toggleTheme = useUi((s) => s.toggleTheme);
+  const lang = useLang((s) => s.lang);
   const collapsed = useUi((s) => s.sidebarCollapsed);
   const toggleSidebar = useUi((s) => s.toggleSidebar);
 
@@ -181,6 +183,7 @@ export function AppContextMenu() {
   groups.push([
     { id: 'sidebar', label: collapsed ? 'Развернуть навигацию' : 'Свернуть навигацию', icon: PanelLeft, shortcut: 'Ctrl+B', run: toggleSidebar },
     { id: 'theme', label: theme === 'dark' ? 'Светлая тема' : 'Тёмная тема', icon: theme === 'dark' ? Sun : Moon, run: toggleTheme },
+    { id: 'lang', label: lang === 'en' ? 'Русский язык' : 'English', icon: Languages, run: () => void useLang.getState().setLang(lang === 'en' ? 'ru' : 'en') },
     { id: 'settings', label: 'Настройки', icon: Settings, run: () => go(ROUTES.settings) },
   ]);
 

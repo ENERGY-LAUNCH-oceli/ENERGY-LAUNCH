@@ -22,6 +22,7 @@ import { Logo } from './Logo';
 import { ObjectSwitcher } from './ObjectSwitcher';
 import { SidebarNav } from './Sidebar';
 import { SidebarHelp } from './SidebarHelp';
+import { LanguageToggle } from './LanguageToggle';
 import { ThemeToggle } from './ThemeToggle';
 
 function LaunchStatus() {
@@ -280,6 +281,7 @@ export function Header() {
             <LaunchStatus />
           </div>
           <span aria-hidden className="mx-1 hidden h-6 w-px bg-border sm:block" />
+          <LanguageToggle className="lg:hidden" />
           <ThemeToggle className="lg:hidden" />
           <Notifications />
           <Profile />
