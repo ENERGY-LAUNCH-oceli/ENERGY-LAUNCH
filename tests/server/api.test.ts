@@ -68,6 +68,11 @@ describe('API хранилища', () => {
     expect(r.status).toBe(401);
   });
 
+  it('отклоняет запросы с чужим Origin', async () => {
+    const r = await fetch(base + '/api/health', { headers: { Origin: 'https://attacker.example' } });
+    expect(r.status).toBe(403);
+  });
+
   });
 
   it('миграции идемпотентны', async () => {
