@@ -173,8 +173,11 @@ export async function authRoutes(db: Db, req: IncomingMessage, res: ServerRespon
     }
     const [u] = await db.query<{ id: number; password_hash: string; disabled: boolean }>('select id::int as id, password_hash, disabled from users where login = $1', [b.login]);
     // Одинаковый ответ для неизвестного логина и неверного пароля
-    const ok = u ? await verifyPassword(b.password, u.password_hash) : await verifyPassword(b.password, 'scrypt$00$00').then(() => false);
-    if (!u || !ok) throw new AuthError(401, 'неверный логин или пароль');
+    const ok = u ? await verifyPassword(b.password, u.password_hash) : await verifyPassword(b.password, `scrypt${'$'}00000000000000000000000000000000${'$'}${'00'.repeat(32)}`).then(() => false);
+    if (!u || !ok) {
+      recordLoginFailure(req, b.login);
+      throw new AuthError(401, 'неверный логин или пароль');
+    }
     if (u.disabled) throw new AuthError(403, 'учётная запись отключена администратором');
     await startSession(db, req, res, u.id);
     return send(res, 200, { user: await userById(db, u.id) }), true;
