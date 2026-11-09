@@ -68,6 +68,10 @@ function setCookie(req: IncomingMessage, res: ServerResponse, token: string | nu
   res.setHeader('Set-Cookie', token ? `${COOKIE}=${token}; HttpOnly; SameSite=Strict; Path=/; Max-Age=${SESSION_DAYS * 86400}${secure}` : `${COOKIE}=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0${secure}`);
 }
 
+const clientAddress = (req: IncomingMessage) => req.socket.remoteAddress ?? 'unknown';
+
+}
+
 const usersExist = async (db: Db) => (await db.query<{ n: number }>('select count(*)::int as n from users'))[0]!.n > 0;
 
 export async function currentUser(db: Db, req: IncomingMessage): Promise<AuthUser | null> {
