@@ -73,6 +73,16 @@ describe('API хранилища', () => {
     expect(r.status).toBe(403);
   });
 
+  it('ограничивает последовательные неудачные попытки входа', async () => {
+    const setup = await fetch(strictBase + '/api/auth/setup', json('POST', { login: 'ratelimit-user', name: 'Rate Limit User', password: 'correct-password-123' }));
+    expect(setup.status).toBe(200);
+    for (let i = 0; i < 5; i++) {
+      const failed = await fetch(strictBase + '/api/auth/login', json('POST', { login: 'ratelimit-user', password: 'wrong-password' }));
+      expect(failed.status).toBe(401);
+    }
+    const blocked = await fetch(strictBase + '/api/auth/login', json('POST', { login: 'ratelimit-user', password: 'wrong-password' }));
+    expect(blocked.status).toBe(429);
+    expect(blocked.headers.get('retry-after')).toBeTruthy();
   });
 
   it('миграции идемпотентны', async () => {
