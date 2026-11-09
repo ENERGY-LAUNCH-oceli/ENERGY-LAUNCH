@@ -152,6 +152,8 @@ export default defineConfig(({ mode }) => ({
   preview: { host: '127.0.0.1', proxy: { '/api': apiProxy } },
   build: {
     sourcemap: mode !== 'production',
+    // Шрифты – только файлами: CSP разрешает font-src 'self' без data:, а мелкие woff2 Vite иначе встроил бы в CSS
+    assetsInlineLimit: (file: string) => (/\.(woff2?|ttf|otf)$/.test(file) ? false : undefined),
     target: 'es2022',
     // Основной пакет — движок проверок и хранилище, нужны при старте; страницы — отдельными чанками
     chunkSizeWarningLimit: 700,
