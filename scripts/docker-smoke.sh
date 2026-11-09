@@ -37,6 +37,12 @@ for path in / /api/health /status/404.html; do
   expect_header "$path" X-Content-Type-Options nosniff
 done
 expect_header / Cache-Control no-cache
+
+# Запись из браузера через nginx: Origin своего сайта принимается (401 – неверный пароль), чужой – 403.
+# Ловит прокси, который передаёт Host без порта: тогда API отклонил бы вход и сохранение как запрос с другого источника
+login() { curl -s -o /dev/null -w '%{http_code}' -X POST -H 'content-type: application/json' -H "Origin: $1" --data '{"login":"smoke","password":"x"}' "$BASE/api/auth/login"; }
+c=$(login "$BASE"); [ "$c" = 401 ] && ok "вход с Origin сайта → $c" || bad "вход с Origin сайта → $c (ожидалось 401)"
+c=$(login "https://attacker.example"); [ "$c" = 403 ] && ok "вход с чужим Origin → $c" || bad "вход с чужим Origin → $c (ожидалось 403)"
 expect_header /api/health Cache-Control no-store
 
 if command -v docker >/dev/null 2>&1; then
