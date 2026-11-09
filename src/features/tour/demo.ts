@@ -1,3 +1,4 @@
+import { localizeSelector } from '@/i18n';
 /**
  * Действия, которые тур выполняет «за пользователя»: найти элемент, нажать, напечатать текст.
  * Всё прерывается сигналом шага: перешли на другой шаг или закрыли тур – печать и ожидание останавливаются.
@@ -16,7 +17,7 @@ const visible = (el: Element) => el.getClientRects().length > 0 && getComputedSt
 
 /** Первый видимый элемент по селектору (кнопки для телефона и компьютера могут дублироваться). */
 export function findVisible(selector: string): HTMLElement | null {
-  for (const el of document.querySelectorAll<HTMLElement>(selector)) if (!el.closest('[data-tour-ui]') && visible(el)) return el;
+  for (const el of document.querySelectorAll<HTMLElement>(localizeSelector(selector))) if (!el.closest('[data-tour-ui]') && visible(el)) return el;
   return null;
 }
 
@@ -118,5 +119,5 @@ export function press(el: Element | null) {
 
 /** Закрыть открытые окна приложения (не карточку тура). */
 export function closeDialogs() {
-  for (const btn of document.querySelectorAll<HTMLButtonElement>('[role="dialog"][data-state="open"]:not([data-tour-ui]) button[aria-label="Закрыть"]')) btn.click();
+  for (const btn of document.querySelectorAll<HTMLButtonElement>(localizeSelector('[role="dialog"][data-state="open"]:not([data-tour-ui]) button[aria-label="Закрыть"]'))) btn.click();
 }

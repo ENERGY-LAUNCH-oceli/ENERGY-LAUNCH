@@ -329,6 +329,31 @@
   }
 }
 
+/* Язык: пока грузится словарь, страница скрыта (theme-init.js); смена языка – мягкий кроссфейд с лёгким сдвигом */
+/* Только #root: статические страницы ошибок подключают тот же theme-init.js, но приложения на них нет */
+html.i18n-loading #root {
+  visibility: hidden;
+}
+/* Смена языка: старый вид остаётся непрозрачным снизу, новый мягко проявляется поверх – без провала фона,
+   без размытия и сдвига (фильтры и transform на снимке всей страницы дают рывки) */
+html.lang-switching::view-transition-old(root),
+html.lang-switching::view-transition-new(root) {
+  animation: none;
+  mix-blend-mode: normal;
+}
+html.lang-switching::view-transition-old(root) {
+  z-index: 1;
+}
+html.lang-switching::view-transition-new(root) {
+  z-index: 2;
+  animation: lang-in 300ms cubic-bezier(0.33, 1, 0.68, 1) both;
+}
+@keyframes lang-in {
+  from {
+    opacity: 0;
+  }
+}
+
 /* Смена темы: новая тема раскрывается кругом поверх старой (анимация задаётся из JS) */
 html.theme-reveal::view-transition-old(root),
 html.theme-reveal::view-transition-new(root) {
