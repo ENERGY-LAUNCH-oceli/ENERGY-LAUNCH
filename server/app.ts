@@ -134,6 +134,7 @@ function sameOrigin(req: IncomingMessage, origin: string): boolean {
 async function appendAudit(q: Db['query'], events: readonly AuditEventRow[], actor?: string): Promise<number> {
   let inserted = 0;
   for (const e of events) {
+    const recorded = actor ? { ...e, actor } : e;
     const rows = await q<{ id: string }>(
       `insert into audit_events (id, session_id, object_id, stage_id, action, actor, ts, ruleset_version, event)
        values ($1, $2, $3, $4, $5, $6, $7, $8, $9::json) on conflict (id) do nothing returning id`,
